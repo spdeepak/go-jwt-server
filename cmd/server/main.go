@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/db"
+	"github.com/spdeepak/go-jwt-server/users"
+	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
 
 func main() {
@@ -34,8 +36,13 @@ func main() {
 	}
 	db.RunMigrationQueries(dbConnection, "migrations")
 
+	//Users
+	userRepository := user.New(dbConnection.DB)
+	userStorage := users.NewStorage(userRepository)
+	userService := users.NewService(userStorage)
+
 	//oapi-codegen implementation handler
-	server := NewServer()
+	server := NewServer(userService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
