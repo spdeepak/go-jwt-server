@@ -25,7 +25,7 @@ func (s *storage) GetOrCreateDefaultSecret(ctx context.Context, secret string) (
 	defaultSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
 	if err != nil {
 		if err := s.jwtSecretRepository.CreateDefaultSecret(ctx, secret); err != nil {
-			log.Fatal().Msg("Could not create default jwt secret")
+			log.Fatal().Msg("JWT_TOKEN_SECRET not provided. Could not create default jwt secret.")
 		}
 		return secret, nil
 	}

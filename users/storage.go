@@ -1,7 +1,8 @@
 package users
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
 	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
@@ -10,8 +11,8 @@ type storage struct {
 }
 
 type Storage interface {
-	UserSignup(ctx *gin.Context, arg repository.SignupParams) error
-	GetUser(ctx *gin.Context, email string) (repository.User, error)
+	UserSignup(ctx context.Context, arg repository.SignupParams) error
+	GetUser(ctx context.Context, email string) (repository.User, error)
 }
 
 func NewStorage(userRepository *repository.Queries) Storage {
@@ -20,10 +21,10 @@ func NewStorage(userRepository *repository.Queries) Storage {
 	}
 }
 
-func (s *storage) UserSignup(ctx *gin.Context, arg repository.SignupParams) error {
+func (s *storage) UserSignup(ctx context.Context, arg repository.SignupParams) error {
 	return s.userRepository.Signup(ctx, arg)
 }
 
-func (s *storage) GetUser(ctx *gin.Context, email string) (repository.User, error) {
+func (s *storage) GetUser(ctx context.Context, email string) (repository.User, error) {
 	return s.userRepository.UserLogin(ctx, email)
 }

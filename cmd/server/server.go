@@ -33,7 +33,7 @@ func (s *Server) Signup(c *gin.Context) {
 		return
 	}
 	if err := s.userService.Signup(c, signup); err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		c.Error(err)
 		return
 	}
 	c.Status(http.StatusOK)
@@ -47,7 +47,22 @@ func (s *Server) Login(c *gin.Context) {
 	}
 
 	if response, err := s.userService.Login(c, login); err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		c.Error(err)
+		return
+	} else {
+		c.JSON(http.StatusOK, response)
+	}
+}
+
+func (s *Server) Refresh(c *gin.Context) {
+	var refresh api.Refresh
+	if err := c.ShouldBindJSON(&refresh); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if response, err := s.userService.RefreshToken(c, refresh); err != nil {
+		c.Error(err)
 		return
 	} else {
 		c.JSON(http.StatusOK, response)
