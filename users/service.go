@@ -1,18 +1,17 @@
 package users
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
+	"github.com/spdeepak/go-jwt-server/jwt_secret"
 	"github.com/spdeepak/go-jwt-server/users/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type service struct {
-	storage Storage
+	storage          Storage
+	jwtSecretService jwt_secret.Service
 }
 
 type Service interface {
@@ -20,9 +19,10 @@ type Service interface {
 	Login(c *gin.Context, login api.UserLogin) (api.LoginResponse, error)
 }
 
-func NewService(storage Storage) Service {
+func NewService(storage Storage, jwtSecretService jwt_secret.Service) Service {
 	return &service{
-		storage: storage,
+		storage:          storage,
+		jwtSecretService: jwtSecretService,
 	}
 }
 
@@ -47,7 +47,7 @@ func (s *service) Login(c *gin.Context, login api.UserLogin) (api.LoginResponse,
 		return api.LoginResponse{}, err
 	}
 	if validPassword(login.Password, user.Password) {
-		return generateTokenPair(login.Email, []byte("SECRET"))
+		return s.jwtSecretService.GenerateTokenPair(login.Email)
 	}
 	return api.LoginResponse{}, err
 }
@@ -62,31 +62,4 @@ func hashPassword(password string) (string, error) {
 func validPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
-}
-
-func generateTokenPair(email string, jwtSecret []byte) (api.LoginResponse, error) {
-	accessTokenClaims := jwt.MapClaims{
-		"email": email,
-		"exp":   time.Now().Add(15 * time.Minute).Unix(),
-	}
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessTokenClaims)
-	signedAccessToken, err := accessToken.SignedString(jwtSecret)
-	if err != nil {
-		return api.LoginResponse{}, err
-	}
-
-	refreshTokenClaims := jwt.MapClaims{
-		"email": email,
-		"exp":   time.Now().Add(7 * 24 * time.Hour).Unix(),
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
-	signedRefreshToken, err := refreshToken.SignedString(jwtSecret)
-	if err != nil {
-		return api.LoginResponse{}, err
-	}
-
-	return api.LoginResponse{
-		AccessToken:  signedAccessToken,
-		RefreshToken: signedRefreshToken,
-	}, nil
 }

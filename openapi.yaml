@@ -3,13 +3,13 @@ info:
   version: 1.0.0
   title: Go JWT Server
 paths:
-  /api/v1/signup:
+  /api/v1/auth/signup:
     post:
       description: User signup
       summary: Endpoint for user signup
       operationId: signup
       tags:
-        - user
+        - auth
       requestBody:
         description: User signup request body
         required: true
@@ -20,13 +20,13 @@ paths:
       responses:
         '200':
           description: OK
-  /api/v1/signin:
+  /api/v1/auth/login:
     post:
       description: User login
       summary: Endpoint for user login
       operationId: login
       tags:
-        - user
+        - auth
       requestBody:
         description: User login request body
         required: true
@@ -34,6 +34,27 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /api/v1/auth/refresh:
+    post:
+      description: Token refresh
+      summary: Endpoint to get new token using refresh token
+      operationId: refresh
+      tags:
+        - auth
+      requestBody:
+        description: Refresh token request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
       responses:
         '200':
           description: OK
@@ -121,5 +142,12 @@ components:
       properties:
         accessToken:
           type: string
+        refreshToken:
+          type: string
+    Refresh:
+      type: object
+      required:
+        - refreshToken
+      properties:
         refreshToken:
           type: string
