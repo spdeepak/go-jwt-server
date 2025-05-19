@@ -3,6 +3,65 @@ info:
   version: 1.0.0
   title: Go JWT Server
 paths:
+  /api/v1/auth/signup:
+    post:
+      description: User signup
+      summary: Endpoint for user signup
+      operationId: signup
+      tags:
+        - auth
+      requestBody:
+        description: User signup request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSignup'
+      responses:
+        '200':
+          description: OK
+  /api/v1/auth/login:
+    post:
+      description: User login
+      summary: Endpoint for user login
+      operationId: login
+      tags:
+        - auth
+      requestBody:
+        description: User login request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /api/v1/auth/refresh:
+    post:
+      description: Token refresh
+      summary: Endpoint to get new token using refresh token
+      operationId: refresh
+      tags:
+        - auth
+      requestBody:
+        description: Refresh token request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
   /ready:
     get:
       description: Ready check
@@ -45,3 +104,50 @@ components:
       schema:
         type: string
   schemas:
+    UserSignup:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+        - password
+      properties:
+        email:
+          type: string
+          pattern:
+          example: first.last@example.com
+        firstName:
+          type: string
+        lastName:
+          type: string
+        password:
+          type: string
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          pattern:
+          example: first.last@example.com
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+    Refresh:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string

@@ -1,0 +1,34 @@
+version: "2"
+sql:
+  - schema:
+      - "./migrations/*.up.sql"
+    queries: "./sqls/users.sql"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "repository"
+        out: "./users/repository"
+        emit_interface: true
+        emit_json_tags: true
+        sql_package: "database/sql"
+        overrides:
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"
+  - schema:
+      - "./migrations/*.up.sql"
+    queries: "./sqls/secrets.sql"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "repository"
+        out: "./jwt_secret/repository"
+        emit_interface: true
+        emit_json_tags: true
+        sql_package: "database/sql"
+        overrides:
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"

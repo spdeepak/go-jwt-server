@@ -13,6 +13,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/db"
+	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/spdeepak/go-jwt-server/jwt_secret"
+	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/users"
+	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
 
 func main() {
@@ -34,8 +39,17 @@ func main() {
 	}
 	db.RunMigrationQueries(dbConnection, "migrations")
 
+	//JWT Secret
+	jwtSecretRepository := secret.New(dbConnection.DB)
+	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
+	jwtSecretService := jwt_secret.NewService(jwtSecretStorage)
+	//Users
+	userRepository := user.New(dbConnection.DB)
+	userStorage := users.NewStorage(userRepository)
+	userService := users.NewService(userStorage, jwtSecretService)
+
 	//oapi-codegen implementation handler
-	server := NewServer()
+	server := NewServer(userService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
@@ -45,6 +59,7 @@ func main() {
 	swagger.Servers = nil
 
 	router := gin.New()
+	router.Use(httperror.Middleware)
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
