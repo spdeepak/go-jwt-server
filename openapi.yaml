@@ -1,0 +1,47 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Go JWT Server
+paths:
+  /ready:
+    get:
+      description: Ready check
+      summary: Ready check
+      tags:
+        - Probe
+      responses:
+        '200':
+          description: OK
+  /live:
+    get:
+      description: Live check
+      summary: Live check
+      tags:
+        - Probe
+      responses:
+        '200':
+          description: OK
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlationid
+      description: Correlation ID
+      in: header
+      schema:
+        type: string
+    AgentName:
+      name: x-agentname
+      description: Name of the agent
+      example: tms-api
+      in: header
+      schema:
+        type: string
+    UserEmail:
+      name: x-useremail
+      description: Email for the user
+      example: user.name@trendyol.com
+      in: header
+      required: true
+      schema:
+        type: string
+  schemas:
