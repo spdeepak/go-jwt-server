@@ -54,7 +54,7 @@ func main() {
 	userService := users.NewService(userStorage, tokenService)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService)
+	server := NewServer(userService, tokenService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {

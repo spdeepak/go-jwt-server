@@ -4,20 +4,29 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens/repository"
 )
 
+const (
+	defaultBearerExpiry  = 15 * time.Minute
+	defaultRefreshExpiry = 7 * 24 * time.Hour
+)
+
 type service struct {
-	secret  []byte
-	storage Storage
+	secret            []byte
+	storage           Storage
+	bearerExpiryTime  time.Duration
+	refreshExpiryTime time.Duration
 }
 
 type TokenParams struct {
@@ -26,6 +35,7 @@ type TokenParams struct {
 }
 
 type Service interface {
+	VerifyToken(ctx *gin.Context) error
 	VerifyRefreshToken(ctx *gin.Context, token string) (*jwt.Token, jwt.MapClaims, error)
 	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
 	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
@@ -33,21 +43,34 @@ type Service interface {
 
 func NewService(storage Storage, secret []byte) Service {
 	return &service{
-		secret:  secret,
-		storage: storage,
+		secret:            secret,
+		storage:           storage,
+		bearerExpiryTime:  getOrDefaultExpiry("BEARER_TOKEN_EXPIRY", defaultBearerExpiry),
+		refreshExpiryTime: getOrDefaultExpiry("REFRESH_TOKEN_EXPIRY", defaultRefreshExpiry),
 	}
+}
+
+func getOrDefaultExpiry(env string, defaultExpire time.Duration) time.Duration {
+	expireDuration, expireDurationPresent := os.LookupEnv(env)
+	if !expireDurationPresent {
+		log.Warn().Msgf("%s not present, using default %s", env, defaultExpire)
+		return defaultExpire
+	} else if expiryTime, err := time.ParseDuration(expireDuration); err != nil {
+		return expiryTime
+	}
+	return defaultExpire
 }
 
 func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error) {
 	now := time.Now()
-	accessClaims := bearerTokenClaims(user, now)
+	accessClaims := s.bearerTokenClaims(user, now)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 
-	refreshClaims := refreshTokenClaims(user, now)
+	refreshClaims := s.refreshTokenClaims(user, now)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	signedRefreshToken, err := refreshToken.SignedString(s.secret)
 	if err != nil {
@@ -79,7 +102,8 @@ func (s *service) VerifyToken(ctx *gin.Context) error {
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 		return httperror.New(httperror.Unauthorized)
 	}
-	token, err := jwt.ParseWithClaims(authHeader, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+	token, err := jwt.ParseWithClaims(tokenStr, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))
 		}
@@ -87,8 +111,7 @@ func (s *service) VerifyToken(ctx *gin.Context) error {
 	})
 
 	if err != nil {
-		// could be expired, malformed, or invalid signature
-		return err
+		return httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
 	}
 
 	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
@@ -112,9 +135,9 @@ func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (*jwt.To
 	})
 
 	if err != nil {
-		return nil, nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return nil, nil, httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
 	} else if !token.Valid {
-		return nil, nil, httperror.New(httperror.UndefinedErrorCode)
+		return nil, nil, httperror.NewWithMetadata(httperror.Unauthorized, "Invalid Bearer Token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -134,30 +157,30 @@ func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshT
 	return nil
 }
 
-func bearerTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
+func (s *service) bearerTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
 	return jwt.MapClaims{
 		"name":       user.FirstName + " " + user.LastName,
 		"email":      user.Email,
 		"first_name": user.FirstName,
 		"last_name":  user.LastName,
-		"typ":        "Bearer",                         //Type of token
-		"nbf":        now.Unix(),                       //Not valid before
-		"iss":        "go-jwt-server",                  //Issuer
-		"iat":        now.Unix(),                       //Issued at
-		"jti":        uuid.NewString(),                 //JWT ID
-		"exp":        now.Add(15 * time.Minute).Unix(), //Expiration now
+		"typ":        "Bearer",                           //Type of token
+		"nbf":        now.Unix(),                         //Not valid before
+		"iss":        "go-jwt-server",                    //Issuer
+		"iat":        now.Unix(),                         //Issued at
+		"jti":        uuid.NewString(),                   //JWT ID
+		"exp":        now.Add(s.bearerExpiryTime).Unix(), //Expiration now
 	}
 }
 
-func refreshTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
+func (s *service) refreshTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
 	return jwt.MapClaims{
 		"email": user.Email,
-		"typ":   "Refresh",                          //Type of token
-		"nbf":   now.Unix(),                         //Not valid before
-		"iss":   "go-jwt-server",                    //Issuer
-		"iat":   now.Unix(),                         //Issued at
-		"jti":   uuid.NewString(),                   //JWT ID
-		"exp":   now.Add(7 * 24 * time.Hour).Unix(), //Expiration now
+		"typ":   "Refresh",                           //Type of token
+		"nbf":   now.Unix(),                          //Not valid before
+		"iss":   "go-jwt-server",                     //Issuer
+		"iat":   now.Unix(),                          //Issued at
+		"jti":   uuid.NewString(),                    //JWT ID
+		"exp":   now.Add(s.refreshExpiryTime).Unix(), //Expiration now
 	}
 }
 

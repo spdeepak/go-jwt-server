@@ -70,7 +70,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginResponse, error) {
 	_, claims, err := s.tokenService.VerifyRefreshToken(ctx, refresh.RefreshToken)
 	if err != nil {
-		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginResponse{}, err
 	}
 	email, ok := claims["email"].(string)
 	if !ok {
