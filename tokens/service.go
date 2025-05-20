@@ -35,10 +35,11 @@ type TokenParams struct {
 }
 
 type Service interface {
-	VerifyToken(ctx *gin.Context) error
+	VerifyBearerToken(ctx *gin.Context) (jwt.MapClaims, error)
 	VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error)
 	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
 	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
+	RevokeAllTokens(ctx *gin.Context, email string) error
 }
 
 func NewService(storage Storage, secret []byte) Service {
@@ -84,6 +85,7 @@ func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user r
 		IpAddress:        ctx.ClientIP(),
 		UserAgent:        params.UserAgent,
 		DeviceName:       "",
+		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
 	}
 	err = s.storage.saveToken(ctx, saveTokenParams)
@@ -97,68 +99,22 @@ func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user r
 	}, nil
 }
 
-func (s *service) VerifyToken(ctx *gin.Context) error {
+func (s *service) VerifyBearerToken(ctx *gin.Context) (jwt.MapClaims, error) {
 	authHeader := ctx.GetHeader("Authorization")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		return httperror.New(httperror.Unauthorized)
+		return nil, httperror.New(httperror.Unauthorized)
 	}
 	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	token, err := jwt.ParseWithClaims(tokenStr, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))
-		}
-		return s.secret, nil
-	})
-
-	if err != nil {
-		return httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
-	}
-
-	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
-		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
-			return httperror.New(httperror.ExpiredBearerToken)
-		}
-		return nil
-	} else if !ok || !token.Valid {
-		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
-	}
-
-	return nil
+	return s.verifyToken(ctx, tokenStr)
 }
 
-func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))
-		}
-		return s.secret, nil
-	})
-
-	if err != nil {
-		return nil, httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
-	} else if !token.Valid {
-		return nil, httperror.NewWithMetadata(httperror.Unauthorized, "Invalid Refresh Token")
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if ok && token.Valid {
-		if expTime, ok := claims["exp"].(float64); ok {
-			expirationTime := time.Unix(int64(expTime), 0)
-			if expirationTime.Before(time.Now()) {
-				return nil, httperror.New(httperror.ExpiredRefreshToken)
-			}
-		} else {
-			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
-		}
-	} else if !ok || !token.Valid {
-		return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
-	}
-
-	return claims, nil
+func (s *service) VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
+	return s.verifyToken(ctx, token)
 }
 
 func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
 	hashedRefreshToken := hashToken(refresh.RefreshToken)
-	_, err := s.VerifyRefreshToken(ctx, refresh.RefreshToken)
+	_, err := s.verifyToken(ctx, refresh.RefreshToken)
 	if err != nil {
 		return err
 	}
@@ -167,6 +123,14 @@ func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshT
 		if err.Error() == "sql: no rows in result set" {
 			return httperror.New(httperror.InvalidCredentials)
 		}
+		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+	}
+	return nil
+}
+
+func (s *service) RevokeAllTokens(ctx *gin.Context, email string) error {
+	err := s.storage.revokeAllToken(ctx, email)
+	if err != nil {
 		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	return nil
@@ -197,6 +161,36 @@ func (s *service) refreshTokenClaims(user repository.User, now time.Time) jwt.Ma
 		"jti":   uuid.NewString(),                    //JWT ID
 		"exp":   now.Add(s.refreshExpiryTime).Unix(), //Expiration now
 	}
+}
+
+func (s *service) verifyToken(ctx *gin.Context, tokenStr string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))
+		}
+		return s.secret, nil
+	})
+
+	if err != nil {
+		return nil, httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
+	} else if !token.Valid {
+		return nil, httperror.NewWithMetadata(httperror.Unauthorized, "Invalid Refresh Token")
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if ok && token.Valid {
+		if expTime, ok := claims["exp"].(float64); ok {
+			expirationTime := time.Unix(int64(expTime), 0)
+			if expirationTime.Before(time.Now()) {
+				return nil, httperror.New(httperror.ExpiredRefreshToken)
+			}
+		} else {
+			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
+		}
+	} else if !ok || !token.Valid {
+		return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
+	}
+
+	return claims, nil
 }
 
 func hashToken(token string) string {

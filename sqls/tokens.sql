@@ -6,6 +6,7 @@ INSERT INTO tokens (token,
                     ip_address,
                     user_agent,
                     device_name,
+                    email,
                     created_by)
 VALUES (sqlc.arg('token'),
         sqlc.arg('refresh_token'),
@@ -14,17 +15,26 @@ VALUES (sqlc.arg('token'),
         sqlc.arg('ip_address'),
         sqlc.arg('user_agent'),
         sqlc.arg('device_name'),
+        sqlc.arg('email'),
         sqlc.arg('created_by'));
 
 -- name: RevokeBearerToken :exec
 UPDATE tokens
-SET revoked = true
+SET revoked    = TRUE,
+    revoked_at = now()
 WHERE token = sqlc.arg('token');
 
 -- name: RevokeRefreshToken :exec
 UPDATE tokens
-SET revoked = true
+SET revoked    = TRUE,
+    revoked_at = now()
 WHERE refresh_token = sqlc.arg('refresh_token');
+
+-- name: RevokeAllTokens :exec
+UPDATE tokens
+SET revoked    = TRUE,
+    revoked_at = now()
+WHERE email = sqlc.arg('email');
 
 -- name: GetByBearerToken :one
 SELECT *

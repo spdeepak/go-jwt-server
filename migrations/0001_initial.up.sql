@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS tokens
     refresh_expires_at TIMESTAMPTZ NOT NULL,
     revoked            BOOLEAN              DEFAULT FALSE,
     revoked_at         TIMESTAMPTZ,
+    email              TEXT        NOT NULL,
     ip_address         TEXT        NOT NULL,
     user_agent         TEXT        NOT NULL,
     device_name        TEXT        NOT NULL,
@@ -38,3 +39,4 @@ CREATE TABLE IF NOT EXISTS tokens
 
 CREATE INDEX IF NOT EXISTS tokens_token ON tokens (token);
 CREATE INDEX IF NOT EXISTS tokens_refresh_token ON tokens (refresh_token);
+CREATE INDEX IF NOT EXISTS tokens_email ON tokens (email);

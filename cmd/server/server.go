@@ -58,7 +58,7 @@ func (s *Server) Login(c *gin.Context, params api.LoginParams) {
 }
 
 func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
-	if err := s.tokenService.VerifyToken(ctx); err != nil {
+	if _, err := s.tokenService.VerifyBearerToken(ctx); err != nil {
 		ctx.Error(err)
 		return
 	}
@@ -78,7 +78,7 @@ func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 }
 
 func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams) {
-	if err := s.tokenService.VerifyToken(ctx); err != nil {
+	if _, err := s.tokenService.VerifyBearerToken(ctx); err != nil {
 		ctx.Error(err)
 		return
 	}
@@ -88,6 +88,20 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 		return
 	}
 	if err := s.tokenService.RevokeRefreshToken(ctx, params, revokeRefresh); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+}
+
+func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
+	claims, err := s.tokenService.VerifyBearerToken(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	err = s.tokenService.RevokeAllTokens(ctx, claims["email"].(string))
+	if err != nil {
 		ctx.Error(err)
 		return
 	}
