@@ -87,4 +87,9 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	if err := s.tokenService.RevokeRefreshToken(ctx, params, revokeRefresh); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
 }

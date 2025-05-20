@@ -75,8 +75,7 @@ func Test_service_VerifyRefreshToken_OK(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	tokens, claims, err := service.VerifyRefreshToken(ctx, response.RefreshToken)
+	claims, err := service.VerifyRefreshToken(ctx, response.RefreshToken)
 	assert.NoError(t, err)
-	assert.NotNil(t, tokens)
 	assert.NotNil(t, claims)
 }

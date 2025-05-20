@@ -24,6 +24,7 @@ const (
 	TokenCreationFailed = "JWT0004"
 	ExpiredBearerToken  = "JWT0005"
 	BearerTokenMissing  = "JWT0006"
+	ExpiredRefreshToken = "JWT0007"
 )
 
 var httpErrors = map[string]HttpError{
@@ -45,11 +46,15 @@ var httpErrors = map[string]HttpError{
 	},
 	ExpiredBearerToken: {
 		StatusCode:  http.StatusUnauthorized,
-		Description: "Bearer token is expire. Please login again.",
+		Description: "Bearer token is expired. Please login again.",
 	},
 	BearerTokenMissing: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Bearer token is missing. Please login again.",
+	},
+	ExpiredRefreshToken: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Refresh token is expired. Please login again.",
 	},
 }
 

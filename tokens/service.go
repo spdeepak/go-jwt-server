@@ -36,7 +36,7 @@ type TokenParams struct {
 
 type Service interface {
 	VerifyToken(ctx *gin.Context) error
-	VerifyRefreshToken(ctx *gin.Context, token string) (*jwt.Token, jwt.MapClaims, error)
+	VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error)
 	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
 	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
 }
@@ -126,7 +126,7 @@ func (s *service) VerifyToken(ctx *gin.Context) error {
 	return nil
 }
 
-func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (*jwt.Token, jwt.MapClaims, error) {
+func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))
@@ -135,24 +135,39 @@ func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (*jwt.To
 	})
 
 	if err != nil {
-		return nil, nil, httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
+		return nil, httperror.NewWithMetadata(httperror.Unauthorized, err.Error())
 	} else if !token.Valid {
-		return nil, nil, httperror.NewWithMetadata(httperror.Unauthorized, "Invalid Bearer Token")
+		return nil, httperror.NewWithMetadata(httperror.Unauthorized, "Invalid Refresh Token")
 	}
-
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
+	if ok && token.Valid {
+		if expTime, ok := claims["exp"].(float64); ok {
+			expirationTime := time.Unix(int64(expTime), 0)
+			if expirationTime.Before(time.Now()) {
+				return nil, httperror.New(httperror.ExpiredRefreshToken)
+			}
+		} else {
+			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
+		}
+	} else if !ok || !token.Valid {
+		return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
 	}
 
-	return token, claims, nil
+	return claims, nil
 }
 
 func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
 	hashedRefreshToken := hashToken(refresh.RefreshToken)
-	err := s.storage.revokeRefreshToken(ctx, hashedRefreshToken)
+	_, err := s.VerifyRefreshToken(ctx, refresh.RefreshToken)
 	if err != nil {
-		return nil
+		return err
+	}
+	err = s.storage.revokeRefreshToken(ctx, hashedRefreshToken)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return httperror.New(httperror.InvalidCredentials)
+		}
+		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	return nil
 }
