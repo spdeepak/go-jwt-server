@@ -19,9 +19,14 @@ type service struct {
 	storage Storage
 }
 
+type TokenParams struct {
+	XLoginSource string
+	UserAgent    string
+}
+
 type Service interface {
 	VerifyRefreshToken(ctx *gin.Context, token string) (*jwt.Token, jwt.MapClaims, error)
-	GenerateTokenPair(ctx *gin.Context, user repository.User) (api.LoginResponse, error)
+	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
 }
 
 func NewService(storage Storage, secret []byte) Service {
@@ -31,33 +36,32 @@ func NewService(storage Storage, secret []byte) Service {
 	}
 }
 
-func (s *service) GenerateTokenPair(ctx *gin.Context, user repository.User) (api.LoginResponse, error) {
+func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error) {
 	now := time.Now()
-	accessTokenClaims := bearerTokenClaims(user, now)
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessTokenClaims)
+	accessClaims := bearerTokenClaims(user, now)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 
-	refreshTokenClaims := refreshTokenClaims(user, now)
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
+	refreshClaims := refreshTokenClaims(user, now)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	signedRefreshToken, err := refreshToken.SignedString(s.secret)
 	if err != nil {
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
-	accessExp := accessTokenClaims["exp"].(int64)
-	refreshExp := refreshTokenClaims["exp"].(int64)
-	err = s.storage.SaveToken(ctx, repository.SaveTokenParams{
+	saveTokenParams := repository.SaveTokenParams{
 		Token:            hashToken(signedAccessToken),
 		RefreshToken:     hashToken(signedRefreshToken),
-		TokenExpiresAt:   time.Unix(accessExp, 0),
-		RefreshExpiresAt: time.Unix(refreshExp, 0),
+		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
+		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
 		IpAddress:        ctx.ClientIP(),
-		UserAgent:        ctx.GetHeader("User-Agent"),
+		UserAgent:        params.UserAgent,
 		DeviceName:       "",
-		CreatedBy:        ctx.GetHeader("x-login-source"),
-	})
+		CreatedBy:        params.XLoginSource,
+	}
+	err = s.storage.saveToken(ctx, saveTokenParams)
 	if err != nil {
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
 	}

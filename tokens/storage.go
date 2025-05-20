@@ -9,12 +9,13 @@ type storage struct {
 	query repository.Querier
 }
 
+//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
-	SaveToken(ctx *gin.Context, token repository.SaveTokenParams) error
-	GetBearerToken(ctx *gin.Context, token string) (repository.Token, error)
-	GetRefreshToken(ctx *gin.Context, token string) (repository.Token, error)
-	RevokeBearerToken(ctx *gin.Context, token string) error
-	RevokeRefreshToken(ctx *gin.Context, token string) error
+	saveToken(ctx *gin.Context, token repository.SaveTokenParams) error
+	getBearerToken(ctx *gin.Context, token string) (repository.Token, error)
+	getRefreshToken(ctx *gin.Context, token string) (repository.Token, error)
+	revokeBearerToken(ctx *gin.Context, token string) error
+	revokeRefreshToken(ctx *gin.Context, token string) error
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -23,22 +24,22 @@ func NewStorage(query repository.Querier) Storage {
 	}
 }
 
-func (s *storage) SaveToken(ctx *gin.Context, token repository.SaveTokenParams) error {
+func (s *storage) saveToken(ctx *gin.Context, token repository.SaveTokenParams) error {
 	return s.query.SaveToken(ctx, token)
 }
 
-func (s *storage) GetBearerToken(ctx *gin.Context, token string) (repository.Token, error) {
+func (s *storage) getBearerToken(ctx *gin.Context, token string) (repository.Token, error) {
 	return s.query.GetByBearerToken(ctx, token)
 }
 
-func (s *storage) GetRefreshToken(ctx *gin.Context, token string) (repository.Token, error) {
+func (s *storage) getRefreshToken(ctx *gin.Context, token string) (repository.Token, error) {
 	return s.query.GetByRefreshToken(ctx, token)
 }
 
-func (s *storage) RevokeBearerToken(ctx *gin.Context, token string) error {
+func (s *storage) revokeBearerToken(ctx *gin.Context, token string) error {
 	return s.query.RevokeBearerToken(ctx, token)
 }
 
-func (s *storage) RevokeRefreshToken(ctx *gin.Context, token string) error {
+func (s *storage) revokeRefreshToken(ctx *gin.Context, token string) error {
 	return s.query.RevokeRefreshToken(ctx, token)
 }

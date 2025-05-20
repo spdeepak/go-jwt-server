@@ -16,6 +16,7 @@ import (
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
 	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/users"
 	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
@@ -42,11 +43,13 @@ func main() {
 	//JWT Secret
 	jwtSecretRepository := secret.New(dbConnection.DB)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
-	jwtSecretService := jwt_secret.NewService(jwtSecretStorage)
+	//JWT Token
+	tokenStorage := tokens.NewStorage(nil)
+	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetSecret(jwtSecretStorage))
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, jwtSecretService)
+	userService := users.NewService(userStorage, tokenService)
 
 	//oapi-codegen implementation handler
 	server := NewServer(userService)

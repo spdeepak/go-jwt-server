@@ -5,14 +5,17 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func Test_service_GenerateTokenPair(t *testing.T) {
 	secret := "JWT_$€CR€T"
-	querier := repository.NewMockQuerier(t)
-	storage := NewStorage(querier)
+	query := repository.NewMockQuerier(t)
+	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
+	storage := NewStorage(query)
 	service := NewService(storage, []byte(secret))
 
 	user := repository.User{
@@ -26,10 +29,14 @@ func Test_service_GenerateTokenPair(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100") // or X-Real-IP
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	response, err := service.GenerateTokenPair(ctx, user)
+	tokenParams := TokenParams{
+		XLoginSource: string(api.LoginSourceApi),
+		UserAgent:    "test",
+	}
+	response, err := service.GenerateTokenPair(ctx, tokenParams, user)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
@@ -39,8 +46,9 @@ func Test_service_GenerateTokenPair(t *testing.T) {
 
 func Test_service_VerifyRefreshToken_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
-	querier := repository.NewMockQuerier(t)
-	storage := NewStorage(querier)
+	query := repository.NewMockQuerier(t)
+	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
+	storage := NewStorage(query)
 	service := NewService(storage, []byte(secret))
 
 	user := repository.User{
@@ -53,8 +61,15 @@ func Test_service_VerifyRefreshToken_OK(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
 
-	response, err := service.GenerateTokenPair(ctx, user)
+	tokenParams := TokenParams{
+		XLoginSource: string(api.LoginSourceApi),
+		UserAgent:    "test",
+	}
+	response, err := service.GenerateTokenPair(ctx, tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)

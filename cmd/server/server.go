@@ -26,7 +26,7 @@ func (s *Server) GetReady(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (s *Server) Signup(c *gin.Context) {
+func (s *Server) Signup(c *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
 	if err := c.ShouldBindJSON(&signup); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -39,14 +39,14 @@ func (s *Server) Signup(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (s *Server) Login(c *gin.Context) {
+func (s *Server) Login(c *gin.Context, params api.LoginParams) {
 	var login api.UserLogin
 	if err := c.ShouldBindJSON(&login); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	if response, err := s.userService.Login(c, login); err != nil {
+	if response, err := s.userService.Login(c, params, login); err != nil {
 		c.Error(err)
 		return
 	} else {
@@ -54,14 +54,14 @@ func (s *Server) Login(c *gin.Context) {
 	}
 }
 
-func (s *Server) Refresh(c *gin.Context) {
+func (s *Server) Refresh(c *gin.Context, params api.RefreshParams) {
 	var refresh api.Refresh
 	if err := c.ShouldBindJSON(&refresh); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	if response, err := s.userService.RefreshToken(c, refresh); err != nil {
+	if response, err := s.userService.RefreshToken(c, params, refresh); err != nil {
 		c.Error(err)
 		return
 	} else {
