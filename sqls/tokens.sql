@@ -45,3 +45,15 @@ WHERE token = sqlc.arg('token');
 SELECT *
 FROM tokens
 WHERE refresh_token = sqlc.arg('refresh_token');
+
+-- name: IsBearerValid :one
+SELECT 1
+FROM tokens
+WHERE token = sqlc.arg('token')
+  AND revoked = FALSE;
+
+-- name: IsRefreshValid :one
+SELECT 1
+FROM tokens
+WHERE refresh_token = sqlc.arg('refresh_token')
+  AND revoked = FALSE;

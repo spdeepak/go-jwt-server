@@ -109,7 +109,17 @@ func (s *service) VerifyBearerToken(ctx *gin.Context) (jwt.MapClaims, error) {
 }
 
 func (s *service) VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
-	return s.verifyToken(ctx, token)
+	claims, err := s.verifyToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	valid, err := s.storage.isRefreshValid(ctx, hashToken(token))
+	if err != nil {
+		return nil, httperror.NewWithMetadata(httperror.RefreshTokenRevoked, err.Error())
+	} else if !valid {
+		return nil, httperror.New(httperror.RefreshTokenRevoked)
+	}
+	return claims, nil
 }
 
 func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {

@@ -17,6 +17,8 @@ type Storage interface {
 	revokeBearerToken(ctx *gin.Context, token string) error
 	revokeRefreshToken(ctx *gin.Context, token string) error
 	revokeAllToken(ctx *gin.Context, email string) error
+	isBearerValid(ctx *gin.Context, bearerToken string) (bool, error)
+	isRefreshValid(ctx *gin.Context, refreshToken string) (bool, error)
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -47,4 +49,20 @@ func (s *storage) revokeRefreshToken(ctx *gin.Context, token string) error {
 
 func (s *storage) revokeAllToken(ctx *gin.Context, email string) error {
 	return s.query.RevokeAllTokens(ctx, email)
+}
+
+func (s *storage) isBearerValid(ctx *gin.Context, bearerToken string) (bool, error) {
+	res, err := s.query.IsBearerValid(ctx, bearerToken)
+	if err != nil {
+		return false, err
+	}
+	return res == 1, nil
+}
+
+func (s *storage) isRefreshValid(ctx *gin.Context, refreshToken string) (bool, error) {
+	res, err := s.query.IsRefreshValid(ctx, refreshToken)
+	if err != nil {
+		return false, err
+	}
+	return res == 1, nil
 }
