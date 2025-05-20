@@ -8,14 +8,15 @@ import (
 )
 
 type storage struct {
-	jwtSecretRepository *repository.Queries
+	jwtSecretRepository repository.Querier
 }
 
+//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
 	GetOrCreateDefaultSecret(ctx context.Context, secret string) (string, error)
 }
 
-func NewStorage(jwtSecretRepository *repository.Queries) Storage {
+func NewStorage(jwtSecretRepository repository.Querier) Storage {
 	return &storage{
 		jwtSecretRepository: jwtSecretRepository,
 	}

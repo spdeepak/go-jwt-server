@@ -53,7 +53,7 @@ func main() {
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
-		log.Err(err).Msgf("Error loading swagger spec\n: %s", os.Stderr)
+		log.Err(err).Msgf("Error loading swagger spec\n: %v", os.Stderr)
 		os.Exit(1)
 	}
 	swagger.Servers = nil

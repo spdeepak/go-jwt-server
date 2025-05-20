@@ -7,7 +7,7 @@ import (
 )
 
 type storage struct {
-	userRepository *repository.Queries
+	userRepository repository.Querier
 }
 
 type Storage interface {
@@ -15,7 +15,7 @@ type Storage interface {
 	GetUser(ctx context.Context, email string) (repository.User, error)
 }
 
-func NewStorage(userRepository *repository.Queries) Storage {
+func NewStorage(userRepository repository.Querier) Storage {
 	return &storage{
 		userRepository: userRepository,
 	}
