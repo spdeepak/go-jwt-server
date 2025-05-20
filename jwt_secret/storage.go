@@ -11,6 +11,7 @@ type storage struct {
 	jwtSecretRepository *repository.Queries
 }
 
+//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
 	GetOrCreateDefaultSecret(ctx context.Context, secret string) (string, error)
 }
