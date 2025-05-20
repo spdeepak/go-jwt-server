@@ -17,6 +17,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
 	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 	"github.com/spdeepak/go-jwt-server/tokens"
+	token "github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/spdeepak/go-jwt-server/users"
 	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
@@ -44,7 +45,8 @@ func main() {
 	jwtSecretRepository := secret.New(dbConnection.DB)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
 	//JWT Token
-	tokenStorage := tokens.NewStorage(nil)
+	tokenRepository := token.New(dbConnection.DB)
+	tokenStorage := tokens.NewStorage(tokenRepository)
 	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetSecret(jwtSecretStorage))
 	//Users
 	userRepository := user.New(dbConnection.DB)
