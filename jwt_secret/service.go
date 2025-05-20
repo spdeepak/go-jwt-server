@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
-	"github.com/spdeepak/go-jwt-server/users/repository"
+	"github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 )
 
 type service struct {
@@ -22,8 +22,8 @@ type service struct {
 }
 
 type Service interface {
-	VerifyToken(token string) (*jwt.Token, jwt.MapClaims, error)
-	GenerateTokenPair(email repository.User) (api.LoginResponse, error)
+	VerifyRefreshToken(token string) (*jwt.Token, jwt.MapClaims, error)
+	GenerateTokenPair(user repository.User) (api.LoginResponse, error)
 }
 
 func NewService(storage Storage) Service {
@@ -78,7 +78,7 @@ func (s *service) GenerateTokenPair(user repository.User) (api.LoginResponse, er
 	}, nil
 }
 
-func (s *service) VerifyToken(tokenStr string) (*jwt.Token, jwt.MapClaims, error) {
+func (s *service) VerifyRefreshToken(tokenStr string) (*jwt.Token, jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))

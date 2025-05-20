@@ -7,6 +7,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
+	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 	"github.com/spdeepak/go-jwt-server/users/repository"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -53,13 +54,18 @@ func (s *service) Login(ctx context.Context, login api.UserLogin) (api.LoginResp
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	if validPassword(login.Password, user.Password) {
-		return s.jwtSecretService.GenerateTokenPair(user)
+		jwtUser := secret.User{
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+		}
+		return s.jwtSecretService.GenerateTokenPair(jwtUser)
 	}
 	return api.LoginResponse{}, httperror.New(httperror.InvalidCredentials)
 }
 
 func (s *service) RefreshToken(ctx context.Context, refresh api.Refresh) (api.LoginResponse, error) {
-	_, claims, err := s.jwtSecretService.VerifyToken(refresh.RefreshToken)
+	_, claims, err := s.jwtSecretService.VerifyRefreshToken(refresh.RefreshToken)
 	if err != nil {
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
@@ -72,7 +78,12 @@ func (s *service) RefreshToken(ctx context.Context, refresh api.Refresh) (api.Lo
 	if err != nil {
 		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
-	return s.jwtSecretService.GenerateTokenPair(user)
+	jwtUser := secret.User{
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
+	return s.jwtSecretService.GenerateTokenPair(jwtUser)
 }
 
 // hashPassword hashes the plaintext password using bcrypt
