@@ -53,6 +53,8 @@ paths:
       operationId: refresh
       tags:
         - auth
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -70,6 +72,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
+  /api/v1/auth/revoke:
+    post:
+      description: Revoke refresh token
+      summary: Endpoint to revoke single refresh token
+      operationId: revokeRefreshToken
+      tags:
+        - auth
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Revoke refresh token request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeRefresh'
+      responses:
+        '200':
+          description: OK
   /ready:
     get:
       description: Ready check
@@ -89,6 +112,11 @@ paths:
         '200':
           description: OK
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     LoginSource:
       name: x-login-source
@@ -151,6 +179,13 @@ components:
         refreshToken:
           type: string
     Refresh:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+    RevokeRefresh:
       type: object
       required:
         - refreshToken

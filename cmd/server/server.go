@@ -68,3 +68,11 @@ func (s *Server) Refresh(c *gin.Context, params api.RefreshParams) {
 		c.JSON(http.StatusOK, response)
 	}
 }
+
+func (s *Server) RevokeRefreshToken(c *gin.Context, params api.RevokeRefreshTokenParams) {
+	var revokeRefresh api.RevokeRefresh
+	if err := c.ShouldBindJSON(&revokeRefresh); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+}

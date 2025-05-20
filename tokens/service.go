@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,7 @@ type TokenParams struct {
 type Service interface {
 	VerifyRefreshToken(ctx *gin.Context, token string) (*jwt.Token, jwt.MapClaims, error)
 	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
+	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
 }
 
 func NewService(storage Storage, secret []byte) Service {
@@ -72,6 +74,35 @@ func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user r
 	}, nil
 }
 
+func (s *service) VerifyToken(ctx *gin.Context) error {
+	authHeader := ctx.GetHeader("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		return httperror.New(httperror.Unauthorized)
+	}
+	token, err := jwt.ParseWithClaims(authHeader, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, httperror.NewWithMetadata(httperror.UndefinedErrorCode, fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]))
+		}
+		return s.secret, nil
+	})
+
+	if err != nil {
+		// could be expired, malformed, or invalid signature
+		return err
+	}
+
+	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
+		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+			return httperror.New(httperror.ExpiredBearerToken)
+		}
+		return nil
+	} else if !ok || !token.Valid {
+		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, "invalid claims")
+	}
+
+	return nil
+}
+
 func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (*jwt.Token, jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -92,6 +123,15 @@ func (s *service) VerifyRefreshToken(ctx *gin.Context, tokenStr string) (*jwt.To
 	}
 
 	return token, claims, nil
+}
+
+func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
+	hashedRefreshToken := hashToken(refresh.RefreshToken)
+	err := s.storage.revokeRefreshToken(ctx, hashedRefreshToken)
+	if err != nil {
+		return nil
+	}
+	return nil
 }
 
 func bearerTokenClaims(user repository.User, now time.Time) jwt.MapClaims {

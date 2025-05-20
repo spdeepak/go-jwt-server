@@ -18,12 +18,18 @@ func (e HttpError) Error() string {
 
 const (
 	UndefinedErrorCode  = "JWT0000"
-	InvalidCredentials  = "JWT0001"
-	InvalidRefreshToken = "JWT0002"
-	TokenCreationFailed = "JWT0003"
+	Unauthorized        = "JWT0001"
+	InvalidCredentials  = "JWT0002"
+	InvalidRefreshToken = "JWT0003"
+	TokenCreationFailed = "JWT0004"
+	ExpiredBearerToken  = "JWT0005"
 )
 
 var httpErrors = map[string]HttpError{
+	Unauthorized: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Bearer token missing",
+	},
 	InvalidCredentials: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Invalid username or password",
@@ -35,6 +41,10 @@ var httpErrors = map[string]HttpError{
 	TokenCreationFailed: {
 		StatusCode:  http.StatusInternalServerError,
 		Description: "Token creation failed",
+	},
+	ExpiredBearerToken: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Bearer token is expire. Please login again.",
 	},
 }
 
