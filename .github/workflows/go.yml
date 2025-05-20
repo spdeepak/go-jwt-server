@@ -1,0 +1,29 @@
+name: Go JWT Server CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+
+      - name: Run Makefile pre-step
+        run: make
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -v ./...
