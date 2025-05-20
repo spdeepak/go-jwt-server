@@ -13,7 +13,7 @@ type storage struct {
 
 //go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
-	GetOrCreateDefaultSecret(ctx context.Context, secret string) (string, error)
+	getOrCreateDefaultSecret(ctx context.Context, secret string) (string, error)
 }
 
 func NewStorage(jwtSecretRepository repository.Querier) Storage {
@@ -22,7 +22,7 @@ func NewStorage(jwtSecretRepository repository.Querier) Storage {
 	}
 }
 
-func (s *storage) GetOrCreateDefaultSecret(ctx context.Context, secret string) (string, error) {
+func (s *storage) getOrCreateDefaultSecret(ctx context.Context, secret string) (string, error) {
 	defaultSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
 	if err != nil {
 		if err := s.jwtSecretRepository.CreateDefaultSecret(ctx, secret); err != nil {

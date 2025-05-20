@@ -20,6 +20,7 @@ const (
 	UndefinedErrorCode  = "JWT0000"
 	InvalidCredentials  = "JWT0001"
 	InvalidRefreshToken = "JWT0002"
+	TokenCreationFailed = "JWT0003"
 )
 
 var httpErrors = map[string]HttpError{
@@ -30,6 +31,10 @@ var httpErrors = map[string]HttpError{
 	InvalidRefreshToken: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Invalid Refresh token",
+	},
+	TokenCreationFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Token creation failed",
 	},
 }
 

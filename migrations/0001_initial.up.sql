@@ -23,11 +23,17 @@ CREATE INDEX IF NOT EXISTS users_email ON users (email);
 
 CREATE TABLE IF NOT EXISTS tokens
 (
-    token         TEXT PRIMARY KEY,
-    refresh_token TEXT        NOT NULL,
-    issued_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expires_at    TIMESTAMPTZ NOT NULL,
-    revoked       BOOLEAN              DEFAULT FALSE
+    token              TEXT PRIMARY KEY,
+    refresh_token      TEXT        NOT NULL,
+    issued_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    token_expires_at   TIMESTAMPTZ NOT NULL,
+    refresh_expires_at TIMESTAMPTZ NOT NULL,
+    revoked            BOOLEAN              DEFAULT FALSE,
+    revoked_at         TIMESTAMPTZ,
+    ip_address         TEXT        NOT NULL,
+    user_agent         TEXT        NOT NULL,
+    device_name        TEXT        NOT NULL,
+    created_by         TEXT        NOT NULL --Source of request web/mobile/api
 );
 
 CREATE INDEX IF NOT EXISTS tokens_token ON tokens (token);

@@ -10,6 +10,8 @@ paths:
       operationId: signup
       tags:
         - auth
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
       requestBody:
         description: User signup request body
         required: true
@@ -27,6 +29,9 @@ paths:
       operationId: login
       tags:
         - auth
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
       requestBody:
         description: User login request body
         required: true
@@ -48,6 +53,9 @@ paths:
       operationId: refresh
       tags:
         - auth
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
       requestBody:
         description: Refresh token request body
         required: true
@@ -82,23 +90,21 @@ paths:
           description: OK
 components:
   parameters:
-    CorrelationId:
-      name: x-correlationid
-      description: Correlation ID
+    LoginSource:
+      name: x-login-source
+      description: Login source
+      example: web
       in: header
+      required: true
       schema:
         type: string
-    AgentName:
-      name: x-agentname
-      description: Name of the agent
-      example: tms-api
-      in: header
-      schema:
-        type: string
-    UserEmail:
-      name: x-useremail
-      description: Email for the user
-      example: user.name@trendyol.com
+        enum:
+          - web
+          - mobile
+          - api
+    UserAgent:
+      name: User-Agent
+      description: User Agent
       in: header
       required: true
       schema:

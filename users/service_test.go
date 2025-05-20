@@ -51,7 +51,7 @@ func TestService_Login_OK(t *testing.T) {
 
 	userStorage := NewStorage(querier)
 	jwtStorage := jwt_secret.NewMockStorage(t)
-	jwtStorage.On("GetOrCreateDefaultSecret", ctx, mock.Anything).Return("JWT_$€cr€t", nil)
+	jwtStorage.On("getOrCreateDefaultSecret", ctx, mock.Anything).Return("JWT_$€cr€t", nil)
 	jwtService := jwt_secret.NewService(jwtStorage)
 	userService := NewService(userStorage, jwtService)
 
@@ -81,7 +81,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 
 	userStorage := NewStorage(querier)
 	jwtStorage := jwt_secret.NewMockStorage(t)
-	jwtStorage.On("GetOrCreateDefaultSecret", ctx, mock.Anything).Return("JWT_$€cr€t", nil)
+	jwtStorage.On("getOrCreateDefaultSecret", ctx, mock.Anything).Return("JWT_$€cr€t", nil)
 	jwtService := jwt_secret.NewService(jwtStorage)
 	userService := NewService(userStorage, jwtService)
 

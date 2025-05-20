@@ -1,27 +1,36 @@
-package jwt_secret
+package tokens
 
 import (
-	"context"
+	"net/http/httptest"
 	"testing"
 
-	"github.com/spdeepak/go-jwt-server/jwt_secret/repository"
+	"github.com/gin-gonic/gin"
+	"github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_service_GenerateTokenPair(t *testing.T) {
-	ctx := context.Background()
 	secret := "JWT_$€CR€T"
 	querier := repository.NewMockQuerier(t)
-	querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, nil)
 	storage := NewStorage(querier)
-	service := NewService(storage)
+	service := NewService(storage, []byte(secret))
 
 	user := repository.User{
 		Email:     "first.last@example.com",
 		FirstName: "First",
 		LastName:  "Last",
 	}
-	response, err := service.GenerateTokenPair(user)
+
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100") // or X-Real-IP
+	ctx.Request = req
+
+	response, err := service.GenerateTokenPair(ctx, user)
+
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -29,24 +38,29 @@ func Test_service_GenerateTokenPair(t *testing.T) {
 }
 
 func Test_service_VerifyRefreshToken_OK(t *testing.T) {
-	ctx := context.Background()
 	secret := "JWT_$€CR€T"
 	querier := repository.NewMockQuerier(t)
-	querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, nil)
 	storage := NewStorage(querier)
-	service := NewService(storage)
+	service := NewService(storage, []byte(secret))
 
 	user := repository.User{
 		Email:     "first.last@example.com",
 		FirstName: "First",
 		LastName:  "Last",
 	}
-	response, err := service.GenerateTokenPair(user)
+
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Header("user-agent", "test")
+
+	response, err := service.GenerateTokenPair(ctx, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
-	tokens, claims, err := service.VerifyRefreshToken(response.RefreshToken)
+
+	tokens, claims, err := service.VerifyRefreshToken(ctx, response.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, tokens)
 	assert.NotNil(t, claims)

@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -23,13 +24,22 @@ type service struct {
 
 type Service interface {
 	VerifyRefreshToken(token string) (*jwt.Token, jwt.MapClaims, error)
-	GenerateTokenPair(user repository.User) (api.LoginResponse, error)
+	GenerateTokenPair(ctx *gin.Context, user repository.User) (api.LoginResponse, error)
+}
+
+func GetSecret(storage Storage) []byte {
+	secret, present := os.LookupEnv("JWT_TOKEN_SECRET")
+	if !present {
+		secret, _ = storage.getOrCreateDefaultSecret(context.Background(), generateJWTSecret())
+		log.Warn().Msgf("JWT_TOKEN_SECRET not provided. A new secret was generated and stored in the database.")
+	}
+	return []byte(secret)
 }
 
 func NewService(storage Storage) Service {
 	secret, present := os.LookupEnv("JWT_TOKEN_SECRET")
 	if !present {
-		secret, _ = storage.GetOrCreateDefaultSecret(context.Background(), generateJWTSecret())
+		secret, _ = storage.getOrCreateDefaultSecret(context.Background(), generateJWTSecret())
 		log.Warn().Msgf("JWT_TOKEN_SECRET not provided. A new secret was generated and stored in the database.")
 	}
 	return &service{
@@ -38,7 +48,7 @@ func NewService(storage Storage) Service {
 	}
 }
 
-func (s *service) GenerateTokenPair(user repository.User) (api.LoginResponse, error) {
+func (s *service) GenerateTokenPair(ctx *gin.Context, user repository.User) (api.LoginResponse, error) {
 	accessTokenClaims := jwt.MapClaims{
 		"name":       user.FirstName + " " + user.LastName,
 		"email":      user.Email,
