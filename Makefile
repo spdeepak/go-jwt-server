@@ -1,5 +1,7 @@
 
 go-jwt-generate:
+	#Create directory if it doesn't exist
+	mkdir -p api
 	# Generate API first boiler plate code
 	go tool oapi-codegen -generate gin,types,spec -package api ./openapi.yaml > api/openapi.gen.go
 	# Generate boiler plate repository layer code
