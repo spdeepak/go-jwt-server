@@ -34,8 +34,8 @@ type TokenParams struct {
 }
 
 type Service interface {
-	// VerifyRefreshToken verifies if a given refresh token is valid
-	VerifyRefreshToken(ctx *gin.Context, refreshToken string) (jwt.MapClaims, error)
+	// ValidateRefreshToken verifies if a given refresh token is valid
+	ValidateRefreshToken(ctx *gin.Context, refreshToken string) (jwt.MapClaims, error)
 	// GenerateNewTokenPair Generates a token for a given user
 	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error)
 	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a token for a given user
@@ -66,7 +66,7 @@ func getOrDefaultExpiry(env string, defaultExpire time.Duration) time.Duration {
 	return defaultExpire
 }
 
-func (s *service) VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
+func (s *service) ValidateRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
 	claims, err := s.verifyToken(ctx, token)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshT
 	err = s.storage.revokeRefreshToken(ctx, hashedRefreshToken)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return httperror.New(httperror.InvalidCredentials)
+			return httperror.New(httperror.InvalidRefreshToken)
 		}
 		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
@@ -173,7 +173,7 @@ func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshT
 func (s *service) RevokeAllTokens(ctx *gin.Context, email string) error {
 	err := s.storage.revokeAllToken(ctx, email)
 	if err != nil {
-		return httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return httperror.NewWithMetadata(httperror.TokenRevokeFailed, err.Error())
 	}
 	return nil
 }

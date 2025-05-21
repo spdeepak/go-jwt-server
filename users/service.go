@@ -68,7 +68,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 }
 
 func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.TokenResponse, error) {
-	claims, err := s.tokenService.VerifyRefreshToken(ctx, refresh.RefreshToken)
+	claims, err := s.tokenService.ValidateRefreshToken(ctx, refresh.RefreshToken)
 	if err != nil {
 		return api.TokenResponse{}, err
 	}
