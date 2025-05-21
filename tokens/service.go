@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +34,6 @@ type TokenParams struct {
 }
 
 type Service interface {
-	VerifyBearerToken(ctx *gin.Context) (jwt.MapClaims, error)
 	VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error)
 	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
 	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
@@ -97,15 +95,6 @@ func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user r
 		AccessToken:  signedAccessToken,
 		RefreshToken: signedRefreshToken,
 	}, nil
-}
-
-func (s *service) VerifyBearerToken(ctx *gin.Context) (jwt.MapClaims, error) {
-	authHeader := ctx.GetHeader("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, httperror.New(httperror.Unauthorized)
-	}
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	return s.verifyToken(ctx, tokenStr)
 }
 
 func (s *service) VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {

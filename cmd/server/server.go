@@ -58,10 +58,6 @@ func (s *Server) Login(c *gin.Context, params api.LoginParams) {
 }
 
 func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
-	if _, err := s.tokenService.VerifyBearerToken(ctx); err != nil {
-		ctx.Error(err)
-		return
-	}
 	var refresh api.Refresh
 	if err := ctx.ShouldBindJSON(&refresh); err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
@@ -78,10 +74,6 @@ func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 }
 
 func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams) {
-	if _, err := s.tokenService.VerifyBearerToken(ctx); err != nil {
-		ctx.Error(err)
-		return
-	}
 	var revokeRefresh api.RevokeRefresh
 	if err := ctx.ShouldBindJSON(&revokeRefresh); err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
@@ -95,12 +87,7 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 }
 
 func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
-	claims, err := s.tokenService.VerifyBearerToken(ctx)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-	err = s.tokenService.RevokeAllTokens(ctx, claims["email"].(string))
+	err := s.tokenService.RevokeAllTokens(ctx, ctx.GetString("email"))
 	if err != nil {
 		ctx.Error(err)
 		return
