@@ -1,19 +1,22 @@
 package users
 
 import (
-	"context"
 	"errors"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spdeepak/go-jwt-server/api"
-	"github.com/spdeepak/go-jwt-server/jwt_secret"
+	"github.com/spdeepak/go-jwt-server/tokens"
+	token "github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/spdeepak/go-jwt-server/users/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestService_Signup_OK(t *testing.T) {
-	ctx := context.Background()
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
 		Email:     "first.last@trendyol.com",
 		FirstName: "First name",
@@ -33,7 +36,14 @@ func TestService_Signup_OK(t *testing.T) {
 }
 
 func TestService_Login_OK(t *testing.T) {
-	ctx := context.Background()
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Header("User-Agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
 	email := "first.last@trendyol.com"
 	userLogin := api.UserLogin{
 		Email:    email,
@@ -50,12 +60,18 @@ func TestService_Login_OK(t *testing.T) {
 			nil)
 
 	userStorage := NewStorage(querier)
-	jwtStorage := jwt_secret.NewMockStorage(t)
-	jwtStorage.On("GetOrCreateDefaultSecret", ctx, mock.Anything).Return("JWT_$€cr€t", nil)
-	jwtService := jwt_secret.NewService(jwtStorage)
-	userService := NewService(userStorage, jwtService)
-
-	res, err := userService.Login(ctx, userLogin)
+	tokenStorage := tokens.NewMockStorage(t)
+	tokenStorage.On("saveToken", ctx, mock.MatchedBy(func(token token.SaveTokenParams) bool {
+		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == "192.168.1.100" &&
+			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
+	})).Return(nil)
+	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	userService := NewService(userStorage, tokenService)
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.NotEmpty(t, res.AccessToken)
@@ -63,7 +79,8 @@ func TestService_Login_OK(t *testing.T) {
 }
 
 func TestService_Login_NOK_WrongPassword(t *testing.T) {
-	ctx := context.Background()
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
 	email := "first.last@trendyol.com"
 	userLogin := api.UserLogin{
 		Email:    email,
@@ -80,12 +97,13 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 			nil)
 
 	userStorage := NewStorage(querier)
-	jwtStorage := jwt_secret.NewMockStorage(t)
-	jwtStorage.On("GetOrCreateDefaultSecret", ctx, mock.Anything).Return("JWT_$€cr€t", nil)
-	jwtService := jwt_secret.NewService(jwtStorage)
-	userService := NewService(userStorage, jwtService)
+	userService := NewService(userStorage, nil)
 
-	res, err := userService.Login(ctx, userLogin)
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.Error(t, err)
 	assert.NotNil(t, res)
 	assert.Empty(t, res.AccessToken)
@@ -93,7 +111,8 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 }
 
 func TestService_Login_NOK_DB(t *testing.T) {
-	ctx := context.Background()
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
 	email := "first.last@trendyol.com"
 	userLogin := api.UserLogin{
 		Email:    email,
@@ -106,7 +125,11 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	userStorage := NewStorage(querier)
 	userService := NewService(userStorage, nil)
 
-	res, err := userService.Login(ctx, userLogin)
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.Error(t, err)
 	assert.NotNil(t, res)
 	assert.Empty(t, res.AccessToken)
@@ -114,7 +137,8 @@ func TestService_Login_NOK_DB(t *testing.T) {
 }
 
 func TestService_Login_NOK(t *testing.T) {
-	ctx := context.Background()
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
 	email := "first.last@trendyol.com"
 	userLogin := api.UserLogin{
 		Email:    email,
@@ -126,8 +150,11 @@ func TestService_Login_NOK(t *testing.T) {
 
 	userStorage := NewStorage(querier)
 	userService := NewService(userStorage, nil)
-
-	res, err := userService.Login(ctx, userLogin)
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.Error(t, err)
 	assert.NotNil(t, res)
 	assert.Empty(t, res.AccessToken)

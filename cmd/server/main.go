@@ -16,6 +16,9 @@ import (
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
 	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/middleware"
+	"github.com/spdeepak/go-jwt-server/tokens"
+	token "github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/spdeepak/go-jwt-server/users"
 	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
@@ -42,14 +45,17 @@ func main() {
 	//JWT Secret
 	jwtSecretRepository := secret.New(dbConnection.DB)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
-	jwtSecretService := jwt_secret.NewService(jwtSecretStorage)
+	//JWT Token
+	tokenRepository := token.New(dbConnection.DB)
+	tokenStorage := tokens.NewStorage(tokenRepository)
+	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetSecret(jwtSecretStorage))
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, jwtSecretService)
+	userService := users.NewService(userStorage, tokenService)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService)
+	server := NewServer(userService, tokenService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
@@ -58,8 +64,11 @@ func main() {
 	}
 	swagger.Servers = nil
 
+	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetSecret(jwtSecretStorage), nil)
+
 	router := gin.New()
 	router.Use(httperror.Middleware)
+	router.Use(authMiddleware)
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{

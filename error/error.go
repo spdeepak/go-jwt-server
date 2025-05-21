@@ -18,11 +18,22 @@ func (e HttpError) Error() string {
 
 const (
 	UndefinedErrorCode  = "JWT0000"
-	InvalidCredentials  = "JWT0001"
-	InvalidRefreshToken = "JWT0002"
+	Unauthorized        = "JWT0001"
+	InvalidCredentials  = "JWT0002"
+	InvalidRefreshToken = "JWT0003"
+	TokenCreationFailed = "JWT0004"
+	ExpiredBearerToken  = "JWT0005"
+	BearerTokenMissing  = "JWT0006"
+	ExpiredRefreshToken = "JWT0007"
+	BearerTokenRevoked  = "JWT0008"
+	RefreshTokenRevoked = "JWT0009"
 )
 
 var httpErrors = map[string]HttpError{
+	Unauthorized: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Invalid Bearer token. Please login again.",
+	},
 	InvalidCredentials: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Invalid username or password",
@@ -30,6 +41,30 @@ var httpErrors = map[string]HttpError{
 	InvalidRefreshToken: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Invalid Refresh token",
+	},
+	TokenCreationFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Token creation failed",
+	},
+	ExpiredBearerToken: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Bearer token is expired. Please login again.",
+	},
+	BearerTokenMissing: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Bearer token is missing. Please login again.",
+	},
+	ExpiredRefreshToken: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Refresh token is expired. Please login again.",
+	},
+	BearerTokenRevoked: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Refresh token is expired. Please login again.",
+	},
+	RefreshTokenRevoked: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Refresh token is expired. Please login again.",
 	},
 }
 

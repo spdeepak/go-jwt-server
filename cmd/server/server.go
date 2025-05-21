@@ -5,16 +5,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spdeepak/go-jwt-server/api"
+	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/users"
 )
 
 type Server struct {
-	userService users.Service
+	userService  users.Service
+	tokenService tokens.Service
 }
 
-func NewServer(userService users.Service) api.ServerInterface {
+func NewServer(userService users.Service, tokenService tokens.Service) api.ServerInterface {
 	return &Server{
-		userService: userService,
+		userService:  userService,
+		tokenService: tokenService,
 	}
 }
 
@@ -26,7 +29,7 @@ func (s *Server) GetReady(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (s *Server) Signup(c *gin.Context) {
+func (s *Server) Signup(c *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
 	if err := c.ShouldBindJSON(&signup); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -39,14 +42,14 @@ func (s *Server) Signup(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (s *Server) Login(c *gin.Context) {
+func (s *Server) Login(c *gin.Context, params api.LoginParams) {
 	var login api.UserLogin
 	if err := c.ShouldBindJSON(&login); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	if response, err := s.userService.Login(c, login); err != nil {
+	if response, err := s.userService.Login(c, params, login); err != nil {
 		c.Error(err)
 		return
 	} else {
@@ -54,17 +57,40 @@ func (s *Server) Login(c *gin.Context) {
 	}
 }
 
-func (s *Server) Refresh(c *gin.Context) {
+func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 	var refresh api.Refresh
-	if err := c.ShouldBindJSON(&refresh); err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
+	if err := ctx.ShouldBindJSON(&refresh); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(err)
 		return
 	}
 
-	if response, err := s.userService.RefreshToken(c, refresh); err != nil {
-		c.Error(err)
+	if response, err := s.userService.RefreshToken(ctx, params, refresh); err != nil {
+		ctx.Error(err)
 		return
 	} else {
-		c.JSON(http.StatusOK, response)
+		ctx.JSON(http.StatusOK, response)
 	}
+}
+
+func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams) {
+	var revokeRefresh api.RevokeRefresh
+	if err := ctx.ShouldBindJSON(&revokeRefresh); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	if err := s.tokenService.RevokeRefreshToken(ctx, params, revokeRefresh); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+}
+
+func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
+	err := s.tokenService.RevokeAllTokens(ctx, ctx.GetString("email"))
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
 }

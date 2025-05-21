@@ -18,7 +18,7 @@ func TestStorage_GetOrCreateDefaultSecret_OK_DefaultSecretExists(t *testing.T) {
 	querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, nil)
 	storage := NewStorage(querier)
 
-	getSecret, err := storage.GetOrCreateDefaultSecret(ctx, secret)
+	getSecret, err := storage.getOrCreateDefaultSecret(ctx, secret)
 	assert.NoError(t, err)
 	assert.Equal(t, secret, getSecret)
 }
@@ -31,7 +31,7 @@ func TestStorage_GetOrCreateDefaultSecret_OK_DefaultSecretNotExist(t *testing.T)
 	querier.On("CreateDefaultSecret", ctx, secret).Return(nil)
 	storage := NewStorage(querier)
 
-	getSecret, err := storage.GetOrCreateDefaultSecret(ctx, secret)
+	getSecret, err := storage.getOrCreateDefaultSecret(ctx, secret)
 	assert.NoError(t, err)
 	assert.Equal(t, secret, getSecret)
 }
@@ -44,7 +44,7 @@ func TestStorage_GetOrCreateDefaultSecret_NOK_DefaultSecretCreateFail(t *testing
 		querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, errors.New("error"))
 		querier.On("CreateDefaultSecret", ctx, secret).Return(errors.New("error"))
 		storage := NewStorage(querier)
-		storage.GetOrCreateDefaultSecret(context.Background(), secret)
+		storage.getOrCreateDefaultSecret(context.Background(), secret)
 		return
 	}
 
