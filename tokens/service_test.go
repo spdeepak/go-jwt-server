@@ -37,7 +37,7 @@ func Test_service_GenerateTokenPair(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateTokenPair(ctx, tokenParams, user)
+	response, err := service.GenerateNewTokenPair(ctx, tokenParams, user)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
@@ -70,7 +70,7 @@ func Test_service_VerifyRefreshToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateTokenPair(ctx, tokenParams, user)
+	response, err := service.GenerateNewTokenPair(ctx, tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -108,7 +108,7 @@ func Test_service_VerifyRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateTokenPair(ctx, tokenParams, user)
+	response, err := service.GenerateNewTokenPair(ctx, tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -146,7 +146,7 @@ func Test_service_VerifyRefreshToken_NOK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateTokenPair(ctx, tokenParams, user)
+	response, err := service.GenerateNewTokenPair(ctx, tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)

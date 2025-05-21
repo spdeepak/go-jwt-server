@@ -34,9 +34,15 @@ type TokenParams struct {
 }
 
 type Service interface {
-	VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error)
-	GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error)
+	// VerifyRefreshToken verifies if a given refresh token is valid
+	VerifyRefreshToken(ctx *gin.Context, refreshToken string) (jwt.MapClaims, error)
+	// GenerateNewTokenPair Generates a token for a given user
+	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error)
+	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a token for a given user
+	RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.TokenResponse, error)
+	// RevokeRefreshToken marks a refresh token as revoked
 	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
+	// RevokeAllTokens marks all refresh tokens of a give user
 	RevokeAllTokens(ctx *gin.Context, email string) error
 }
 
@@ -60,20 +66,34 @@ func getOrDefaultExpiry(env string, defaultExpire time.Duration) time.Duration {
 	return defaultExpire
 }
 
-func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginResponse, error) {
+func (s *service) VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
+	claims, err := s.verifyToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	valid, err := s.storage.isRefreshValid(ctx, hashToken(token))
+	if err != nil {
+		return nil, httperror.NewWithMetadata(httperror.RefreshTokenRevoked, err.Error())
+	} else if !valid {
+		return nil, httperror.New(httperror.RefreshTokenRevoked)
+	}
+	return claims, nil
+}
+
+func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error) {
 	now := time.Now()
 	accessClaims := s.bearerTokenClaims(user, now)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
-		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 
 	refreshClaims := s.refreshTokenClaims(user, now)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	signedRefreshToken, err := refreshToken.SignedString(s.secret)
 	if err != nil {
-		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	saveTokenParams := repository.SaveTokenParams{
 		Token:            hashToken(signedAccessToken),
@@ -88,27 +108,50 @@ func (s *service) GenerateTokenPair(ctx *gin.Context, params TokenParams, user r
 	}
 	err = s.storage.saveToken(ctx, saveTokenParams)
 	if err != nil {
-		return api.LoginResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
 	}
 
-	return api.LoginResponse{
+	return api.TokenResponse{
 		AccessToken:  signedAccessToken,
 		RefreshToken: signedRefreshToken,
 	}, nil
 }
 
-func (s *service) VerifyRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
-	claims, err := s.verifyToken(ctx, token)
+func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.TokenResponse, error) {
+	now := time.Now()
+	accessClaims := s.bearerTokenClaims(user, now)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
-		return nil, err
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
-	valid, err := s.storage.isRefreshValid(ctx, hashToken(token))
+
+	refreshClaims := s.refreshTokenClaims(user, now)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	signedRefreshToken, err := refreshToken.SignedString(s.secret)
 	if err != nil {
-		return nil, httperror.NewWithMetadata(httperror.RefreshTokenRevoked, err.Error())
-	} else if !valid {
-		return nil, httperror.New(httperror.RefreshTokenRevoked)
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
-	return claims, nil
+
+	refreshAndInvalidateTokenParams := repository.RefreshAndInvalidateTokenParams{
+		NewToken:         hashToken(signedAccessToken),
+		NewRefreshToken:  hashToken(signedRefreshToken),
+		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
+		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
+		IpAddress:        ctx.ClientIP(),
+		UserAgent:        params.UserAgent,
+		DeviceName:       "",
+		Email:            user.Email,
+		CreatedBy:        params.XLoginSource,
+		OldRefreshToken:  hashToken(refresh.RefreshToken),
+	}
+	if err := s.storage.refreshAndInvalidateToken(ctx, refreshAndInvalidateTokenParams); err != nil {
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
+	}
+	return api.TokenResponse{
+		AccessToken:  signedAccessToken,
+		RefreshToken: signedRefreshToken,
+	}, nil
 }
 
 func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
