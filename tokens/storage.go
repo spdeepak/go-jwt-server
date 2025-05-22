@@ -9,7 +9,6 @@ type storage struct {
 	query repository.Querier
 }
 
-//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
 	saveToken(ctx *gin.Context, token repository.SaveTokenParams) error
 	getBearerToken(ctx *gin.Context, token string) (repository.Token, error)
