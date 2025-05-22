@@ -71,7 +71,7 @@ func (s *service) ValidateRefreshToken(ctx *gin.Context, token string) (jwt.MapC
 	if err != nil {
 		return nil, err
 	}
-	valid, err := s.storage.isRefreshValid(ctx, hashToken(token))
+	valid, err := s.storage.isRefreshValid(ctx, hash(token))
 	if err != nil {
 		return nil, httperror.NewWithMetadata(httperror.RefreshTokenRevoked, err.Error())
 	} else if !valid {
@@ -96,12 +96,12 @@ func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, use
 		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	saveTokenParams := repository.SaveTokenParams{
-		Token:            hashToken(signedAccessToken),
-		RefreshToken:     hashToken(signedRefreshToken),
+		Token:            hash(signedAccessToken),
+		RefreshToken:     hash(signedRefreshToken),
 		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
 		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
-		IpAddress:        ctx.ClientIP(),
-		UserAgent:        params.UserAgent,
+		IpAddress:        hash(ctx.ClientIP()),
+		UserAgent:        hash(params.UserAgent),
 		DeviceName:       "",
 		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
@@ -134,16 +134,16 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 	}
 
 	refreshAndInvalidateTokenParams := repository.RefreshAndInvalidateTokenParams{
-		NewToken:         hashToken(signedAccessToken),
-		NewRefreshToken:  hashToken(signedRefreshToken),
+		NewToken:         hash(signedAccessToken),
+		NewRefreshToken:  hash(signedRefreshToken),
 		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
 		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
-		IpAddress:        ctx.ClientIP(),
-		UserAgent:        params.UserAgent,
+		IpAddress:        hash(ctx.ClientIP()),
+		UserAgent:        hash(params.UserAgent),
 		DeviceName:       "",
 		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
-		OldRefreshToken:  hashToken(refresh.RefreshToken),
+		OldRefreshToken:  hash(refresh.RefreshToken),
 	}
 	if err := s.storage.refreshAndInvalidateToken(ctx, refreshAndInvalidateTokenParams); err != nil {
 		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
@@ -155,7 +155,7 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 }
 
 func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
-	hashedRefreshToken := hashToken(refresh.RefreshToken)
+	hashedRefreshToken := hash(refresh.RefreshToken)
 	_, err := s.verifyToken(ctx, refresh.RefreshToken)
 	if err != nil {
 		return err
@@ -235,8 +235,8 @@ func (s *service) verifyToken(ctx *gin.Context, tokenStr string) (jwt.MapClaims,
 	return claims, nil
 }
 
-func hashToken(token string) string {
+func hash(anything string) string {
 	h := sha256.New()
-	h.Write([]byte(token))
+	h.Write([]byte(anything))
 	return hex.EncodeToString(h.Sum(nil))
 }

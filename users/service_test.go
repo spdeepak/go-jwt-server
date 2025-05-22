@@ -1,6 +1,8 @@
 package users
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http/httptest"
 	"testing"
@@ -63,8 +65,8 @@ func TestService_Login_OK(t *testing.T) {
 	tokenQuery := token.NewMockQuerier(t)
 	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenQuery.On("SaveToken", ctx, mock.MatchedBy(func(token token.SaveTokenParams) bool {
-		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == "192.168.1.100" &&
-			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
+		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == hash("192.168.1.100") &&
+			token.UserAgent == hash("test") && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
 	userService := NewService(userStorage, tokenService)
@@ -160,4 +162,10 @@ func TestService_Login_NOK(t *testing.T) {
 	assert.NotNil(t, res)
 	assert.Empty(t, res.AccessToken)
 	assert.Empty(t, res.RefreshToken)
+}
+
+func hash(anything string) string {
+	h := sha256.New()
+	h.Write([]byte(anything))
+	return hex.EncodeToString(h.Sum(nil))
 }

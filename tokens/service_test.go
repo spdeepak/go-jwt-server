@@ -78,7 +78,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	query.On("IsRefreshValid", ctx, hashToken(response.RefreshToken)).Return(int32(1), nil)
+	query.On("IsRefreshValid", ctx, hash(response.RefreshToken)).Return(int32(1), nil)
 
 	claims, err := service.ValidateRefreshToken(ctx, response.RefreshToken)
 	assert.NoError(t, err)
@@ -116,7 +116,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	query.On("IsRefreshValid", ctx, hashToken(response.RefreshToken)).Return(int32(0), nil)
+	query.On("IsRefreshValid", ctx, hash(response.RefreshToken)).Return(int32(0), nil)
 
 	claims, err := service.ValidateRefreshToken(ctx, response.RefreshToken)
 	assert.Error(t, err)
@@ -218,7 +218,7 @@ func TestService_RevokeRefreshToken_OK(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	hashedRefreshToken := hashToken(response.RefreshToken)
+	hashedRefreshToken := hash(response.RefreshToken)
 	query.On("RevokeRefreshToken", ctx, hashedRefreshToken).Return(nil)
 
 	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeRefresh{RefreshToken: response.RefreshToken})
@@ -256,7 +256,7 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	hashedRefreshToken := hashToken(response.RefreshToken)
+	hashedRefreshToken := hash(response.RefreshToken)
 	query.On("RevokeRefreshToken", ctx, hashedRefreshToken).Return(errors.New("sql: no rows in result set"))
 
 	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeRefresh{RefreshToken: response.RefreshToken})
@@ -295,7 +295,7 @@ func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	hashedRefreshToken := hashToken(response.RefreshToken)
+	hashedRefreshToken := hash(response.RefreshToken)
 	query.On("RevokeRefreshToken", ctx, hashedRefreshToken).Return(errors.New("error"))
 
 	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeRefresh{RefreshToken: response.RefreshToken})
@@ -333,7 +333,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	hashedRefreshToken := hashToken(response.RefreshToken)
+	hashedRefreshToken := hash(response.RefreshToken)
 	var newBearerToken string
 	var newRefreshToken string
 	query.On("RefreshAndInvalidateToken", ctx, mock.MatchedBy(func(params repository.RefreshAndInvalidateTokenParams) bool {
@@ -344,7 +344,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 			time.Now().Before(params.TokenExpiresAt) &&
 			time.Now().Before(params.RefreshExpiresAt) &&
 			len(params.IpAddress) > 1 &&
-			params.UserAgent == "Api Testing" &&
+			params.UserAgent == hash("Api Testing") &&
 			params.DeviceName == "" &&
 			params.Email == "first.last@example.com" &&
 			params.CreatedBy == "test" &&
@@ -389,7 +389,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	hashedRefreshToken := hashToken(response.RefreshToken)
+	hashedRefreshToken := hash(response.RefreshToken)
 	var newBearerToken string
 	var newRefreshToken string
 	query.On("RefreshAndInvalidateToken", ctx, mock.MatchedBy(func(params repository.RefreshAndInvalidateTokenParams) bool {
@@ -400,7 +400,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 			time.Now().Before(params.TokenExpiresAt) &&
 			time.Now().Before(params.RefreshExpiresAt) &&
 			len(params.IpAddress) > 1 &&
-			params.UserAgent == "Api Testing" &&
+			params.UserAgent == hash("Api Testing") &&
 			params.DeviceName == "" &&
 			params.Email == "first.last@example.com" &&
 			params.CreatedBy == "test" &&
