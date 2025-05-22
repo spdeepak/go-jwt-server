@@ -9,7 +9,6 @@ type storage struct {
 	query repository.Querier
 }
 
-//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
 	saveToken(ctx *gin.Context, token repository.SaveTokenParams) error
 	getBearerToken(ctx *gin.Context, token string) (repository.Token, error)
@@ -19,6 +18,7 @@ type Storage interface {
 	revokeAllToken(ctx *gin.Context, email string) error
 	isBearerValid(ctx *gin.Context, bearerToken string) (bool, error)
 	isRefreshValid(ctx *gin.Context, refreshToken string) (bool, error)
+	refreshAndInvalidateToken(ctx *gin.Context, arg repository.RefreshAndInvalidateTokenParams) error
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -65,4 +65,8 @@ func (s *storage) isRefreshValid(ctx *gin.Context, refreshToken string) (bool, e
 		return false, err
 	}
 	return res == 1, nil
+}
+
+func (s *storage) refreshAndInvalidateToken(ctx *gin.Context, arg repository.RefreshAndInvalidateTokenParams) error {
+	return s.query.RefreshAndInvalidateToken(ctx, arg)
 }

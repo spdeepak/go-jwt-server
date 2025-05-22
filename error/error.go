@@ -27,6 +27,7 @@ const (
 	ExpiredRefreshToken = "JWT0007"
 	BearerTokenRevoked  = "JWT0008"
 	RefreshTokenRevoked = "JWT0009"
+	TokenRevokeFailed   = "JWT0010"
 )
 
 var httpErrors = map[string]HttpError{
@@ -65,6 +66,10 @@ var httpErrors = map[string]HttpError{
 	RefreshTokenRevoked: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Refresh token is expired. Please login again.",
+	},
+	TokenRevokeFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Refresh token revoke failed.",
 	},
 }
 

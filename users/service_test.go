@@ -50,8 +50,8 @@ func TestService_Login_OK(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
-	querier := repository.NewMockQuerier(t)
-	querier.On("UserLogin", ctx, email).
+	userQuery := repository.NewMockQuerier(t)
+	userQuery.On("UserLogin", ctx, email).
 		Return(repository.User{
 			Email:     "first.last@trendyol.com",
 			FirstName: "First name",
@@ -59,9 +59,10 @@ func TestService_Login_OK(t *testing.T) {
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
 			nil)
 
-	userStorage := NewStorage(querier)
-	tokenStorage := tokens.NewMockStorage(t)
-	tokenStorage.On("saveToken", ctx, mock.MatchedBy(func(token token.SaveTokenParams) bool {
+	userStorage := NewStorage(userQuery)
+	tokenQuery := token.NewMockQuerier(t)
+	tokenStorage := tokens.NewStorage(tokenQuery)
+	tokenQuery.On("SaveToken", ctx, mock.MatchedBy(func(token token.SaveTokenParams) bool {
 		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == "192.168.1.100" &&
 			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)

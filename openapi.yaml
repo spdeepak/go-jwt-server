@@ -45,7 +45,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                $ref: '#/components/schemas/TokenResponse'
   /api/v1/auth/refresh:
     post:
       description: Token refresh
@@ -71,7 +71,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                $ref: '#/components/schemas/TokenResponse'
   /api/v1/auth/revoke:
     post:
       description: Revoke refresh token
@@ -182,7 +182,7 @@ components:
           example: first.last@example.com
         password:
           type: string
-    LoginResponse:
+    TokenResponse:
       type: object
       required:
         - accessToken
