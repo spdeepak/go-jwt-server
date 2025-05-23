@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
-	config2 "github.com/spdeepak/go-jwt-server/config"
+	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/db"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
@@ -26,7 +26,7 @@ import (
 
 func main() {
 
-	config := db.Config{
+	dbConfig := db.Config{
 		Host:     "localhost",
 		Port:     "5432",
 		UserName: "admin",
@@ -37,9 +37,9 @@ func main() {
 		MaxRetry: 5,
 	}
 
-	cfg := config2.NewConfiguration()
+	cfg := config.NewConfiguration()
 
-	dbConnection, err := db.Connect(config)
+	dbConnection, err := db.Connect(dbConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
