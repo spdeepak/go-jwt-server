@@ -2,6 +2,8 @@
 
 [![Go JWT Server CI](https://github.com/spdeepak/go-jwt-server/actions/workflows/go.yml/badge.svg)](https://github.com/spdeepak/go-jwt-server/actions/workflows/go.yml)
 
+This is a lightweight, work-in-progress JWT authentication server built with Golang. It focuses on providing foundational security features such as flexible key management (via a master or secret key), refresh token rotation, and token fingerprinting based on client metadata like IP address and user agent. Designed with security in mind, this server aims to be a solid base for scalable authentication in modern applications. More features and improvements are planned as development progresses.
+
 ## Features
 
 * 🔐 **Secure Key Management**: Supports either a user-provided secret key or a master key that generates, encrypts (with the master key), and stores a Base64-encoded secret key in the database for signing JWT tokens, enabling an additional security layer by default.
