@@ -11,7 +11,6 @@ type storage struct {
 	jwtSecretRepository repository.Querier
 }
 
-//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
 	saveDefaultSecret(ctx context.Context, secret string) error
 	getDefaultEncryptedSecret(ctx context.Context) (string, error)
@@ -31,9 +30,12 @@ func (s *storage) saveDefaultSecret(ctx context.Context, secret string) error {
 }
 
 func (s *storage) getDefaultEncryptedSecret(ctx context.Context) (string, error) {
-	defaultSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
+	jwtSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return "", nil
+		}
 		return "", err
 	}
-	return defaultSecret.Secret, nil
+	return jwtSecret.Secret, nil
 }

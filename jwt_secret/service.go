@@ -13,13 +13,13 @@ import (
 )
 
 func GetOrCreateSecret(token config.Token, storage Storage) []byte {
-	encryptedSecret, err := storage.getDefaultEncryptedSecret(context.Background())
+	base64EncodedEncryptedSecret, err := storage.getDefaultEncryptedSecret(context.Background())
 	if err != nil {
 		log.Fatal().Msg("Failed to get default secret from DB")
 	}
-	if encryptedSecret != "" {
+	if base64EncodedEncryptedSecret != "" {
 		if token.MasterKey != "" {
-			secret, err := Decrypt(encryptedSecret, []byte(token.MasterKey))
+			secret, err := Decrypt(base64EncodedEncryptedSecret, token.MasterKey)
 			if err != nil {
 				log.Fatal().Msgf("Failed to decrypt JWT secret from DB. Error: %s", err.Error())
 			}
@@ -31,11 +31,11 @@ func GetOrCreateSecret(token config.Token, storage Storage) []byte {
 
 	if token.MasterKey != "" {
 		secret := generateJWTSecret()
-		encryptedSecret, err = Encrypt(secret, []byte(token.MasterKey))
+		base64EncodedEncryptedSecret, err = Encrypt(secret, token.MasterKey)
 		if err != nil {
-			log.Fatal().Msgf("Failed to encrypt generated JWT secret. Error: %s", err.Error())
+			log.Fatal().Msgf("Failed to encrypt generated JWT secret and encode it to base64. Error: %s", err.Error())
 		}
-		err = storage.saveDefaultSecret(context.Background(), encryptedSecret)
+		err = storage.saveDefaultSecret(context.Background(), base64EncodedEncryptedSecret)
 		if err != nil {
 			log.Fatal().Msgf("Failed to save encrypted generated JWT secret to DB. Error: %s", err.Error())
 		}
@@ -44,7 +44,11 @@ func GetOrCreateSecret(token config.Token, storage Storage) []byte {
 	if token.Secret == "" {
 		log.Fatal().Msg("Either JWT_MASTER_KEY or JWT_SECRET_KEY env variables should be set")
 	}
-	return []byte(token.Secret)
+	base64DecodedSecretKey, err := base64.StdEncoding.DecodeString(token.Secret)
+	if err != nil {
+		log.Fatal().Msgf("Failed to decode JWT_SECRET_KEY")
+	}
+	return base64DecodedSecretKey
 }
 
 func generateJWTSecret() string {
@@ -57,7 +61,12 @@ func generateJWTSecret() string {
 }
 
 // Encrypt takes the JWT secret and the JWT master key to encrypt the JWT secret. So, it can be stored to the DB.
-func Encrypt(secret string, key []byte) (string, error) {
+func Encrypt(plainJwtSecret string, base64EncodedMasterKey string) (string, error) {
+	key, err := base64.StdEncoding.DecodeString(base64EncodedMasterKey)
+	if err != nil {
+		return "", err
+	}
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
@@ -74,13 +83,17 @@ func Encrypt(secret string, key []byte) (string, error) {
 		return "", err
 	}
 
-	ciphertext := aesGCM.Seal(nonce, nonce, []byte(secret), nil)
+	ciphertext := aesGCM.Seal(nonce, nonce, []byte(plainJwtSecret), nil)
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// Decrypt takes the encrypted JWT secret wit the JWT master key to decrypt it for usage
-func Decrypt(base64EncodedAndEncryptedSecret string, key []byte) ([]byte, error) {
+// Decrypt takes the encrypted JWT secret with the JWT master key to decrypt it for usage
+func Decrypt(base64EncodedAndEncryptedSecret string, base64EncodedMasterKey string) ([]byte, error) {
 	encryptedSecret, err := base64.StdEncoding.DecodeString(base64EncodedAndEncryptedSecret)
+	if err != nil {
+		return nil, err
+	}
+	key, err := base64.StdEncoding.DecodeString(base64EncodedMasterKey)
 	if err != nil {
 		return nil, err
 	}
