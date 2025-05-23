@@ -1,3 +1,4 @@
 *.gen.go*
 vendor
 .idea
+configs

@@ -87,10 +87,14 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 }
 
 func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
-	err := s.tokenService.RevokeAllTokens(ctx, ctx.GetString("email"))
-	if err != nil {
-		ctx.Error(err)
+	if email, present := ctx.Get("X-JWT-EMAIL"); present {
+		err := s.tokenService.RevokeAllTokens(ctx, email.(string))
+		if err != nil {
+			ctx.Error(err)
+			return
+		}
+		ctx.Status(http.StatusOK)
 		return
 	}
-	ctx.Status(http.StatusOK)
+	ctx.AbortWithStatus(http.StatusUnauthorized)
 }

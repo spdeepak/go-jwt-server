@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/base64"
 	"os"
 	"time"
 
@@ -70,14 +69,6 @@ func (s *secret) readSecret() {
 	if err := v.Unmarshal(s); err != nil {
 		panic(err)
 	}
-
-	if masterKey, masterKeyPresent := os.LookupEnv("JWT_MASTER_KEY"); masterKeyPresent {
-		s.JWT.MasterKey = masterKey
-	} else if secretKey, secretKeyPresent := os.LookupEnv("JWT_SECRET_KEY"); secretKeyPresent {
-		s.JWT.SecretKey = secretKey
-	} else {
-		log.Fatal().Msg("One of token.secret or token.masterKey is required in config")
-	}
 }
 
 func NewConfiguration() *AppConfig {
@@ -93,18 +84,13 @@ func NewConfiguration() *AppConfig {
 	secret.v.OnConfigChange(func(in fsnotify.Event) {
 		secret.readSecret()
 	})
-	if secret.JWT.MasterKey != "" {
-		if masterByte, err := base64.StdEncoding.DecodeString(secret.JWT.MasterKey); err == nil {
-			config.Token.MasterKey = string(masterByte)
-		} else {
-			log.Fatal().Msg("Decoding master key failed")
-		}
+
+	if masterKey, masterKeyPresent := os.LookupEnv("JWT_MASTER_KEY"); masterKeyPresent {
+		config.Token.MasterKey = masterKey
+	} else if secretKey, secretKeyPresent := os.LookupEnv("JWT_SECRET_KEY"); secretKeyPresent {
+		config.Token.Secret = secretKey
 	} else {
-		if secretByte, err := base64.StdEncoding.DecodeString(secret.JWT.SecretKey); err == nil {
-			config.Token.Secret = string(secretByte)
-		} else {
-			log.Fatal().Msg("Decoding jwt secret failed")
-		}
+		log.Fatal().Msg("One of token.secret or token.masterKey is required in config")
 	}
 	return config
 }
