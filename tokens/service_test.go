@@ -78,9 +78,15 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	query.On("IsRefreshValid", ctx, hash(response.RefreshToken)).Return(int32(1), nil)
+	refreshValidParams := repository.IsRefreshValidParams{
+		RefreshToken: hash(response.RefreshToken),
+		IpAddress:    hash("192.168.1.100"),
+		UserAgent:    hash("test"),
+		DeviceName:   "",
+	}
+	query.On("IsRefreshValid", ctx, refreshValidParams).Return(int32(1), nil)
 
-	claims, err := service.ValidateRefreshToken(ctx, response.RefreshToken)
+	claims, err := service.ValidateRefreshToken(ctx, api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
 }
@@ -116,9 +122,16 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	query.On("IsRefreshValid", ctx, hash(response.RefreshToken)).Return(int32(0), nil)
+	refreshValidParams := repository.IsRefreshValidParams{
+		RefreshToken: hash(response.RefreshToken),
+		IpAddress:    hash("192.168.1.100"),
+		UserAgent:    hash("test"),
+		DeviceName:   "",
+	}
 
-	claims, err := service.ValidateRefreshToken(ctx, response.RefreshToken)
+	query.On("IsRefreshValid", ctx, refreshValidParams).Return(int32(0), nil)
+
+	claims, err := service.ValidateRefreshToken(ctx, api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.Error(t, err)
 	assert.Nil(t, claims)
 }
@@ -154,7 +167,7 @@ func TestService_ValidateRefreshToken_NOK(t *testing.T) {
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	claims, err := NewService(storage, []byte(secret+"asd")).ValidateRefreshToken(ctx, response.RefreshToken)
+	claims, err := NewService(storage, []byte(secret+"asd")).ValidateRefreshToken(ctx, api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.Error(t, err)
 	assert.Equal(t, "token signature is invalid: signature is invalid", err.(httperror.HttpError).Metadata)
 	assert.Nil(t, claims)

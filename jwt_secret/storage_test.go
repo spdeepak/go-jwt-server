@@ -14,37 +14,35 @@ import (
 func TestStorage_GetOrCreateDefaultSecret_OK_DefaultSecretExists(t *testing.T) {
 	ctx := context.Background()
 	secret := "JWT_$€CR€T"
-	querier := repository.NewMockQuerier(t)
-	querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, nil)
-	storage := NewStorage(querier)
+	query := repository.NewMockQuerier(t)
+	query.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, nil)
+	storage := NewStorage(query)
 
-	getSecret, err := storage.getOrCreateDefaultSecret(ctx, secret)
+	err := storage.saveDefaultSecret(ctx, secret)
 	assert.NoError(t, err)
-	assert.Equal(t, secret, getSecret)
 }
 
 func TestStorage_GetOrCreateDefaultSecret_OK_DefaultSecretNotExist(t *testing.T) {
 	ctx := context.Background()
 	secret := "JWT_$€CR€T"
-	querier := repository.NewMockQuerier(t)
-	querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, errors.New("error"))
-	querier.On("CreateDefaultSecret", ctx, secret).Return(nil)
-	storage := NewStorage(querier)
+	query := repository.NewMockQuerier(t)
+	query.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, errors.New("error"))
+	query.On("CreateDefaultSecret", ctx, secret).Return(nil)
+	storage := NewStorage(query)
 
-	getSecret, err := storage.getOrCreateDefaultSecret(ctx, secret)
+	err := storage.saveDefaultSecret(ctx, secret)
 	assert.NoError(t, err)
-	assert.Equal(t, secret, getSecret)
 }
 
 func TestStorage_GetOrCreateDefaultSecret_NOK_DefaultSecretCreateFail(t *testing.T) {
 	if os.Getenv("FATAL_TEST") == "1" {
 		ctx := context.Background()
 		secret := "JWT_$€CR€T"
-		querier := repository.NewMockQuerier(t)
-		querier.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, errors.New("error"))
-		querier.On("CreateDefaultSecret", ctx, secret).Return(errors.New("error"))
-		storage := NewStorage(querier)
-		storage.getOrCreateDefaultSecret(context.Background(), secret)
+		query := repository.NewMockQuerier(t)
+		query.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, errors.New("error"))
+		query.On("CreateDefaultSecret", ctx, secret).Return(errors.New("error"))
+		storage := NewStorage(query)
+		storage.saveDefaultSecret(context.Background(), secret)
 		return
 	}
 

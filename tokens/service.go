@@ -35,7 +35,7 @@ type TokenParams struct {
 
 type Service interface {
 	// ValidateRefreshToken verifies if a given refresh token is valid
-	ValidateRefreshToken(ctx *gin.Context, refreshToken string) (jwt.MapClaims, error)
+	ValidateRefreshToken(ctx *gin.Context, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error)
 	// GenerateNewTokenPair Generates a token for a given user
 	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error)
 	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a token for a given user
@@ -66,12 +66,18 @@ func getOrDefaultExpiry(env string, defaultExpire time.Duration) time.Duration {
 	return defaultExpire
 }
 
-func (s *service) ValidateRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
-	claims, err := s.verifyToken(ctx, token)
+func (s *service) ValidateRefreshToken(ctx *gin.Context, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error) {
+	claims, err := s.verifyToken(ctx, refreshToken)
 	if err != nil {
 		return nil, err
 	}
-	valid, err := s.storage.isRefreshValid(ctx, hash(token))
+	refreshValidParams := repository.IsRefreshValidParams{
+		RefreshToken: hash(refreshToken),
+		IpAddress:    hash(ctx.ClientIP()),
+		UserAgent:    hash(params.UserAgent),
+		DeviceName:   "",
+	}
+	valid, err := s.storage.isRefreshValid(ctx, refreshValidParams)
 	if err != nil {
 		return nil, httperror.NewWithMetadata(httperror.RefreshTokenRevoked, err.Error())
 	} else if !valid {

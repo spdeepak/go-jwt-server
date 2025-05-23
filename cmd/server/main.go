@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
+	config2 "github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/db"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
@@ -36,19 +37,21 @@ func main() {
 		MaxRetry: 5,
 	}
 
+	cfg := config2.NewConfiguration()
+
 	dbConnection, err := db.Connect(config)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	db.RunMigrationQueries(dbConnection, "migrations")
 
-	//JWT Secret
+	//JWT SecretKey
 	jwtSecretRepository := secret.New(dbConnection.DB)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
 	//JWT Token
 	tokenRepository := token.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenRepository)
-	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetSecret(jwtSecretStorage))
+	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
@@ -64,7 +67,7 @@ func main() {
 	}
 	swagger.Servers = nil
 
-	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetSecret(jwtSecretStorage), nil)
+	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), nil)
 
 	router := gin.New()
 	router.Use(httperror.Middleware)
