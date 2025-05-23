@@ -50,12 +50,18 @@ WHERE refresh_token = sqlc.arg('refresh_token');
 SELECT 1
 FROM tokens
 WHERE token = sqlc.arg('token')
+  AND ip_address = sqlc.arg('ip_address')
+  AND user_agent = sqlc.arg('user_agent')
+  AND device_name = sqlc.arg('device_name')
   AND revoked = FALSE;
 
 -- name: IsRefreshValid :one
 SELECT 1
 FROM tokens
 WHERE refresh_token = sqlc.arg('refresh_token')
+  AND ip_address = sqlc.arg('ip_address')
+  AND user_agent = sqlc.arg('user_agent')
+  AND device_name = sqlc.arg('device_name')
   AND revoked = FALSE;
 
 -- name: RefreshAndInvalidateToken :exec

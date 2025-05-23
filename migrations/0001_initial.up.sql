@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS jwt_secrets
     id          UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
     secret      TEXT        NOT NULL,
     secret_type TEXT        NOT NULL DEFAULT 'default',
-    is_valid    BOOLEAN              default TRUE,
+    is_valid    BOOLEAN     NOT NULL default TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

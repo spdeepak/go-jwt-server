@@ -35,7 +35,7 @@ type TokenParams struct {
 
 type Service interface {
 	// ValidateRefreshToken verifies if a given refresh token is valid
-	ValidateRefreshToken(ctx *gin.Context, refreshToken string) (jwt.MapClaims, error)
+	ValidateRefreshToken(ctx *gin.Context, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error)
 	// GenerateNewTokenPair Generates a token for a given user
 	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error)
 	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a token for a given user
@@ -66,12 +66,18 @@ func getOrDefaultExpiry(env string, defaultExpire time.Duration) time.Duration {
 	return defaultExpire
 }
 
-func (s *service) ValidateRefreshToken(ctx *gin.Context, token string) (jwt.MapClaims, error) {
-	claims, err := s.verifyToken(ctx, token)
+func (s *service) ValidateRefreshToken(ctx *gin.Context, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error) {
+	claims, err := s.verifyToken(ctx, refreshToken)
 	if err != nil {
 		return nil, err
 	}
-	valid, err := s.storage.isRefreshValid(ctx, hashToken(token))
+	refreshValidParams := repository.IsRefreshValidParams{
+		RefreshToken: hash(refreshToken),
+		IpAddress:    hash(ctx.ClientIP()),
+		UserAgent:    hash(params.UserAgent),
+		DeviceName:   "",
+	}
+	valid, err := s.storage.isRefreshValid(ctx, refreshValidParams)
 	if err != nil {
 		return nil, httperror.NewWithMetadata(httperror.RefreshTokenRevoked, err.Error())
 	} else if !valid {
@@ -96,12 +102,12 @@ func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, use
 		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	saveTokenParams := repository.SaveTokenParams{
-		Token:            hashToken(signedAccessToken),
-		RefreshToken:     hashToken(signedRefreshToken),
+		Token:            hash(signedAccessToken),
+		RefreshToken:     hash(signedRefreshToken),
 		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
 		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
-		IpAddress:        ctx.ClientIP(),
-		UserAgent:        params.UserAgent,
+		IpAddress:        hash(ctx.ClientIP()),
+		UserAgent:        hash(params.UserAgent),
 		DeviceName:       "",
 		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
@@ -134,16 +140,16 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 	}
 
 	refreshAndInvalidateTokenParams := repository.RefreshAndInvalidateTokenParams{
-		NewToken:         hashToken(signedAccessToken),
-		NewRefreshToken:  hashToken(signedRefreshToken),
+		NewToken:         hash(signedAccessToken),
+		NewRefreshToken:  hash(signedRefreshToken),
 		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
 		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
-		IpAddress:        ctx.ClientIP(),
-		UserAgent:        params.UserAgent,
+		IpAddress:        hash(ctx.ClientIP()),
+		UserAgent:        hash(params.UserAgent),
 		DeviceName:       "",
 		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
-		OldRefreshToken:  hashToken(refresh.RefreshToken),
+		OldRefreshToken:  hash(refresh.RefreshToken),
 	}
 	if err := s.storage.refreshAndInvalidateToken(ctx, refreshAndInvalidateTokenParams); err != nil {
 		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
@@ -155,7 +161,7 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 }
 
 func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
-	hashedRefreshToken := hashToken(refresh.RefreshToken)
+	hashedRefreshToken := hash(refresh.RefreshToken)
 	_, err := s.verifyToken(ctx, refresh.RefreshToken)
 	if err != nil {
 		return err
@@ -235,8 +241,8 @@ func (s *service) verifyToken(ctx *gin.Context, tokenStr string) (jwt.MapClaims,
 	return claims, nil
 }
 
-func hashToken(token string) string {
+func hash(anything string) string {
 	h := sha256.New()
-	h.Write([]byte(token))
+	h.Write([]byte(anything))
 	return hex.EncodeToString(h.Sum(nil))
 }

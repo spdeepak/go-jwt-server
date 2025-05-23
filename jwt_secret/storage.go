@@ -11,9 +11,9 @@ type storage struct {
 	jwtSecretRepository repository.Querier
 }
 
-//go:generate go tool mockery --name Storage --filename storage_mock.gen.go --inpackage
 type Storage interface {
-	getOrCreateDefaultSecret(ctx context.Context, secret string) (string, error)
+	saveDefaultSecret(ctx context.Context, secret string) error
+	getDefaultEncryptedSecret(ctx context.Context) (string, error)
 }
 
 func NewStorage(jwtSecretRepository repository.Querier) Storage {
@@ -22,13 +22,20 @@ func NewStorage(jwtSecretRepository repository.Querier) Storage {
 	}
 }
 
-func (s *storage) getOrCreateDefaultSecret(ctx context.Context, secret string) (string, error) {
-	defaultSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
-	if err != nil {
-		if err := s.jwtSecretRepository.CreateDefaultSecret(ctx, secret); err != nil {
-			log.Fatal().Msg("JWT_TOKEN_SECRET not provided. Could not create default jwt secret.")
-		}
-		return secret, nil
+func (s *storage) saveDefaultSecret(ctx context.Context, secret string) error {
+	if err := s.jwtSecretRepository.CreateDefaultSecret(ctx, secret); err != nil {
+		log.Fatal().Msg("JWT_TOKEN_SECRET not provided. Could not create default jwt secret.")
 	}
-	return defaultSecret.Secret, nil
+	return nil
+}
+
+func (s *storage) getDefaultEncryptedSecret(ctx context.Context) (string, error) {
+	jwtSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return "", nil
+		}
+		return "", err
+	}
+	return jwtSecret.Secret, nil
 }

@@ -16,8 +16,8 @@ type Storage interface {
 	revokeBearerToken(ctx *gin.Context, token string) error
 	revokeRefreshToken(ctx *gin.Context, token string) error
 	revokeAllToken(ctx *gin.Context, email string) error
-	isBearerValid(ctx *gin.Context, bearerToken string) (bool, error)
-	isRefreshValid(ctx *gin.Context, refreshToken string) (bool, error)
+	isBearerValid(ctx *gin.Context, bearerValidParams repository.IsBearerValidParams) (bool, error)
+	isRefreshValid(ctx *gin.Context, refreshValidParams repository.IsRefreshValidParams) (bool, error)
 	refreshAndInvalidateToken(ctx *gin.Context, arg repository.RefreshAndInvalidateTokenParams) error
 }
 
@@ -51,16 +51,16 @@ func (s *storage) revokeAllToken(ctx *gin.Context, email string) error {
 	return s.query.RevokeAllTokens(ctx, email)
 }
 
-func (s *storage) isBearerValid(ctx *gin.Context, bearerToken string) (bool, error) {
-	res, err := s.query.IsBearerValid(ctx, bearerToken)
+func (s *storage) isBearerValid(ctx *gin.Context, bearerValidParams repository.IsBearerValidParams) (bool, error) {
+	res, err := s.query.IsBearerValid(ctx, bearerValidParams)
 	if err != nil {
 		return false, err
 	}
 	return res == 1, nil
 }
 
-func (s *storage) isRefreshValid(ctx *gin.Context, refreshToken string) (bool, error) {
-	res, err := s.query.IsRefreshValid(ctx, refreshToken)
+func (s *storage) isRefreshValid(ctx *gin.Context, refreshValidParams repository.IsRefreshValidParams) (bool, error) {
+	res, err := s.query.IsRefreshValid(ctx, refreshValidParams)
 	if err != nil {
 		return false, err
 	}
