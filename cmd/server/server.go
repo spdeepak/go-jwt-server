@@ -21,39 +21,39 @@ func NewServer(userService users.Service, tokenService tokens.Service) api.Serve
 	}
 }
 
-func (s *Server) GetLive(c *gin.Context) {
-	c.Status(http.StatusOK)
+func (s *Server) GetLive(ctx *gin.Context) {
+	ctx.Status(http.StatusOK)
 }
 
-func (s *Server) GetReady(c *gin.Context) {
-	c.Status(http.StatusOK)
+func (s *Server) GetReady(ctx *gin.Context) {
+	ctx.Status(http.StatusOK)
 }
 
-func (s *Server) Signup(c *gin.Context, params api.SignupParams) {
+func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
-	if err := c.ShouldBindJSON(&signup); err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
+	if err := ctx.ShouldBindJSON(&signup); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if err := s.userService.Signup(c, signup); err != nil {
-		c.Error(err)
+	if err := s.userService.Signup(ctx, signup); err != nil {
+		ctx.Error(err)
 		return
 	}
-	c.Status(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
-func (s *Server) Login(c *gin.Context, params api.LoginParams) {
+func (s *Server) Login(ctx *gin.Context, params api.LoginParams) {
 	var login api.UserLogin
-	if err := c.ShouldBindJSON(&login); err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
+	if err := ctx.ShouldBindJSON(&login); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	if response, err := s.userService.Login(c, params, login); err != nil {
-		c.Error(err)
+	if response, err := s.userService.Login(ctx, params, login); err != nil {
+		ctx.Error(err)
 		return
 	} else {
-		c.JSON(http.StatusOK, response)
+		ctx.JSON(http.StatusOK, response)
 	}
 }
 
@@ -74,7 +74,7 @@ func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 }
 
 func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams) {
-	var revokeRefresh api.RevokeRefresh
+	var revokeRefresh api.RevokeCurrentSession
 	if err := ctx.ShouldBindJSON(&revokeRefresh); err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -94,6 +94,19 @@ func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensPar
 			return
 		}
 		ctx.Status(http.StatusOK)
+		return
+	}
+	ctx.AbortWithStatus(http.StatusUnauthorized)
+}
+
+func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParams) {
+	if email, present := ctx.Get("X-JWT-EMAIL"); present {
+		response, err := s.tokenService.ListActiveSessions(ctx, email.(string))
+		if err != nil {
+			ctx.Error(err)
+			return
+		}
+		ctx.JSON(http.StatusOK, response)
 		return
 	}
 	ctx.AbortWithStatus(http.StatusUnauthorized)

@@ -17,17 +17,18 @@ func (e HttpError) Error() string {
 }
 
 const (
-	UndefinedErrorCode  = "JWT0000"
-	Unauthorized        = "JWT0001"
-	InvalidCredentials  = "JWT0002"
-	InvalidRefreshToken = "JWT0003"
-	TokenCreationFailed = "JWT0004"
-	ExpiredBearerToken  = "JWT0005"
-	BearerTokenMissing  = "JWT0006"
-	ExpiredRefreshToken = "JWT0007"
-	BearerTokenRevoked  = "JWT0008"
-	RefreshTokenRevoked = "JWT0009"
-	TokenRevokeFailed   = "JWT0010"
+	UndefinedErrorCode       = "JWT0000"
+	Unauthorized             = "JWT0001"
+	InvalidCredentials       = "JWT0002"
+	InvalidRefreshToken      = "JWT0003"
+	TokenCreationFailed      = "JWT0004"
+	ExpiredBearerToken       = "JWT0005"
+	BearerTokenMissing       = "JWT0006"
+	ExpiredRefreshToken      = "JWT0007"
+	BearerTokenRevoked       = "JWT0008"
+	RefreshTokenRevoked      = "JWT0009"
+	TokenRevokeFailed        = "JWT0010"
+	ActiveSessionsListFailed = "JWT0011"
 )
 
 var httpErrors = map[string]HttpError{
@@ -61,15 +62,19 @@ var httpErrors = map[string]HttpError{
 	},
 	BearerTokenRevoked: {
 		StatusCode:  http.StatusUnauthorized,
-		Description: "Refresh token is expired. Please login again.",
+		Description: "Bearer token is expired. Please login again.",
 	},
 	RefreshTokenRevoked: {
 		StatusCode:  http.StatusUnauthorized,
-		Description: "Refresh token is expired. Please login again.",
+		Description: "Refresh token is revoked. Please login again.",
 	},
 	TokenRevokeFailed: {
 		StatusCode:  http.StatusInternalServerError,
 		Description: "Refresh token revoke failed.",
+	},
+	ActiveSessionsListFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Failed to list all active sessions.",
 	},
 }
 
