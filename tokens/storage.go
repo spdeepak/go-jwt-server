@@ -19,6 +19,7 @@ type Storage interface {
 	isBearerValid(ctx *gin.Context, bearerValidParams repository.IsBearerValidParams) (bool, error)
 	isRefreshValid(ctx *gin.Context, refreshValidParams repository.IsRefreshValidParams) (bool, error)
 	refreshAndInvalidateToken(ctx *gin.Context, arg repository.RefreshAndInvalidateTokenParams) error
+	listAllActiveSessions(ctx *gin.Context, email string) ([]repository.Token, error)
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -69,4 +70,8 @@ func (s *storage) isRefreshValid(ctx *gin.Context, refreshValidParams repository
 
 func (s *storage) refreshAndInvalidateToken(ctx *gin.Context, arg repository.RefreshAndInvalidateTokenParams) error {
 	return s.query.RefreshAndInvalidateToken(ctx, arg)
+}
+
+func (s *storage) listAllActiveSessions(ctx *gin.Context, email string) ([]repository.Token, error) {
+	return s.query.ListAllActiveSessions(ctx, email)
 }

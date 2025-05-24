@@ -90,3 +90,10 @@ VALUES (sqlc.arg('new_token'),
         sqlc.arg('device_name'),
         sqlc.arg('email'),
         sqlc.arg('created_by'));
+
+-- name: ListAllActiveSessions :many
+SELECT *
+FROM tokens
+WHERE email = sqlc.arg('email')
+  AND revoked = false
+  AND refresh_expires_at > now();

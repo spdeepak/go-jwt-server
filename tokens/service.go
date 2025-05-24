@@ -38,12 +38,14 @@ type Service interface {
 	ValidateRefreshToken(ctx *gin.Context, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error)
 	// GenerateNewTokenPair Generates a token for a given user
 	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error)
-	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a token for a given user
+	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a new token for the given user
 	RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.TokenResponse, error)
 	// RevokeRefreshToken marks a refresh token as revoked
-	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error
+	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeCurrentSession) error
 	// RevokeAllTokens marks all refresh tokens of a give user
 	RevokeAllTokens(ctx *gin.Context, email string) error
+	// ListActiveSessions list of all active sessions
+	ListActiveSessions(ctx *gin.Context, email string) ([]api.GetAllSessionResponse, error)
 }
 
 func NewService(storage Storage, secret []byte) Service {
@@ -73,8 +75,8 @@ func (s *service) ValidateRefreshToken(ctx *gin.Context, params api.RefreshParam
 	}
 	refreshValidParams := repository.IsRefreshValidParams{
 		RefreshToken: hash(refreshToken),
-		IpAddress:    hash(ctx.ClientIP()),
-		UserAgent:    hash(params.UserAgent),
+		IpAddress:    ctx.ClientIP(),
+		UserAgent:    params.UserAgent,
 		DeviceName:   "",
 	}
 	valid, err := s.storage.isRefreshValid(ctx, refreshValidParams)
@@ -106,8 +108,8 @@ func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, use
 		RefreshToken:     hash(signedRefreshToken),
 		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
 		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
-		IpAddress:        hash(ctx.ClientIP()),
-		UserAgent:        hash(params.UserAgent),
+		IpAddress:        ctx.ClientIP(),
+		UserAgent:        params.UserAgent,
 		DeviceName:       "",
 		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
@@ -144,8 +146,8 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 		NewRefreshToken:  hash(signedRefreshToken),
 		TokenExpiresAt:   time.Unix(accessClaims["exp"].(int64), 0),
 		RefreshExpiresAt: time.Unix(refreshClaims["exp"].(int64), 0),
-		IpAddress:        hash(ctx.ClientIP()),
-		UserAgent:        hash(params.UserAgent),
+		IpAddress:        ctx.ClientIP(),
+		UserAgent:        params.UserAgent,
 		DeviceName:       "",
 		Email:            user.Email,
 		CreatedBy:        params.XLoginSource,
@@ -160,7 +162,7 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 	}, nil
 }
 
-func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeRefresh) error {
+func (s *service) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeCurrentSession) error {
 	hashedRefreshToken := hash(refresh.RefreshToken)
 	_, err := s.verifyToken(ctx, refresh.RefreshToken)
 	if err != nil {
@@ -182,6 +184,24 @@ func (s *service) RevokeAllTokens(ctx *gin.Context, email string) error {
 		return httperror.NewWithMetadata(httperror.TokenRevokeFailed, err.Error())
 	}
 	return nil
+}
+
+func (s *service) ListActiveSessions(ctx *gin.Context, email string) ([]api.GetAllSessionResponse, error) {
+	activeSessions, err := s.storage.listAllActiveSessions(ctx, email)
+	if err != nil {
+		return nil, httperror.NewWithMetadata(httperror.ActiveSessionsListFailed, err.Error())
+	}
+	activeSessionResponse := make([]api.GetAllSessionResponse, len(activeSessions))
+	for index, activeSession := range activeSessions {
+		activeSessionResponse[index] = api.GetAllSessionResponse{
+			CreatedBy: activeSession.CreatedBy,
+			IpAddress: activeSession.IpAddress,
+			IssuedAt:  activeSession.IssuedAt,
+			ExpiresAt: activeSession.RefreshExpiresAt,
+			UserAgent: activeSession.UserAgent,
+		}
+	}
+	return activeSessionResponse, nil
 }
 
 func (s *service) bearerTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
