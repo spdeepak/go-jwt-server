@@ -2,8 +2,8 @@ FROM golang:1.24 AS builder
 
 WORKDIR /app
 
-COPY --from=builder /app/application.yaml .
-COPY --from=builder /app/secrets.json .
+#COPY --from=builder /app/application.yaml .
+#COPY --from=builder /app/secrets.json .
 COPY Makefile go.mod go.sum ./
 
 RUN make go-generate-install && \
