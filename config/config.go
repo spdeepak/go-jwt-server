@@ -10,8 +10,9 @@ import (
 )
 
 type AppConfig struct {
-	v     *viper.Viper
-	Token Token `required:"true" json:"token" yaml:"token"`
+	v        *viper.Viper
+	Token    Token          `required:"true" json:"token" yaml:"token"`
+	Postgres PostgresConfig `required:"true" json:"postgres" yaml:"postgres"`
 }
 
 type Token struct {
@@ -19,6 +20,17 @@ type Token struct {
 	MasterKey      string `json:"masterKey" yaml:"masterKey"`
 	Bearer         Bearer `required:"true" json:"bearer" yaml:"bearer"`
 	RefreshRefresh Bearer `required:"true" json:"refresh" yaml:"refresh"`
+}
+
+type PostgresConfig struct {
+	Host     string        `required:"true" json:"host" yaml:"host"`
+	Port     string        `json:"port" yaml:"port"`
+	DBName   string        `required:"true" json:"dbName" yaml:"dbName"`
+	UserName string        `required:"true" json:"username" yaml:"username"`
+	Password string        `required:"true" json:"password" yaml:"password"`
+	SSLMode  string        `required:"true" json:"sslMode" yaml:"sslMode"`
+	Timeout  time.Duration `required:"true" json:"timeout" yaml:"timeout"`
+	MaxRetry int           `required:"true" json:"maxRetry" yaml:"maxRetry"`
 }
 
 type Bearer struct {
@@ -30,8 +42,9 @@ type Refresh struct {
 }
 
 type secret struct {
-	v   *viper.Viper
-	JWT JWT `required:"true" json:"jwt" yaml:"jwt"`
+	v        *viper.Viper
+	JWT      JWT            `required:"true" json:"jwt" yaml:"jwt"`
+	Postgres PostgresConfig `json:"postgres" yaml:"postgres"`
 }
 
 type JWT struct {
@@ -92,5 +105,25 @@ func NewConfiguration() *AppConfig {
 	} else {
 		log.Fatal().Msg("One of token.secret or token.masterKey is required in config")
 	}
+
+	populatePostgresCredentials(secret, config)
+
 	return config
+}
+
+func populatePostgresCredentials(secret *secret, config *AppConfig) {
+	if secret.Postgres.UserName != "" {
+		config.Postgres.UserName = secret.Postgres.UserName
+	} else if postgresUsername, postgresUsernamePresent := os.LookupEnv("POSTGRES_USER_NAME"); postgresUsernamePresent {
+		config.Postgres.UserName = postgresUsername
+	} else {
+		log.Fatal().Msg("POSTGRES_USER_NAME not found")
+	}
+	if secret.Postgres.Password != "" {
+		config.Postgres.Password = secret.Postgres.Password
+	} else if postgresPassword, postgresPasswordPresent := os.LookupEnv("POSTGRES_PASSWORD"); postgresPasswordPresent {
+		config.Postgres.Password = postgresPassword
+	} else {
+		log.Fatal().Msg("POSTGRES_PASSWORD not found")
+	}
 }
