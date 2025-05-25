@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS jwt_secrets
 CREATE TABLE IF NOT EXISTS users
 (
     id         UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
-    email      TEXT UNIQUE,
+    email      TEXT        NOT NULL UNIQUE,
     first_name TEXT        NOT NULL,
     last_name  TEXT        NOT NULL,
     password   TEXT        NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS users
 
 CREATE TABLE IF NOT EXISTS users_password
 (
-    user_id UUID NOT NULL,
+    user_id    UUID        NOT NULL,
     password   TEXT        NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
