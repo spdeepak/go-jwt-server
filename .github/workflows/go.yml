@@ -41,7 +41,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        run: docker build -t spdeepak/go-jwt-server:latest .
+        run: docker build -t spdeepak/go-jwt-server:${{ env.SHA_SHORT }} .
 
   docker:
     needs: build-and-test
