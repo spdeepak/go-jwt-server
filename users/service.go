@@ -19,14 +19,14 @@ type service struct {
 	storage      Storage
 	tokenService tokens.Service
 	redisClient  *db.RedisClient
-	recaptchaSecret string
 }
 
 type Service interface {
 	Signup(ctx *gin.Context, user api.UserSignup) error
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (api.TokenResponse, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.TokenResponse, error)
-	IsLoginLimitReached(ctx context.Context, ip string) (bool, error)
+	GenerateLoginChallenge(ctx *gin.Context, email string) (string, error)
+	VerifyLoginChallenge(ctx *gin.Context, email, challenge, response string) (bool, error)
 }
 
 func NewService(storage Storage, tokenService tokens.Service, redisClient *db.RedisClient, recaptchaSecret string) Service {
@@ -53,7 +53,10 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) error {
 	return s.storage.UserSignup(ctx, userSignup)
 }
 
-const maxLoginAttempts = 3
+const (
+	maxLoginAttempts = 3
+	challengeExpiry  = 5 * time.Minute
+)
 
 func (s *service) IsLoginLimitReached(ctx context.Context, ip string) (bool, error) {
 	failures, err := s.redisClient.GetLoginFailures(ctx, ip)
@@ -95,19 +98,33 @@ func (s *service) verifyRecaptcha(ctx context.Context, captchaResponse string) e
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (api.TokenResponse, error) {
 	ip := ctx.ClientIP()
 	
-	// Check if we need to require captcha
-	limitReached, err := s.IsLoginLimitReached(ctx, ip)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to check login limit")
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "Failed to check login limit")
+	// Check login attempts
+	key := fmt.Sprintf("login_attempts:%s", ip)
+	attempts, err := s.redisClient.client.Get(ctx, key).Int64()
+	if err != nil && err != redis.Nil {
+		log.Error().Err(err).Msg("Failed to check login attempts")
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "Failed to check login attempts")
 	}
 
-	// If limit is reached, verify captcha
-	if limitReached {
-		captchaResponse := ctx.GetHeader("X-Recaptcha-Response")
-		if err := s.verifyRecaptcha(ctx, captchaResponse); err != nil {
-			return api.TokenResponse{}, httperror.NewWithMetadata(httperror.InvalidCredentials, "Captcha verification required")
+	if attempts >= maxLoginAttempts {
+		// If too many attempts, return error with challenge
+		challenge, err := s.GenerateLoginChallenge(ctx, login.Email)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to generate challenge")
+			return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "Failed to generate challenge")
 		}
+		
+		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.LoginLimitExceeded, challenge)
+	}
+
+	// If challenge response is provided, verify it
+	if challenge := ctx.GetHeader("X-Login-Challenge"); challenge != "" {
+		response := ctx.GetHeader("X-Challenge-Response")
+		if ok, _ := s.VerifyLoginChallenge(ctx, login.Email, challenge, response); !ok {
+			return api.TokenResponse{}, httperror.New(httperror.InvalidCredentials)
+		}
+		// On successful challenge verification, reset the attempt counter
+		s.redisClient.client.Del(ctx, key)
 	}
 
 	user, err := s.storage.GetUser(ctx, login.Email)
@@ -186,4 +203,51 @@ func hashPassword(password string) (string, error) {
 func validPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+// generateRandomChallenge creates a random challenge string
+func generateRandomChallenge() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes), nil
+}
+
+// GenerateLoginChallenge generates a challenge for a login attempt
+func (s *service) GenerateLoginChallenge(ctx *gin.Context, email string) (string, error) {
+	challenge, err := generateRandomChallenge()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate challenge: %v", err)
+	}
+
+	// Store the challenge in Redis with expiration
+	key := fmt.Sprintf("login_challenge:%s", email)
+	err = s.redisClient.client.Set(ctx, key, challenge, challengeExpiry).Err()
+	if err != nil {
+		return "", fmt.Errorf("failed to store challenge: %v", err)
+	}
+
+	return challenge, nil
+}
+
+// VerifyLoginChallenge verifies a login challenge response
+func (s *service) VerifyLoginChallenge(ctx *gin.Context, email, challenge, response string) (bool, error) {
+	key := fmt.Sprintf("login_challenge:%s", email)
+	storedChallenge, err := s.redisClient.client.Get(ctx, key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return false, fmt.Errorf("challenge expired or not found")
+		}
+		return false, fmt.Errorf("failed to retrieve challenge: %v", err)
+	}
+
+	// Delete the challenge immediately to prevent replay attacks
+	s.redisClient.client.Del(ctx, key)
+
+	// Here you would implement your challenge-response verification logic
+	// For example, you might expect the response to be a hash of the challenge
+	// with some client-specific secret
+	expectedResponse := hash(challenge) // This is just an example
+	return response == expectedResponse, nil
 }
