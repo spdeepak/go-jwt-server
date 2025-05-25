@@ -40,6 +40,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Extract short SHA
+        id: vars
+        run: echo "SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - name: Build Docker image
         run: docker build -t spdeepak/go-jwt-server:${{ env.SHA_SHORT }} .
 
