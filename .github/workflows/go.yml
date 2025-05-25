@@ -37,7 +37,7 @@ jobs:
   docker:
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+#    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
@@ -49,9 +49,16 @@ jobs:
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Build Docker image
-        run: docker build -t spdeepak/go-jwt-server:latest .
+#      - name: Build Docker image
+#        run: docker build -t spdeepak/go-jwt-server:latest .
+
+#      - name: Push Docker image
+#        if: github.event.inputs.push_image == 'true'
+#        run: docker push spdeepak/go-jwt-server:latest
+
+      - name: Build multi-arch Docker image
+        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --load .
 
       - name: Push Docker image
-        if: github.event.inputs.push_image == 'true'
+#        if: ${{ github.event.inputs.push_image == 'true' }}
         run: docker push spdeepak/go-jwt-server:latest
