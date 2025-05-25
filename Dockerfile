@@ -6,10 +6,9 @@ WORKDIR /app
 #COPY --from=builder /app/secrets.json .
 COPY Makefile go.mod go.sum ./
 
-RUN make go-jwt-generate && \
-    go mod download
-
+RUN go mod download
 COPY . .
+RUN make go-jwt-generate
 
 RUN go build -a -v -o server ./cmd/server
 
