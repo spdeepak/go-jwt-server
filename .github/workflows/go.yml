@@ -5,12 +5,6 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
-  workflow_dispatch:
-    inputs:
-      push_image:
-        description: "Push Docker image to Docker Hub?"
-        required: false
-        default: "false"
 
 jobs:
   build-and-test:
@@ -34,40 +28,25 @@ jobs:
       - name: Test
         run: go test ./... -coverprofile=coverage.out
 
-#  docker_amd64:
-#    runs-on: ubuntu-latest
-#    needs: build-and-test
-#    if: github.ref == 'refs/heads/main'
-#    steps:
-#      - uses: actions/checkout@v3
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#      - name: Log in to Docker Hub
-#        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-#      - name: Build amd64 Docker image
-#        run: docker buildx build --platform linux/amd64 -t spdeepak/go-jwt-server:latest --load .
-#      - name: Push Docker image
-#        run: docker push spdeepak/go-jwt-server:latest
+  docker-build-test:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
 
-#  docker_arm64:
-#    runs-on: ubuntu-latest
-#    needs: build-and-test
-#    if: github.ref == 'refs/heads/main'
-#    steps:
-#      - uses: actions/checkout@v3
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#      - name: Log in to Docker Hub
-#        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-#      - name: Build arm64 Docker image
-#        run: docker buildx build --platform linux/arm64 -t spdeepak/go-jwt-server:latest --load .
-#      - name: Push Docker image
-#        run: docker push spdeepak/go-jwt-server:latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t spdeepak/go-jwt-server:latest .
 
   docker:
     needs: build-and-test
     runs-on: ubuntu-latest
-    #    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
