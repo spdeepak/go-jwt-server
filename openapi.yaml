@@ -53,8 +53,6 @@ paths:
       operationId: refresh
       tags:
         - auth
-      security:
-        - bearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'

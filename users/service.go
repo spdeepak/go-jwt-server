@@ -1,10 +1,16 @@
 package users
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
+	"github.com/spdeepak/go-jwt-server/db"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
@@ -16,9 +22,10 @@ import (
 )
 
 type service struct {
-	storage      Storage
-	tokenService tokens.Service
-	redisClient  *db.RedisClient
+	storage         Storage
+	tokenService    tokens.Service
+	redisClient     *db.RedisClient
+	recaptchaSecret string
 }
 
 type Service interface {
@@ -31,9 +38,9 @@ type Service interface {
 
 func NewService(storage Storage, tokenService tokens.Service, redisClient *db.RedisClient, recaptchaSecret string) Service {
 	return &service{
-		storage:      storage,
-		tokenService: tokenService,
-		redisClient:  redisClient,
+		storage:         storage,
+		tokenService:    tokenService,
+		redisClient:     redisClient,
 		recaptchaSecret: recaptchaSecret,
 	}
 }
@@ -58,7 +65,7 @@ const (
 	challengeExpiry  = 5 * time.Minute
 )
 
-func (s *service) IsLoginLimitReached(ctx context.Context, ip string) (bool, error) {
+func (s *service) IsLoginLimitReached(ctx *gin.Context, ip string) (bool, error) {
 	failures, err := s.redisClient.GetLoginFailures(ctx, ip)
 	if err != nil {
 		return false, err
@@ -66,7 +73,7 @@ func (s *service) IsLoginLimitReached(ctx context.Context, ip string) (bool, err
 	return failures >= maxLoginAttempts, nil
 }
 
-func (s *service) verifyRecaptcha(ctx context.Context, captchaResponse string) error {
+func (s *service) verifyRecaptcha(ctx *gin.Context, captchaResponse string) error {
 	if captchaResponse == "" {
 		return fmt.Errorf("captcha response is required")
 	}
@@ -97,7 +104,7 @@ func (s *service) verifyRecaptcha(ctx context.Context, captchaResponse string) e
 
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (api.TokenResponse, error) {
 	ip := ctx.ClientIP()
-	
+
 	// Check login attempts
 	key := fmt.Sprintf("login_attempts:%s", ip)
 	attempts, err := s.redisClient.client.Get(ctx, key).Int64()
@@ -113,7 +120,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 			log.Error().Err(err).Msg("Failed to generate challenge")
 			return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, "Failed to generate challenge")
 		}
-		
+
 		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.LoginLimitExceeded, challenge)
 	}
 
