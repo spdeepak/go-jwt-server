@@ -26,20 +26,9 @@ import (
 
 func main() {
 
-	dbConfig := db.Config{
-		Host:     "localhost",
-		Port:     "5432",
-		UserName: "admin",
-		Password: "admin",
-		DBName:   "jwt_server",
-		SSLMode:  "disable",
-		Timeout:  10 * time.Second,
-		MaxRetry: 5,
-	}
-
 	cfg := config.NewConfiguration()
 
-	dbConnection, err := db.Connect(dbConfig)
+	dbConnection, err := db.Connect(cfg.Postgres)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}

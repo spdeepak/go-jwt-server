@@ -10,26 +10,20 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/spdeepak/go-jwt-server/config"
 )
-
-type Config struct {
-	Host     string
-	Port     string
-	UserName string
-	Password string
-	DBName   string
-	SSLMode  string
-	Timeout  time.Duration
-	MaxRetry int
-}
 
 type Database struct {
 	DB *sql.DB
 }
 
-func Connect(config Config) (*Database, error) {
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s connect_timeout=%d", config.Host, config.Port, config.UserName, config.Password, config.DBName, config.SSLMode, int(config.Timeout.Seconds()))
+func Connect(config config.PostgresConfig) (*Database, error) {
+	connStr := ""
+	if config.Port != "" {
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s connect_timeout=%d", config.Host, config.Port, config.UserName, config.Password, config.DBName, config.SSLMode, int(config.Timeout.Seconds()))
+	} else {
+		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=%s connect_timeout=%d", config.Host, config.UserName, config.Password, config.DBName, config.SSLMode, int(config.Timeout.Seconds()))
+	}
 
 	var db *sql.DB
 	var err error
