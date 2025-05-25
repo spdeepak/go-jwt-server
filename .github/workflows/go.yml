@@ -34,5 +34,5 @@ jobs:
       - name: Build Docker image
         run: docker build -t spdeepak/go-jwt-server:latest .
 
-#      - name: Push Docker image
-#        run: docker push spdeepak/go-jwt-server:latest:latest
+      - name: Push Docker image
+        run: docker push spdeepak/go-jwt-server:latest
