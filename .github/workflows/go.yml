@@ -5,18 +5,11 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
-  workflow_dispatch:
-    inputs:
-      push_image:
-        description: "Push Docker image to Docker Hub?"
-        required: false
-        default: "false"
-
-permissions:
-  contents: read
 
 jobs:
   build-and-test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -37,9 +30,31 @@ jobs:
       - name: Test
         run: go test ./... -coverprofile=coverage.out
 
+  docker-build-test:
+    permissions:
+      contents: read
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract short SHA
+        id: vars
+        run: echo "SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        run: docker build -t spdeepak/go-jwt-server:${{ env.SHA_SHORT }} .
+
   docker:
     permissions:
       contents: read
+      packages: write
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -54,9 +69,5 @@ jobs:
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Build Docker image
-        run: docker build -t spdeepak/go-jwt-server:latest .
-
-      - name: Push Docker image
-        if: github.event.inputs.push_image == 'true'
-        run: docker push spdeepak/go-jwt-server:latest
+      - name: Build and push multi-arch Docker image
+        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --push .
