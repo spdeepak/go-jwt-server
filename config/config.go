@@ -106,6 +106,12 @@ func NewConfiguration() *AppConfig {
 		log.Fatal().Msg("One of token.secret or token.masterKey is required in config")
 	}
 
+	populatePostgresCredentials(secret, config)
+
+	return config
+}
+
+func populatePostgresCredentials(secret *secret, config *AppConfig) {
 	if secret.Postgres.UserName != "" {
 		config.Postgres.UserName = secret.Postgres.UserName
 	} else if postgresUsername, postgresUsernamePresent := os.LookupEnv("POSTGRES_USER_NAME"); postgresUsernamePresent {
@@ -120,6 +126,4 @@ func NewConfiguration() *AppConfig {
 	} else {
 		log.Fatal().Msg("POSTGRES_PASSWORD not found")
 	}
-
-	return config
 }
