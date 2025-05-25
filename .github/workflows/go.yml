@@ -12,6 +12,9 @@ on:
         required: false
         default: "false"
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -35,6 +38,8 @@ jobs:
         run: go test ./... -coverprofile=coverage.out
 
   docker:
+    permissions:
+      contents: read
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
