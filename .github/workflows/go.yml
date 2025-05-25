@@ -56,9 +56,26 @@ jobs:
 #        if: github.event.inputs.push_image == 'true'
 #        run: docker push spdeepak/go-jwt-server:latest
 
-      - name: Build multi-arch Docker image
-        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --push .
+      - name: Build amd64 Docker image
+        run: docker buildx build --platform linux/amd64 -t yourrepo/go-jwt-server:latest --load .
 
-      - name: Push Docker image
+      - name: Build arm64 Docker image
+        run: docker buildx build --platform linux/arm64 -t yourrepo/go-jwt-server:latest-arm64 --load .
+
+#      - name: Build multi-arch Docker image
+#        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --push .
+
+      - name: Create manifest
+        run: docker manifest create spdeepak/go-jwt-server:latest spdeepak/go-jwt-server:amd64 spdeepak/go-jwt-server:arm64
+
+      - name: Annotate manifest
+        run: |
+          docker manifest annotate spdeepak/go-jwt-server:latest spdeepak/go-jwt-server:amd64 --os linux --arch amd64
+          docker manifest annotate spdeepak/go-jwt-server:latest spdeepak/go-jwt-server:arm64 --os linux --arch arm64
+
+      - name: Push manifest
+        run: docker manifest push spdeepak/go-jwt-server:latest
+
+#      - name: Push Docker image
 #        if: ${{ github.event.inputs.push_image == 'true' }}
-        run: docker push spdeepak/go-jwt-server:latest
+#        run: docker push spdeepak/go-jwt-server:latest
