@@ -57,7 +57,7 @@ jobs:
 #        run: docker push spdeepak/go-jwt-server:latest
 
       - name: Build multi-arch Docker image
-        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --load .
+        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --push .
 
       - name: Push Docker image
 #        if: ${{ github.event.inputs.push_image == 'true' }}
