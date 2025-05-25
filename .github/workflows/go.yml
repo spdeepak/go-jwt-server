@@ -8,6 +8,8 @@ on:
 
 jobs:
   build-and-test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +31,8 @@ jobs:
         run: go test ./... -coverprofile=coverage.out
 
   docker-build-test:
+    permissions:
+      contents: read
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/main'
@@ -48,6 +52,9 @@ jobs:
         run: docker build -t spdeepak/go-jwt-server:${{ env.SHA_SHORT }} .
 
   docker:
+    permissions:
+      contents: read
+      packages: write
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
