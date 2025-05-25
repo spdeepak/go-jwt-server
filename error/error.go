@@ -29,6 +29,8 @@ const (
 	RefreshTokenRevoked      = "JWT0009"
 	TokenRevokeFailed        = "JWT0010"
 	ActiveSessionsListFailed = "JWT0011"
+	CaptchaRequired          = "CAPTCHA_REQUIRED"
+	CaptchaInvalid           = "CAPTCHA_INVALID"
 )
 
 var httpErrors = map[string]HttpError{
@@ -75,6 +77,14 @@ var httpErrors = map[string]HttpError{
 	ActiveSessionsListFailed: {
 		StatusCode:  http.StatusInternalServerError,
 		Description: "Failed to list all active sessions.",
+	},
+	CaptchaRequired: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Too many failed login attempts. Please complete the captcha.",
+	},
+	CaptchaInvalid: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Invalid or missing captcha response.",
 	},
 }
 

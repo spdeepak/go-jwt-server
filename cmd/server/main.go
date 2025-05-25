@@ -45,6 +45,13 @@ func main() {
 	}
 	db.RunMigrationQueries(dbConnection, "migrations")
 
+	// Initialize Redis client
+	redisClient, err := db.NewRedisClient(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to connect to Redis")
+	}
+	defer redisClient.Close()
+
 	//JWT SecretKey
 	jwtSecretRepository := secret.New(dbConnection.DB)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
@@ -55,7 +62,7 @@ func main() {
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, tokenService)
+	userService := users.NewService(userStorage, tokenService, redisClient, cfg.ReCAPTCHA.Secret)
 
 	//oapi-codegen implementation handler
 	server := NewServer(userService, tokenService)

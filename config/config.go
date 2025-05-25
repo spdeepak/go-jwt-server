@@ -12,6 +12,14 @@ import (
 type AppConfig struct {
 	v     *viper.Viper
 	Token Token `required:"true" json:"token" yaml:"token"`
+	Redis struct {
+		Addr     string `env:"REDIS_ADDR" envDefault:"localhost:6379"`
+		Password string `env:"REDIS_PASSWORD" envDefault:""`
+		DB       int    `env:"REDIS_DB" envDefault:"0"`
+	}
+	ReCAPTCHA struct {
+		Secret string `env:"RECAPTCHA_SECRET" envDefault:""`
+	}
 }
 
 type Token struct {
