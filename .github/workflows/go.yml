@@ -5,6 +5,12 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      push_image:
+        description: "Push Docker image to Docker Hub?"
+        required: false
+        default: "false"
 
 jobs:
   build-and-test:
@@ -28,6 +34,18 @@ jobs:
       - name: Test
         run: go test ./... -coverprofile=coverage.out
 
+  docker:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
@@ -35,4 +53,5 @@ jobs:
         run: docker build -t spdeepak/go-jwt-server:latest .
 
       - name: Push Docker image
+        if: github.event.inputs.push_image == 'true'
         run: docker push spdeepak/go-jwt-server:latest
