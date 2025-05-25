@@ -34,6 +34,24 @@ jobs:
       - name: Test
         run: go test ./... -coverprofile=coverage.out
 
+  build_amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build amd64 Docker image
+        run: docker buildx build --platform linux/amd64 -t yourrepo/go-jwt-server:amd64 --load .
+
+  build_arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build arm64 Docker image
+        run: docker buildx build --platform linux/arm64 -t yourrepo/go-jwt-server:arm64 --load .
+
   docker:
     needs: build-and-test
     runs-on: ubuntu-latest
@@ -57,10 +75,10 @@ jobs:
 #        run: docker push spdeepak/go-jwt-server:latest
 
       - name: Build amd64 Docker image
-        run: docker buildx build --platform linux/amd64 -t yourrepo/go-jwt-server:latest --load .
+        run: docker buildx build --platform linux/amd64 -t spdeepak/go-jwt-server:latest --load .
 
       - name: Build arm64 Docker image
-        run: docker buildx build --platform linux/arm64 -t yourrepo/go-jwt-server:latest-arm64 --load .
+        run: docker buildx build --platform linux/arm64 -t spdeepak/go-jwt-server:latest-arm64 --load .
 
 #      - name: Build multi-arch Docker image
 #        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --push .
