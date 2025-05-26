@@ -11,7 +11,6 @@ import (
 var IgnorePaths = []string{
 	"/live",
 	"/ready",
-	"/healthcheck",
 	"/api-docs",
 	"/v2/api-docs",
 	"/swagger/doc.json",
