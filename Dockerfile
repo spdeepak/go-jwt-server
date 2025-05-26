@@ -17,6 +17,7 @@ FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /app
 COPY --from=builder /app/server .
+COPY migrations ./migrations
 EXPOSE 8080
 
 ENTRYPOINT ["/app/server"]
