@@ -60,6 +60,7 @@ func main() {
 
 	router := gin.New()
 	router.Use(httperror.Middleware)
+	router.Use(middleware.GinLogger())
 	router.Use(authMiddleware)
 	api.RegisterHandlers(router, server)
 
