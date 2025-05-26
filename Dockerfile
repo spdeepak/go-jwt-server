@@ -11,7 +11,7 @@ RUN go mod download
 COPY . .
 RUN make go-jwt-generate
 
-RUN go build -a -v -o server ./cmd/server
+RUN go build -v -o server ./cmd/server
 
 FROM gcr.io/distroless/static:nonroot
 
