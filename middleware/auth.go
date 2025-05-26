@@ -86,6 +86,7 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
 
 		c.Set("user", token.Claims)
 		c.Set("X-JWT-EMAIL", claims["email"].(string))
+		c.Set("X-JWT-USER-ID", claims["sub"].(string))
 		c.Next()
 	}
 }

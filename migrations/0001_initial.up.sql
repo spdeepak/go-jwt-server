@@ -11,15 +11,18 @@ CREATE TABLE IF NOT EXISTS jwt_secrets
 
 CREATE TABLE IF NOT EXISTS users
 (
-    id         UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
-    email      TEXT        NOT NULL UNIQUE,
-    first_name TEXT        NOT NULL,
-    last_name  TEXT        NOT NULL,
-    password   TEXT        NOT NULL,
-    locked     BOOLEAN     NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+    id             UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
+    email          TEXT        NOT NULL UNIQUE,
+    first_name     TEXT        NOT NULL,
+    last_name      TEXT        NOT NULL,
+    password       TEXT        NOT NULL,
+    locked         BOOLEAN     NOT NULL DEFAULT FALSE,
+    two_fa_enabled BOOLEAN     NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMPTZ NOT NULL,
+    updated_at     TIMESTAMPTZ NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS users_email ON users (email);
 
 CREATE TABLE IF NOT EXISTS users_password
 (
@@ -29,7 +32,20 @@ CREATE TABLE IF NOT EXISTS users_password
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS users_email ON users (email);
+CREATE TABLE IF NOT EXISTS users_2fa
+(
+    id         UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
+    user_email TEXT        NOT NULL,
+    secret     TEXT        NOT NULL,
+    url        TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    revoked    BOOLEAN     NOT NULL DEFAULT FALSE,
+    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users (email) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX unique_active_totp_per_user
+    ON users_2fa (user_email)
+    WHERE revoked = false;
 
 CREATE TABLE IF NOT EXISTS tokens
 (

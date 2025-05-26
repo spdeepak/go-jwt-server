@@ -20,6 +20,8 @@ import (
 	"github.com/spdeepak/go-jwt-server/middleware"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
+	"github.com/spdeepak/go-jwt-server/twofa"
+	otp "github.com/spdeepak/go-jwt-server/twofa/repository"
 	"github.com/spdeepak/go-jwt-server/users"
 	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
@@ -45,9 +47,13 @@ func main() {
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
 	userService := users.NewService(userStorage, tokenService)
+	//TOTP
+	totpQuery := otp.New(dbConnection.DB)
+	totpStorage := twofa.NewStorage(totpQuery)
+	totpService := twofa.NewService("", totpStorage)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService, tokenService)
+	server := NewServer(userService, tokenService, totpService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {

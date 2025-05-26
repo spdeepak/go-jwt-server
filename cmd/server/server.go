@@ -6,18 +6,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/tokens"
+	"github.com/spdeepak/go-jwt-server/twofa"
 	"github.com/spdeepak/go-jwt-server/users"
 )
 
 type Server struct {
 	userService  users.Service
 	tokenService tokens.Service
+	twoFAService twofa.Service
 }
 
-func NewServer(userService users.Service, tokenService tokens.Service) api.ServerInterface {
+func NewServer(userService users.Service, tokenService tokens.Service, otpService twofa.Service) api.ServerInterface {
 	return &Server{
 		userService:  userService,
 		tokenService: tokenService,
+		twoFAService: otpService,
 	}
 }
 
@@ -110,4 +113,25 @@ func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParam
 		return
 	}
 	ctx.AbortWithStatus(http.StatusUnauthorized)
+}
+
+func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
+	email, emailPresent := ctx.Get("X-JWT-EMAIL")
+	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
+	if emailPresent && userIdPresent {
+		response, err := s.twoFAService.GenerateSecret(ctx, email.(string), userId.(string))
+		if err != nil {
+			ctx.Error(err)
+			return
+		}
+		ctx.JSON(http.StatusOK, response)
+		return
+	}
+	ctx.AbortWithStatus(http.StatusUnauthorized)
+}
+
+func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
+}
+
+func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 }

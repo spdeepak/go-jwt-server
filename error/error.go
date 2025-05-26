@@ -29,6 +29,8 @@ const (
 	RefreshTokenRevoked      = "JWT0009"
 	TokenRevokeFailed        = "JWT0010"
 	ActiveSessionsListFailed = "JWT0011"
+	TwoFACreateFailed        = "JWT0012"
+	InvalidTwoFA             = "JWT0013"
 )
 
 var httpErrors = map[string]HttpError{
@@ -75,6 +77,14 @@ var httpErrors = map[string]HttpError{
 	ActiveSessionsListFailed: {
 		StatusCode:  http.StatusInternalServerError,
 		Description: "Failed to list all active sessions.",
+	},
+	TwoFACreateFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Failed to setup 2FA. Please try again.",
+	},
+	InvalidTwoFA: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Invalid 2FA. Please try again.",
 	},
 }
 

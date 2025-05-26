@@ -210,6 +210,7 @@ func (s *service) bearerTokenClaims(user repository.User, now time.Time) jwt.Map
 		"email":      user.Email,
 		"first_name": user.FirstName,
 		"last_name":  user.LastName,
+		"sub":        user.ID,
 		"typ":        "Bearer",                           //Type of token
 		"nbf":        now.Unix(),                         //Not valid before
 		"iss":        "go-jwt-server",                    //Issuer
@@ -221,6 +222,7 @@ func (s *service) bearerTokenClaims(user repository.User, now time.Time) jwt.Map
 
 func (s *service) refreshTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
 	return jwt.MapClaims{
+		"sub":   user.ID,
 		"email": user.Email,
 		"typ":   "Refresh",                           //Type of token
 		"nbf":   now.Unix(),                          //Not valid before

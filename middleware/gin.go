@@ -28,13 +28,12 @@ func GinLogger() gin.HandlerFunc {
 		}
 
 		startTime := time.Now()
-		log.Info().Msgf("Request path: %s", c.Request.URL.Path)
 		c.Next()
 		endTime := time.Now()
 		latency := endTime.Sub(startTime).Milliseconds()
 		statusCode := c.Writer.Status()
 
-		logEvent := log.Info().
+		logEvent := log.Debug().
 			Str("method", c.Request.Method).
 			Str("path", c.Request.URL.Path).
 			Int("status", statusCode).

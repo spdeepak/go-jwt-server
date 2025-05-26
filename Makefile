@@ -1,5 +1,7 @@
 
 go-jwt-generate:
+	#Delete all .gen.go files
+	find . -name "*.gen.go" -type f -delete
 	#Create directory if it doesn't exist
 	mkdir -p api
 	# Generate API first boiler plate code
