@@ -42,7 +42,11 @@ func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 		ctx.Error(err)
 		return
 	}
-	ctx.Status(http.StatusOK)
+	ctx.Status(http.StatusCreated)
+}
+
+func (s *Server) ChangePassword(ctx *gin.Context, params api.ChangePasswordParams) {
+
 }
 
 func (s *Server) Login(ctx *gin.Context, params api.LoginParams) {
@@ -124,14 +128,50 @@ func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 			ctx.Error(err)
 			return
 		}
-		ctx.JSON(http.StatusOK, response)
+		ctx.JSON(http.StatusCreated, response)
 		return
 	}
 	ctx.AbortWithStatus(http.StatusUnauthorized)
 }
 
 func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
+	email, emailPresent := ctx.Get("X-JWT-EMAIL")
+	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
+	if !emailPresent || !userIdPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var verify2FARequest api.Verify2FARequest
+	if err := ctx.ShouldBindJSON(&verify2FARequest); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	response, err := s.twoFAService.Verify2FA(ctx, email.(string), verify2FARequest.TwoFACode, userId.(string))
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusCreated, response)
+	return
 }
 
 func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
+	email, emailPresent := ctx.Get("X-JWT-EMAIL")
+	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
+	if !emailPresent || !userIdPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var verify2FARequest api.Verify2FARequest
+	if err := ctx.ShouldBindJSON(&verify2FARequest); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	err := s.twoFAService.Delete2FA(ctx, email.(string), verify2FARequest.TwoFACode, userId.(string))
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }

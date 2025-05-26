@@ -20,7 +20,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UserSignup'
       responses:
-        '200':
+        '201':
           description: OK
   /api/v1/auth/login:
     post:
@@ -46,6 +46,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+  /api/v1/auth/password:
+    post:
+      summary: Change password
+      description: Endpoint to change password
+      operationId: changePassword
+      tags:
+        - User
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Change password request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: UNAUTHORISED
   /api/v1/auth/refresh:
     post:
       summary: Token refresh
@@ -137,7 +159,7 @@ paths:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
       responses:
-        '200':
+        '201':
           description: OK
           content:
             application/json:
@@ -155,11 +177,18 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Verify 2FA code
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verify2FARequest'
       responses:
         '200':
           description: OK
         '401':
-          description: UNAUTHORIZED
+          description: UNAUTHORISED
   /api/v1/auth/2fa:
     delete:
       summary: Remove 2fa
@@ -172,11 +201,18 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Verify 2FA code
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verify2FARequest'
       responses:
         '200':
           description: OK
         '401':
-          description: UNAUTHORIZED
+          description: UNAUTHORISED
   /ready:
     get:
       summary: Ready check
@@ -255,6 +291,16 @@ components:
           example: first.last@example.com
         password:
           type: string
+    ChangePassword:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+        newPassword:
+          type: string
     TokenResponse:
       type: object
       required:
@@ -310,3 +356,12 @@ components:
           type: string
         secret:
           type: string
+    Verify2FARequest:
+      type: object
+      required:
+        - twoFACode
+      properties:
+        twoFACode:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'

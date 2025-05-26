@@ -61,7 +61,7 @@ func TestService_ValidateOTP_OK(t *testing.T) {
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
-	valid, err := otpService.ValidateOTP(ctx, email, passcode, uuid.NewString())
+	valid, err := otpService.Verify2FA(ctx, email, passcode, uuid.NewString())
 	assert.NoError(t, err)
 	assert.True(t, valid)
 }
@@ -77,7 +77,7 @@ func TestService_ValidateOTP_NOK_MinuteOldPasscode(t *testing.T) {
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
-	valid, err := otpService.ValidateOTP(ctx, email, passcode, uuid.NewString())
+	valid, err := otpService.Verify2FA(ctx, email, passcode, uuid.NewString())
 	assert.NoError(t, err)
 	assert.False(t, valid)
 }
@@ -93,7 +93,7 @@ func TestService_ValidateOTP_NOK_NotFoundInDB(t *testing.T) {
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
-	valid, err := otpService.ValidateOTP(ctx, email, passcode, uuid.NewString())
+	valid, err := otpService.Verify2FA(ctx, email, passcode, uuid.NewString())
 	assert.Error(t, err)
 	assert.False(t, valid)
 }

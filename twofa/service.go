@@ -22,7 +22,7 @@ type service struct {
 
 type Service interface {
 	GenerateSecret(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error)
-	ValidateOTP(ctx *gin.Context, email, passcode, userId string) (bool, error)
+	Verify2FA(ctx *gin.Context, email, passcode, userId string) (bool, error)
 	Delete2FA(ctx *gin.Context, email, passcode, userId string) error
 }
 
@@ -76,7 +76,7 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 	}, nil
 }
 
-func (s *service) ValidateOTP(ctx *gin.Context, email, passcode, userId string) (bool, error) {
+func (s *service) Verify2FA(ctx *gin.Context, email, passcode, userId string) (bool, error) {
 	totpDetails, err := s.storage.get2FADetails(ctx, email)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
