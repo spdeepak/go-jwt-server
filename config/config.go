@@ -16,10 +16,9 @@ type AppConfig struct {
 }
 
 type Token struct {
-	Secret         string `json:"secretKey" yaml:"secret"`
-	MasterKey      string `json:"masterKey" yaml:"masterKey"`
-	Bearer         Bearer `required:"true" json:"bearer" yaml:"bearer"`
-	RefreshRefresh Bearer `required:"true" json:"refresh" yaml:"refresh"`
+	Secret    string `json:"secretKey" yaml:"secret"`
+	MasterKey string `json:"masterKey" yaml:"masterKey"`
+	Issuer    string `required:"true" json:"issuer" yaml:"issuer"`
 }
 
 type PostgresConfig struct {

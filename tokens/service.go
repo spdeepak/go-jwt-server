@@ -23,6 +23,7 @@ const (
 
 type service struct {
 	secret            []byte
+	issuer            string
 	storage           Storage
 	bearerExpiryTime  time.Duration
 	refreshExpiryTime time.Duration
@@ -47,7 +48,7 @@ type Service interface {
 	// ListActiveSessions list of all active sessions
 	ListActiveSessions(ctx *gin.Context, email string) ([]api.GetAllSessionResponse, error)
 	// GenerateTempToken list of all active sessions
-	GenerateTempToken(ctx *gin.Context, userId string) (api.LoginRequires2FA, error)
+	GenerateTempToken(ctx *gin.Context, userId uuid.UUID) (api.LoginRequires2FA, error)
 }
 
 func NewService(storage Storage, secret []byte) Service {
@@ -206,7 +207,7 @@ func (s *service) ListActiveSessions(ctx *gin.Context, email string) ([]api.GetA
 	return activeSessionResponse, nil
 }
 
-func (s *service) GenerateTempToken(ctx *gin.Context, userId string) (api.LoginRequires2FA, error) {
+func (s *service) GenerateTempToken(ctx *gin.Context, userId uuid.UUID) (api.LoginRequires2FA, error) {
 	now := time.Now()
 	tempTokenClaims := s.tempTokenClaims(userId, now)
 	tempToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tempTokenClaims)
@@ -220,12 +221,14 @@ func (s *service) GenerateTempToken(ctx *gin.Context, userId string) (api.LoginR
 	}, nil
 }
 
-func (s *service) tempTokenClaims(userId string, now time.Time) jwt.MapClaims {
+func (s *service) tempTokenClaims(userId uuid.UUID, now time.Time) jwt.MapClaims {
 	return jwt.MapClaims{
-		"sub":     userId,
-		"purpose": "2fa",
-		"iat":     now.Unix(),                             //Issued at
-		"exp":     time.Now().Add(5 * time.Minute).Unix(), //Expiration now
+		"sub":        userId,
+		"typ":        "2FA",
+		"iat":        now.Unix(),                             //Issued at
+		"exp":        time.Now().Add(5 * time.Minute).Unix(), //Expiration now
+		"iss":        s.issuer,                               //Issuer
+		"auth_level": "pre-2fa",
 	}
 }
 
@@ -238,7 +241,7 @@ func (s *service) bearerTokenClaims(user repository.User, now time.Time) jwt.Map
 		"sub":        user.ID,
 		"typ":        "Bearer",                           //Type of token
 		"nbf":        now.Unix(),                         //Not valid before
-		"iss":        "go-jwt-server",                    //Issuer
+		"iss":        s.issuer,                           //Issuer
 		"iat":        now.Unix(),                         //Issued at
 		"jti":        uuid.NewString(),                   //JWT ID
 		"exp":        now.Add(s.bearerExpiryTime).Unix(), //Expiration now
@@ -251,7 +254,7 @@ func (s *service) refreshTokenClaims(user repository.User, now time.Time) jwt.Ma
 		"email": user.Email,
 		"typ":   "Refresh",                           //Type of token
 		"nbf":   now.Unix(),                          //Not valid before
-		"iss":   "go-jwt-server",                     //Issuer
+		"iss":   s.issuer,                            //Issuer
 		"iat":   now.Unix(),                          //Issued at
 		"jti":   uuid.NewString(),                    //JWT ID
 		"exp":   now.Add(s.refreshExpiryTime).Unix(), //Expiration now

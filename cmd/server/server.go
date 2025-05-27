@@ -94,7 +94,7 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 }
 
 func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
-	if email, present := ctx.Get("X-JWT-EMAIL"); present {
+	if email, present := ctx.Get("X-User-Email"); present {
 		err := s.tokenService.RevokeAllTokens(ctx, email.(string))
 		if err != nil {
 			ctx.Error(err)
@@ -107,7 +107,7 @@ func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensPar
 }
 
 func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParams) {
-	if email, present := ctx.Get("X-JWT-EMAIL"); present {
+	if email, present := ctx.Get("X-User-Email"); present {
 		response, err := s.tokenService.ListActiveSessions(ctx, email.(string))
 		if err != nil {
 			ctx.Error(err)
@@ -120,8 +120,8 @@ func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParam
 }
 
 func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
-	email, emailPresent := ctx.Get("X-JWT-EMAIL")
-	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
+	email, emailPresent := ctx.Get("X-User-Email")
+	userId, userIdPresent := ctx.Get("X-User-ID")
 	if emailPresent && userIdPresent {
 		response, err := s.twoFAService.Setup2FA(ctx, email.(string), userId.(string))
 		if err != nil {
@@ -135,7 +135,7 @@ func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 }
 
 func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
-	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
+	userId, userIdPresent := ctx.Get("X-User-ID")
 	if !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -155,8 +155,8 @@ func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
 }
 
 func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
-	_, emailPresent := ctx.Get("X-JWT-EMAIL")
-	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
+	_, emailPresent := ctx.Get("X-User-Email")
+	userId, userIdPresent := ctx.Get("X-User-ID")
 	if !emailPresent || !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return

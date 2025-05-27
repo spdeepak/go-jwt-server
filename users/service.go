@@ -68,7 +68,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 	}
 	if user.TwoFaEnabled {
-		return s.tokenService.GenerateTempToken(ctx, user.ID.String())
+		return s.tokenService.GenerateTempToken(ctx, user.ID)
 	}
 	jwtUser := token.User{
 		Email:     user.Email,

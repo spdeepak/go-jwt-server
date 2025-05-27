@@ -143,13 +143,13 @@ func (s *service) Delete2FA(ctx *gin.Context, userId, passcode string) error {
 		log.Err(err).Msgf("Error during 2FA validation for user: %s", userId)
 		return httperror.New(httperror.InvalidTwoFA)
 	}
-	if is2FAValid {
-		if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userUUID, Secret: twoFADetails.Secret}); err != nil {
-			log.Err(err).Msgf("Failed to delete 2FA setup for user: %s", userId)
-			return err
-		}
-		return nil
+	if !is2FAValid {
+		log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
+		return httperror.New(httperror.InvalidTwoFA)
 	}
-	log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
-	return httperror.New(httperror.InvalidTwoFA)
+	if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userUUID, Secret: twoFADetails.Secret}); err != nil {
+		log.Err(err).Msgf("Failed to delete 2FA setup for user: %s", userId)
+		return err
+	}
+	return nil
 }

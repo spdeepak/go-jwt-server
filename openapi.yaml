@@ -378,7 +378,10 @@ components:
       type: object
       required:
         - twoFACode
+        - tempToken
       properties:
+        tempToken:
+          type: string
         twoFACode:
           type: string
           pattern: '^\d{6}$'
