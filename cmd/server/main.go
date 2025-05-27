@@ -43,17 +43,17 @@ func main() {
 	tokenRepository := token.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenRepository)
 	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
+	//2FA
+	twoFAQuery := otp.New(dbConnection.DB)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("", twoFAStorage, tokenService)
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
 	userService := users.NewService(userStorage, tokenService)
-	//TOTP
-	totpQuery := otp.New(dbConnection.DB)
-	totpStorage := twofa.NewStorage(totpQuery)
-	totpService := twofa.NewService("", totpStorage)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService, tokenService, totpService)
+	server := NewServer(userService, tokenService, twoFAService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {

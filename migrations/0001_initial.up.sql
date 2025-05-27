@@ -35,16 +35,16 @@ CREATE TABLE IF NOT EXISTS users_password
 CREATE TABLE IF NOT EXISTS users_2fa
 (
     id         UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
-    user_email TEXT        NOT NULL,
+    user_id    TEXT        NOT NULL,
     secret     TEXT        NOT NULL,
     url        TEXT        NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     revoked    BOOLEAN     NOT NULL DEFAULT FALSE,
-    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users (email) ON DELETE CASCADE
+    CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX unique_active_totp_per_user
-    ON users_2fa (user_email)
+    ON users_2fa (user_id)
     WHERE revoked = false;
 
 CREATE TABLE IF NOT EXISTS tokens

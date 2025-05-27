@@ -13,10 +13,10 @@ import (
 type Server struct {
 	userService  users.Service
 	tokenService tokens.Service
-	twoFAService twofa.Service
+	twoFAService twoFA.Service
 }
 
-func NewServer(userService users.Service, tokenService tokens.Service, otpService twofa.Service) api.ServerInterface {
+func NewServer(userService users.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
 	return &Server{
 		userService:  userService,
 		tokenService: tokenService,
@@ -135,9 +135,8 @@ func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 }
 
 func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
-	email, emailPresent := ctx.Get("X-JWT-EMAIL")
 	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
-	if !emailPresent || !userIdPresent {
+	if !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
@@ -146,7 +145,7 @@ func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	response, err := s.twoFAService.Verify2FA(ctx, email.(string), verify2FARequest.TwoFACode, userId.(string))
+	response, err := s.twoFAService.Verify2FALogin(ctx, userId.(string), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return
@@ -156,7 +155,7 @@ func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
 }
 
 func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
-	email, emailPresent := ctx.Get("X-JWT-EMAIL")
+	_, emailPresent := ctx.Get("X-JWT-EMAIL")
 	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
 	if !emailPresent || !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
@@ -167,7 +166,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	err := s.twoFAService.Delete2FA(ctx, email.(string), verify2FARequest.TwoFACode, userId.(string))
+	err := s.twoFAService.Delete2FA(ctx, userId.(string), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return

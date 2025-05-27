@@ -18,8 +18,8 @@ type service struct {
 
 type Service interface {
 	Signup(ctx *gin.Context, user api.UserSignup) error
-	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (api.TokenResponse, error)
-	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.TokenResponse, error)
+	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
+	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
 }
 
 func NewService(storage Storage, tokenService tokens.Service) Service {
@@ -44,42 +44,46 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) error {
 	return s.storage.UserSignup(ctx, userSignup)
 }
 
-func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (api.TokenResponse, error) {
+func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
 	user, err := s.storage.GetUser(ctx, login.Email)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return api.TokenResponse{}, httperror.New(httperror.InvalidCredentials)
+			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 		}
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
-	if validPassword(login.Password, user.Password) {
-		jwtUser := token.User{
-			Email:     user.Email,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-		}
-		tokenParams := tokens.TokenParams{
-			XLoginSource: string(params.XLoginSource),
-			UserAgent:    params.UserAgent,
-		}
-		return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
+
+	if !validPassword(login.Password, user.Password) {
+		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 	}
-	return api.TokenResponse{}, httperror.New(httperror.InvalidCredentials)
+	if user.TwoFaEnabled {
+		return s.tokenService.GenerateTempToken(ctx, user.ID.String())
+	}
+	jwtUser := token.User{
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
+	tokenParams := tokens.TokenParams{
+		XLoginSource: string(params.XLoginSource),
+		UserAgent:    params.UserAgent,
+	}
+	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
 }
 
-func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.TokenResponse, error) {
+func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error) {
 	claims, err := s.tokenService.ValidateRefreshToken(ctx, params, refresh.RefreshToken)
 	if err != nil {
-		return api.TokenResponse{}, err
+		return api.LoginSuccessWithJWT{}, err
 	}
 	email, ok := claims["email"].(string)
 	if !ok {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 
 	user, err := s.storage.GetUser(ctx, email)
 	if err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 	jwtUser := token.User{
 		Email:     user.Email,

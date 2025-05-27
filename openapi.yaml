@@ -45,7 +45,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/LoginSuccessWithJWT'
+                  - $ref: '#/components/schemas/LoginRequires2FA'
+                discriminator:
+                  propertyName: type
   /api/v1/auth/password:
     post:
       summary: Change password
@@ -93,7 +97,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/LoginSuccessWithJWT'
   /api/v1/auth/sessions:
     get:
       summary: Get all sessions
@@ -187,6 +191,10 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessWithJWT'
         '401':
           description: UNAUTHORISED
   /api/v1/auth/2fa:
@@ -301,7 +309,7 @@ components:
           type: string
         newPassword:
           type: string
-    TokenResponse:
+    LoginSuccessWithJWT:
       type: object
       required:
         - accessToken
@@ -311,6 +319,16 @@ components:
           type: string
         refreshToken:
           type: string
+    LoginRequires2FA:
+      type: object
+      required: [ type, temp_token ]
+      properties:
+        type:
+          type: string
+          enum: [ 2fa ]
+        temp_token:
+          type: string
+          description: Temporary token to use for 2FA verification
     Refresh:
       type: object
       required:

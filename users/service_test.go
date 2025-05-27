@@ -1,8 +1,6 @@
 package users
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"net/http/httptest"
 	"testing"
@@ -26,11 +24,11 @@ func TestService_Signup_OK(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
-	querier := repository.NewMockQuerier(t)
-	querier.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
+	query := repository.NewMockQuerier(t)
+	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
 		return user.Email == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(nil)
-	userStorage := NewStorage(querier)
+	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil)
 
 	err := userService.Signup(ctx, user)
@@ -77,8 +75,8 @@ func TestService_Login_OK(t *testing.T) {
 	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
-	assert.NotEmpty(t, res.AccessToken)
-	assert.NotEmpty(t, res.RefreshToken)
+	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
 func TestService_Login_NOK_WrongPassword(t *testing.T) {
@@ -90,8 +88,8 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 		Password: "Som€_P@$$word",
 	}
 
-	querier := repository.NewMockQuerier(t)
-	querier.On("UserLogin", ctx, email).
+	query := repository.NewMockQuerier(t)
+	query.On("UserLogin", ctx, email).
 		Return(repository.User{
 			Email:     "first.last@trendyol.com",
 			FirstName: "First name",
@@ -99,7 +97,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
 			nil)
 
-	userStorage := NewStorage(querier)
+	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil)
 
 	loginParams := api.LoginParams{
@@ -109,8 +107,8 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.Error(t, err)
 	assert.NotNil(t, res)
-	assert.Empty(t, res.AccessToken)
-	assert.Empty(t, res.RefreshToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
 func TestService_Login_NOK_DB(t *testing.T) {
@@ -122,10 +120,10 @@ func TestService_Login_NOK_DB(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
-	querier := repository.NewMockQuerier(t)
-	querier.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
+	query := repository.NewMockQuerier(t)
+	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
 
-	userStorage := NewStorage(querier)
+	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil)
 
 	loginParams := api.LoginParams{
@@ -135,8 +133,8 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.Error(t, err)
 	assert.NotNil(t, res)
-	assert.Empty(t, res.AccessToken)
-	assert.Empty(t, res.RefreshToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
 func TestService_Login_NOK(t *testing.T) {
@@ -148,10 +146,10 @@ func TestService_Login_NOK(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
-	querier := repository.NewMockQuerier(t)
-	querier.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("error"))
+	query := repository.NewMockQuerier(t)
+	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("error"))
 
-	userStorage := NewStorage(querier)
+	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -160,12 +158,6 @@ func TestService_Login_NOK(t *testing.T) {
 	res, err := userService.Login(ctx, loginParams, userLogin)
 	assert.Error(t, err)
 	assert.NotNil(t, res)
-	assert.Empty(t, res.AccessToken)
-	assert.Empty(t, res.RefreshToken)
-}
-
-func hash(anything string) string {
-	h := sha256.New()
-	h.Write([]byte(anything))
-	return hex.EncodeToString(h.Sum(nil))
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }

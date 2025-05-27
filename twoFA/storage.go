@@ -1,4 +1,4 @@
-package twofa
+package twoFA
 
 import (
 	"github.com/gin-gonic/gin"
@@ -10,7 +10,7 @@ type storage struct {
 }
 
 type Storage interface {
-	get2FADetails(ctx *gin.Context, email string) (repository.Users2fa, error)
+	get2FADetails(ctx *gin.Context, userId string) (repository.Users2fa, error)
 	create2FA(ctx *gin.Context, params repository.CreateTOTPParams) error
 	delete2FA(ctx *gin.Context, params repository.DeleteSecretParams) error
 }
@@ -29,6 +29,6 @@ func (s *storage) delete2FA(ctx *gin.Context, params repository.DeleteSecretPara
 	return s.query.DeleteSecret(ctx, params)
 }
 
-func (s *storage) get2FADetails(ctx *gin.Context, email string) (repository.Users2fa, error) {
-	return s.query.GetSecret(ctx, email)
+func (s *storage) get2FADetails(ctx *gin.Context, userId string) (repository.Users2fa, error) {
+	return s.query.GetSecret(ctx, userId)
 }

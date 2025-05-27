@@ -1,7 +1,8 @@
-package twofa
+package twoFA
 
 import (
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,32 +13,36 @@ import (
 	_ "github.com/skip2/go-qrcode"
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twofa/repository"
 )
 
 type service struct {
-	appName string
-	storage Storage
+	appName      string
+	storage      Storage
+	tokenService tokens.Service
 }
 
 type Service interface {
 	GenerateSecret(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error)
-	Verify2FA(ctx *gin.Context, email, passcode, userId string) (bool, error)
-	Delete2FA(ctx *gin.Context, email, passcode, userId string) error
+	Verify2FALogin(ctx *gin.Context, userId, passcode string) (bool, error)
+	Delete2FA(ctx *gin.Context, userId, passcode string) error
 }
 
-func NewService(appName string, storage Storage) Service {
+func NewService(appName string, storage Storage, tokenService tokens.Service) Service {
 	return &service{
-		appName: appName,
-		storage: storage,
+		appName:      appName,
+		storage:      storage,
+		tokenService: tokenService,
 	}
 }
 
 func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error) {
 	//Generate secret
 	key, err := totp.Generate(totp.GenerateOpts{
+
 		Issuer:      s.appName,
-		AccountName: email,
+		AccountName: fmt.Sprintf("%s:%s", userId, email),
 	})
 	if err != nil {
 		log.Err(err).Msgf("Error during TOTP generation for user: %s", userId)
@@ -46,7 +51,7 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 
 	//Save secret to the DB
 	createTotpParams := repository.CreateTOTPParams{
-		Email:  email,
+		UserID: userId,
 		Secret: key.Secret(),
 		Url:    key.URL(),
 	}
@@ -60,7 +65,7 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 	png, err := qrcode.Encode(key.URL(), qrcode.Medium, 256)
 	if err != nil {
 		defer func() {
-			delErr := s.storage.delete2FA(ctx, repository.DeleteSecretParams{Email: email, Secret: key.Secret()})
+			delErr := s.storage.delete2FA(ctx, repository.DeleteSecretParams{UserID: userId, Secret: key.Secret()})
 			if delErr != nil {
 				log.Error().Any("qrCodeError", err).Any("secretDeleteError", delErr).Msgf("Error while generating QR code from secret URL and deleting created secret for user: %s", userId)
 			}
@@ -76,8 +81,8 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 	}, nil
 }
 
-func (s *service) Verify2FA(ctx *gin.Context, email, passcode, userId string) (bool, error) {
-	totpDetails, err := s.storage.get2FADetails(ctx, email)
+func (s *service) Verify2FALogin(ctx *gin.Context, userId, passcode string) (bool, error) {
+	totpDetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
 		return false, httperror.New(httperror.InvalidTwoFA)
@@ -95,8 +100,8 @@ func (s *service) Verify2FA(ctx *gin.Context, email, passcode, userId string) (b
 	return isValid, nil
 }
 
-func (s *service) Delete2FA(ctx *gin.Context, email, passcode, userId string) error {
-	twoFADetails, err := s.storage.get2FADetails(ctx, email)
+func (s *service) Delete2FA(ctx *gin.Context, userId, passcode string) error {
+	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
 		return httperror.New(httperror.InvalidTwoFA)
@@ -112,7 +117,7 @@ func (s *service) Delete2FA(ctx *gin.Context, email, passcode, userId string) er
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	if is2FAValid {
-		if err = s.storage.delete2FA(ctx, repository.DeleteSecretParams{Email: email, Secret: twoFADetails.Secret}); err != nil {
+		if err = s.storage.delete2FA(ctx, repository.DeleteSecretParams{UserID: userId, Secret: twoFADetails.Secret}); err != nil {
 			log.Err(err).Msgf("Failed to delete 2FA setup for user: %s", userId)
 			return err
 		}

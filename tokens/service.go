@@ -37,15 +37,17 @@ type Service interface {
 	// ValidateRefreshToken verifies if a given refresh token is valid
 	ValidateRefreshToken(ctx *gin.Context, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error)
 	// GenerateNewTokenPair Generates a token for a given user
-	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error)
+	GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginSuccessWithJWT, error)
 	// RefreshAndInvalidateToken Invalidates the given refresh token and generates a new token for the given user
-	RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.TokenResponse, error)
+	RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.LoginSuccessWithJWT, error)
 	// RevokeRefreshToken marks a refresh token as revoked
 	RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeCurrentSession) error
 	// RevokeAllTokens marks all refresh tokens of a give user
 	RevokeAllTokens(ctx *gin.Context, email string) error
 	// ListActiveSessions list of all active sessions
 	ListActiveSessions(ctx *gin.Context, email string) ([]api.GetAllSessionResponse, error)
+	// GenerateTempToken list of all active sessions
+	GenerateTempToken(ctx *gin.Context, userId string) (api.LoginRequires2FA, error)
 }
 
 func NewService(storage Storage, secret []byte) Service {
@@ -88,20 +90,20 @@ func (s *service) ValidateRefreshToken(ctx *gin.Context, params api.RefreshParam
 	return claims, nil
 }
 
-func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.TokenResponse, error) {
+func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, user repository.User) (api.LoginSuccessWithJWT, error) {
 	now := time.Now()
 	accessClaims := s.bearerTokenClaims(user, now)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 
 	refreshClaims := s.refreshTokenClaims(user, now)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	signedRefreshToken, err := refreshToken.SignedString(s.secret)
 	if err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 	saveTokenParams := repository.SaveTokenParams{
 		Token:            hash(signedAccessToken),
@@ -116,29 +118,29 @@ func (s *service) GenerateNewTokenPair(ctx *gin.Context, params TokenParams, use
 	}
 	err = s.storage.saveToken(ctx, saveTokenParams)
 	if err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
 	}
 
-	return api.TokenResponse{
+	return api.LoginSuccessWithJWT{
 		AccessToken:  signedAccessToken,
 		RefreshToken: signedRefreshToken,
 	}, nil
 }
 
-func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.TokenResponse, error) {
+func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams, refresh api.Refresh, user repository.User) (api.LoginSuccessWithJWT, error) {
 	now := time.Now()
 	accessClaims := s.bearerTokenClaims(user, now)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 
 	refreshClaims := s.refreshTokenClaims(user, now)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	signedRefreshToken, err := refreshToken.SignedString(s.secret)
 	if err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
 	}
 
 	refreshAndInvalidateTokenParams := repository.RefreshAndInvalidateTokenParams{
@@ -154,9 +156,9 @@ func (s *service) RefreshAndInvalidateToken(ctx *gin.Context, params TokenParams
 		OldRefreshToken:  hash(refresh.RefreshToken),
 	}
 	if err := s.storage.refreshAndInvalidateToken(ctx, refreshAndInvalidateTokenParams); err != nil {
-		return api.TokenResponse{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.TokenCreationFailed, err.Error())
 	}
-	return api.TokenResponse{
+	return api.LoginSuccessWithJWT{
 		AccessToken:  signedAccessToken,
 		RefreshToken: signedRefreshToken,
 	}, nil
@@ -202,6 +204,29 @@ func (s *service) ListActiveSessions(ctx *gin.Context, email string) ([]api.GetA
 		}
 	}
 	return activeSessionResponse, nil
+}
+
+func (s *service) GenerateTempToken(ctx *gin.Context, userId string) (api.LoginRequires2FA, error) {
+	now := time.Now()
+	tempTokenClaims := s.tempTokenClaims(userId, now)
+	tempToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tempTokenClaims)
+	signedTempToken, err := tempToken.SignedString(s.secret)
+	if err != nil {
+		return api.LoginRequires2FA{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+	}
+	return api.LoginRequires2FA{
+		TempToken: signedTempToken,
+		Type:      api.N2fa,
+	}, nil
+}
+
+func (s *service) tempTokenClaims(userId string, now time.Time) jwt.MapClaims {
+	return jwt.MapClaims{
+		"sub":     userId,
+		"purpose": "2fa",
+		"iat":     now.Unix(),                             //Issued at
+		"exp":     time.Now().Add(5 * time.Minute).Unix(), //Expiration now
+	}
 }
 
 func (s *service) bearerTokenClaims(user repository.User, now time.Time) jwt.MapClaims {
