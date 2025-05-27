@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
-	"github.com/spdeepak/go-jwt-server/twofa/repository"
+	"github.com/spdeepak/go-jwt-server/twoFA/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

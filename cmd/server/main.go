@@ -20,8 +20,8 @@ import (
 	"github.com/spdeepak/go-jwt-server/middleware"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
-	"github.com/spdeepak/go-jwt-server/twofa"
-	otp "github.com/spdeepak/go-jwt-server/twofa/repository"
+	"github.com/spdeepak/go-jwt-server/twoFA"
+	otp "github.com/spdeepak/go-jwt-server/twoFA/repository"
 	"github.com/spdeepak/go-jwt-server/users"
 	user "github.com/spdeepak/go-jwt-server/users/repository"
 )

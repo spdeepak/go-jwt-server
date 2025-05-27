@@ -3,7 +3,9 @@ INSERT INTO users (email, first_name, last_name, password, created_at, updated_a
 VALUES (sqlc.arg('email'), sqlc.arg('first_name'), sqlc.arg('last_name'), sqlc.arg('password'), NOW(), NOW());
 
 -- name: UserLogin :one
-SELECT * FROM users where email = sqlc.arg('email');
+SELECT *
+FROM users
+where email = sqlc.arg('email');
 
 -- name: UpdateUser :exec
 UPDATE users

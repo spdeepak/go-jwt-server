@@ -14,7 +14,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
-	"github.com/spdeepak/go-jwt-server/twofa/repository"
+	"github.com/spdeepak/go-jwt-server/twoFA/repository"
 )
 
 type service struct {

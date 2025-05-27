@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/tokens"
-	"github.com/spdeepak/go-jwt-server/twofa"
+	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users"
 )
 
