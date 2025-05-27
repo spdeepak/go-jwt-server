@@ -11,13 +11,6 @@ import (
 var IgnorePaths = []string{
 	"/live",
 	"/ready",
-	"/api-docs",
-	"/v2/api-docs",
-	"/swagger/doc.json",
-	"/swagger/v1/swagger.json",
-	"/swagger-json",
-	"/api-json",
-	"/swagger.json",
 }
 
 // GinLogger is the middleware function that uses zerolog for logging

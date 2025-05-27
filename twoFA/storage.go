@@ -2,6 +2,7 @@ package twoFA
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/spdeepak/go-jwt-server/twoFA/repository"
 )
 
@@ -10,9 +11,9 @@ type storage struct {
 }
 
 type Storage interface {
-	get2FADetails(ctx *gin.Context, userId string) (repository.Users2fa, error)
-	create2FA(ctx *gin.Context, params repository.CreateTOTPParams) error
-	delete2FA(ctx *gin.Context, params repository.DeleteSecretParams) error
+	get2FADetails(ctx *gin.Context, userId uuid.UUID) (repository.Users2fa, error)
+	save2FA(ctx *gin.Context, params repository.Setup2FAParams) error
+	delete2FA(ctx *gin.Context, params repository.Delete2FAParams) error
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -21,14 +22,14 @@ func NewStorage(query repository.Querier) Storage {
 	}
 }
 
-func (s *storage) create2FA(ctx *gin.Context, params repository.CreateTOTPParams) error {
-	return s.query.CreateTOTP(ctx, params)
+func (s *storage) save2FA(ctx *gin.Context, params repository.Setup2FAParams) error {
+	return s.query.Setup2FA(ctx, params)
 }
 
-func (s *storage) delete2FA(ctx *gin.Context, params repository.DeleteSecretParams) error {
-	return s.query.DeleteSecret(ctx, params)
+func (s *storage) delete2FA(ctx *gin.Context, params repository.Delete2FAParams) error {
+	return s.query.Delete2FA(ctx, params)
 }
 
-func (s *storage) get2FADetails(ctx *gin.Context, userId string) (repository.Users2fa, error) {
-	return s.query.GetSecret(ctx, userId)
+func (s *storage) get2FADetails(ctx *gin.Context, userId uuid.UUID) (repository.Users2fa, error) {
+	return s.query.Get2FADetails(ctx, userId)
 }

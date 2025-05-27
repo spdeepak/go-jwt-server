@@ -171,8 +171,8 @@ paths:
                 $ref: '#/components/schemas/TwoFAResponse'
   /api/v1/auth/2fa/verify:
     post:
-      summary: Verify 2fa
-      description: Endpoint to verify 2fa code of a user
+      summary: Verify 2FA code to login
+      description: Endpoint to verify 2FA code of a user with tem_token to get bearer and refresh token
       operationId: verify2FA
       tags:
         - 2FA

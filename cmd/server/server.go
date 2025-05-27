@@ -123,7 +123,7 @@ func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 	email, emailPresent := ctx.Get("X-JWT-EMAIL")
 	userId, userIdPresent := ctx.Get("X-JWT-USER-ID")
 	if emailPresent && userIdPresent {
-		response, err := s.twoFAService.GenerateSecret(ctx, email.(string), userId.(string))
+		response, err := s.twoFAService.Setup2FA(ctx, email.(string), userId.(string))
 		if err != nil {
 			ctx.Error(err)
 			return

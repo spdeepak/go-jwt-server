@@ -14,7 +14,6 @@ import (
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/db"
-	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
 	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
@@ -65,7 +64,7 @@ func main() {
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), nil)
 
 	router := gin.New()
-	router.Use(httperror.Middleware)
+	router.Use(middleware.ErrorMiddleware)
 	router.Use(middleware.GinLogger())
 	router.Use(authMiddleware)
 	api.RegisterHandlers(router, server)

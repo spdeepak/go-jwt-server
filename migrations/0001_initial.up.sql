@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS users_password
 CREATE TABLE IF NOT EXISTS users_2fa
 (
     id         UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
-    user_id    TEXT        NOT NULL,
+    user_id    UUID        NOT NULL,
     secret     TEXT        NOT NULL,
     url        TEXT        NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,

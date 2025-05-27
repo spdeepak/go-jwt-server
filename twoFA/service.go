@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/rs/zerolog/log"
@@ -27,7 +28,7 @@ type service struct {
 }
 
 type Service interface {
-	GenerateSecret(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error)
+	Setup2FA(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error)
 	Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error)
 	Delete2FA(ctx *gin.Context, userId, passcode string) error
 }
@@ -41,10 +42,10 @@ func NewService(appName string, storage Storage, userService users.Service, toke
 	}
 }
 
-func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error) {
-	//Generate secret
+func (s *service) Setup2FA(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error) {
+	//Generate secret using the given app name as issues
+	//and combine the user id and email for the account name
 	key, err := totp.Generate(totp.GenerateOpts{
-
 		Issuer:      s.appName,
 		AccountName: fmt.Sprintf("%s:%s", userId, email),
 	})
@@ -53,13 +54,13 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 		return api.TwoFAResponse{}, httperror.NewWithMetadata(httperror.TwoFACreateFailed, err.Error())
 	}
 
-	//Save secret to the DB
-	createTotpParams := repository.CreateTOTPParams{
-		UserID: userId,
+	//Save the generated secret and URL to the DB. It would be used to verify the 2FA codes from the users
+	createTotpParams := repository.Setup2FAParams{
+		UserID: uuid.MustParse(userId),
 		Secret: key.Secret(),
 		Url:    key.URL(),
 	}
-	err = s.storage.create2FA(ctx, createTotpParams)
+	err = s.storage.save2FA(ctx, createTotpParams)
 	if err != nil {
 		log.Err(err).Msgf("Error while saving TOTP details for user: %s", userId)
 		return api.TwoFAResponse{}, httperror.NewWithMetadata(httperror.TwoFACreateFailed, err.Error())
@@ -69,7 +70,7 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 	png, err := qrcode.Encode(key.URL(), qrcode.Medium, 256)
 	if err != nil {
 		defer func() {
-			delErr := s.storage.delete2FA(ctx, repository.DeleteSecretParams{UserID: userId, Secret: key.Secret()})
+			delErr := s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: uuid.MustParse(userId), Secret: key.Secret()})
 			if delErr != nil {
 				log.Error().Any("qrCodeError", err).Any("secretDeleteError", delErr).Msgf("Error while generating QR code from secret URL and deleting created secret for user: %s", userId)
 			}
@@ -86,23 +87,23 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 }
 
 func (s *service) Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error) {
-	totpDetails, err := s.storage.get2FADetails(ctx, userId)
+	twoFADetails, err := s.storage.get2FADetails(ctx, uuid.MustParse(userId))
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
-	isValid, err := totp.ValidateCustom(passcode, totpDetails.Secret, time.Now(), totp.ValidateOpts{
+	isValid, err := totp.ValidateCustom(passcode, twoFADetails.Secret, time.Now(), totp.ValidateOpts{
 		Period:    30, // typical for authenticator apps
 		Skew:      1,  // allow ±1 interval (30s) clock drift
 		Digits:    otp.DigitsSix,
 		Algorithm: otp.AlgorithmSHA1, // standard
 	})
 	if err != nil {
-		log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
+		//log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 	if !isValid {
-		log.Error().Msgf("Invalid 2FA code for user: %s", userId)
+		//log.Error().Msgf("Invalid 2FA code for user: %s", userId)
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 
@@ -111,13 +112,25 @@ func (s *service) Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, u
 		return api.LoginSuccessWithJWT{}, err
 	}
 
-	return s.tokenService.GenerateNewTokenPair(ctx, tokens.TokenParams{XLoginSource: string(params.XLoginSource), UserAgent: params.UserAgent}, tokenRepo.User{ID: user.ID, Email: user.Email, FirstName: user.FirstName, LastName: user.LastName})
+	tokenParams := tokens.TokenParams{
+		XLoginSource: string(params.XLoginSource),
+		UserAgent:    params.UserAgent,
+	}
+	tokenUser := tokenRepo.User{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
+
+	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, tokenUser)
 }
 
 func (s *service) Delete2FA(ctx *gin.Context, userId, passcode string) error {
-	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
+	userUUID := uuid.MustParse(userId)
+	twoFADetails, err := s.storage.get2FADetails(ctx, userUUID)
 	if err != nil {
-		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
+		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userUUID)
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	is2FAValid, err := totp.ValidateCustom(passcode, twoFADetails.Secret, time.Now(), totp.ValidateOpts{
@@ -131,7 +144,7 @@ func (s *service) Delete2FA(ctx *gin.Context, userId, passcode string) error {
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	if is2FAValid {
-		if err = s.storage.delete2FA(ctx, repository.DeleteSecretParams{UserID: userId, Secret: twoFADetails.Secret}); err != nil {
+		if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userUUID, Secret: twoFADetails.Secret}); err != nil {
 			log.Err(err).Msgf("Failed to delete 2FA setup for user: %s", userId)
 			return err
 		}
