@@ -2,6 +2,7 @@ package users
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
@@ -17,6 +18,7 @@ type service struct {
 }
 
 type Service interface {
+	GetUser(ctx *gin.Context, userId string) (repository.User, error)
 	Signup(ctx *gin.Context, user api.UserSignup) error
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
@@ -27,6 +29,15 @@ func NewService(storage Storage, tokenService tokens.Service) Service {
 		storage:      storage,
 		tokenService: tokenService,
 	}
+}
+
+func (s *service) GetUser(ctx *gin.Context, userId string) (repository.User, error) {
+	user, err := s.storage.GetUserById(ctx, uuid.MustParse(userId))
+	if err != nil {
+		log.Err(err).Msgf("Failed to get user with id %s", userId)
+		return repository.User{}, err
+	}
+	return user, nil
 }
 
 func (s *service) Signup(ctx *gin.Context, user api.UserSignup) error {
@@ -45,7 +56,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) error {
 }
 
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
-	user, err := s.storage.GetUser(ctx, login.Email)
+	user, err := s.storage.GetUserByEmail(ctx, login.Email)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -81,7 +92,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 
-	user, err := s.storage.GetUser(ctx, email)
+	user, err := s.storage.GetUserByEmail(ctx, email)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}

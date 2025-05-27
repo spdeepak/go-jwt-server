@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
@@ -12,7 +13,8 @@ type storage struct {
 
 type Storage interface {
 	UserSignup(ctx context.Context, arg repository.SignupParams) error
-	GetUser(ctx context.Context, email string) (repository.User, error)
+	GetUserByEmail(ctx context.Context, email string) (repository.User, error)
+	GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error)
 }
 
 func NewStorage(userRepository repository.Querier) Storage {
@@ -25,6 +27,10 @@ func (s *storage) UserSignup(ctx context.Context, arg repository.SignupParams) e
 	return s.userRepository.Signup(ctx, arg)
 }
 
-func (s *storage) GetUser(ctx context.Context, email string) (repository.User, error) {
+func (s *storage) GetUserByEmail(ctx context.Context, email string) (repository.User, error) {
 	return s.userRepository.UserLogin(ctx, email)
+}
+
+func (s *storage) GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error) {
+	return s.userRepository.GetUserById(ctx, userId)
 }

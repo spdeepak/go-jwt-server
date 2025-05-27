@@ -7,6 +7,11 @@ SELECT *
 FROM users
 where email = sqlc.arg('email');
 
+-- name: GetUserById :one
+SELECT *
+FROM users
+where id = sqlc.arg('id');
+
 -- name: UpdateUser :exec
 UPDATE users
 SET first_name = COALESCE(sqlc.narg('first_name'), first_name),

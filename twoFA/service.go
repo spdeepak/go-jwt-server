@@ -14,25 +14,29 @@ import (
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
+	tokenRepo "github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/spdeepak/go-jwt-server/twoFA/repository"
+	"github.com/spdeepak/go-jwt-server/users"
 )
 
 type service struct {
 	appName      string
 	storage      Storage
+	userService  users.Service
 	tokenService tokens.Service
 }
 
 type Service interface {
 	GenerateSecret(ctx *gin.Context, email, userId string) (api.TwoFAResponse, error)
-	Verify2FALogin(ctx *gin.Context, userId, passcode string) (bool, error)
+	Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error)
 	Delete2FA(ctx *gin.Context, userId, passcode string) error
 }
 
-func NewService(appName string, storage Storage, tokenService tokens.Service) Service {
+func NewService(appName string, storage Storage, userService users.Service, tokenService tokens.Service) Service {
 	return &service{
 		appName:      appName,
 		storage:      storage,
+		userService:  userService,
 		tokenService: tokenService,
 	}
 }
@@ -81,11 +85,11 @@ func (s *service) GenerateSecret(ctx *gin.Context, email, userId string) (api.Tw
 	}, nil
 }
 
-func (s *service) Verify2FALogin(ctx *gin.Context, userId, passcode string) (bool, error) {
+func (s *service) Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error) {
 	totpDetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
-		return false, httperror.New(httperror.InvalidTwoFA)
+		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 	isValid, err := totp.ValidateCustom(passcode, totpDetails.Secret, time.Now(), totp.ValidateOpts{
 		Period:    30, // typical for authenticator apps
@@ -95,9 +99,19 @@ func (s *service) Verify2FALogin(ctx *gin.Context, userId, passcode string) (boo
 	})
 	if err != nil {
 		log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
-		return false, httperror.New(httperror.InvalidTwoFA)
+		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
-	return isValid, nil
+	if !isValid {
+		log.Error().Msgf("Invalid 2FA code for user: %s", userId)
+		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
+	}
+
+	user, err := s.userService.GetUser(ctx, userId)
+	if err != nil {
+		return api.LoginSuccessWithJWT{}, err
+	}
+
+	return s.tokenService.GenerateNewTokenPair(ctx, tokens.TokenParams{XLoginSource: string(params.XLoginSource), UserAgent: params.UserAgent}, tokenRepo.User{ID: user.ID, Email: user.Email, FirstName: user.FirstName, LastName: user.LastName})
 }
 
 func (s *service) Delete2FA(ctx *gin.Context, userId, passcode string) error {

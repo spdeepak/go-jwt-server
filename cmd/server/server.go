@@ -145,7 +145,7 @@ func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	response, err := s.twoFAService.Verify2FALogin(ctx, userId.(string), verify2FARequest.TwoFACode)
+	response, err := s.twoFAService.Verify2FALogin(ctx, params, userId.(string), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return

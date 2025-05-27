@@ -41,7 +41,7 @@ func TestStorage_GetUser(t *testing.T) {
 
 	storage := NewStorage(query)
 
-	user, err := storage.GetUser(ctx, email)
+	user, err := storage.GetUserByEmail(ctx, email)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 }
