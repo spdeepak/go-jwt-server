@@ -15,6 +15,8 @@ type Storage interface {
 	UserSignup(ctx context.Context, arg repository.SignupParams) error
 	GetUserByEmail(ctx context.Context, email string) (repository.User, error)
 	GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error)
+	Setup2FA(ctx context.Context, userId repository.Setup2FAParams) error
+	UserSignupWith2FA(ctx context.Context, arg repository.SignupWith2FAParams) error
 }
 
 func NewStorage(userRepository repository.Querier) Storage {
@@ -27,10 +29,18 @@ func (s *storage) UserSignup(ctx context.Context, arg repository.SignupParams) e
 	return s.userRepository.Signup(ctx, arg)
 }
 
+func (s *storage) UserSignupWith2FA(ctx context.Context, arg repository.SignupWith2FAParams) error {
+	return s.userRepository.SignupWith2FA(ctx, arg)
+}
+
 func (s *storage) GetUserByEmail(ctx context.Context, email string) (repository.User, error) {
 	return s.userRepository.UserLogin(ctx, email)
 }
 
 func (s *storage) GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error) {
 	return s.userRepository.GetUserById(ctx, userId)
+}
+
+func (s *storage) Setup2FA(ctx context.Context, userId repository.Setup2FAParams) error {
+	return s.userRepository.Setup2FA(ctx, userId)
 }

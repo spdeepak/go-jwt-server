@@ -38,11 +38,14 @@ func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if err := s.userService.Signup(ctx, signup); err != nil {
+	if res, err := s.userService.Signup(ctx, signup); err != nil {
 		ctx.Error(err)
 		return
+	} else if res.QrImage != "" || res.Secret != "" {
+		ctx.JSON(http.StatusCreated, res)
+		return
 	}
-	ctx.Status(http.StatusCreated)
+	ctx.Status(http.StatusNoContent)
 }
 
 func (s *Server) ChangePassword(ctx *gin.Context, params api.ChangePasswordParams) {
@@ -121,9 +124,8 @@ func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParam
 
 func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 	email, emailPresent := ctx.Get("X-User-Email")
-	userId, userIdPresent := ctx.Get("X-User-ID")
-	if emailPresent && userIdPresent {
-		response, err := s.twoFAService.Setup2FA(ctx, email.(string), userId.(string))
+	if emailPresent {
+		response, err := s.twoFAService.Setup2FA(ctx, email.(string))
 		if err != nil {
 			ctx.Error(err)
 			return
@@ -145,13 +147,12 @@ func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	response, err := s.twoFAService.Verify2FALogin(ctx, params, userId.(string), verify2FARequest.TwoFACode)
+	response, err := s.userService.Login2FA(ctx, params, userId.(string), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return
 	}
-	ctx.JSON(http.StatusCreated, response)
-	return
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
@@ -166,7 +167,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	err := s.twoFAService.Delete2FA(ctx, userId.(string), verify2FARequest.TwoFACode)
+	err := s.twoFAService.Remove2FA(ctx, userId.(string), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return

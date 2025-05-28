@@ -26,13 +26,14 @@ func TestService_Signup_OK(t *testing.T) {
 
 	query := repository.NewMockQuerier(t)
 	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
-		return user.Email == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
+		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(nil)
 	userStorage := NewStorage(query)
-	userService := NewService(userStorage, nil)
+	userService := NewService(userStorage, nil, nil)
 
-	err := userService.Signup(ctx, user)
+	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
+	assert.Empty(t, res)
 }
 
 func TestService_Login_OK(t *testing.T) {
@@ -67,7 +68,7 @@ func TestService_Login_OK(t *testing.T) {
 			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
-	userService := NewService(userStorage, tokenService)
+	userService := NewService(userStorage, nil, tokenService)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -98,7 +99,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 			nil)
 
 	userStorage := NewStorage(query)
-	userService := NewService(userStorage, nil)
+	userService := NewService(userStorage, nil, nil)
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -124,7 +125,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
 
 	userStorage := NewStorage(query)
-	userService := NewService(userStorage, nil)
+	userService := NewService(userStorage, nil, nil)
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -150,7 +151,7 @@ func TestService_Login_NOK(t *testing.T) {
 	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("error"))
 
 	userStorage := NewStorage(query)
-	userService := NewService(userStorage, nil)
+	userService := NewService(userStorage, nil, nil)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",

@@ -42,14 +42,14 @@ func main() {
 	tokenRepository := token.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenRepository)
 	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
-	//Users
-	userRepository := user.New(dbConnection.DB)
-	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, tokenService)
 	//2FA
 	twoFAQuery := otp.New(dbConnection.DB)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("", twoFAStorage, userService, tokenService)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage, tokenService)
+	//Users
+	userRepository := user.New(dbConnection.DB)
+	userStorage := users.NewStorage(userRepository)
+	userService := users.NewService(userStorage, twoFAService, tokenService)
 
 	//oapi-codegen implementation handler
 	server := NewServer(userService, tokenService, twoFAService)
