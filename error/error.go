@@ -8,7 +8,7 @@ import (
 type HttpError struct {
 	ErrorCode   string `json:"errorCode,omitempty"`
 	Description string `json:"description,omitempty"`
-	Metadata    string `json:"metadata,omitempty"`
+	Metadata    string `json:"-"`
 	StatusCode  int    `json:"-"`
 }
 
@@ -29,9 +29,19 @@ const (
 	RefreshTokenRevoked      = "JWT0009"
 	TokenRevokeFailed        = "JWT0010"
 	ActiveSessionsListFailed = "JWT0011"
+	TwoFACreateFailed        = "JWT0012"
+	InvalidTwoFA             = "JWT0013"
+	UserSignUpFailed         = "JWT0014"
+	UserSignUpWith2FAFailed  = "JWT0015"
+	UserAlreadyExists        = "JWT0016"
+	UserAccountLocked        = "JWT0017"
 )
 
 var httpErrors = map[string]HttpError{
+	UndefinedErrorCode: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Unexpected error occurred",
+	},
 	Unauthorized: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Invalid Bearer token. Please login again.",
@@ -75,6 +85,30 @@ var httpErrors = map[string]HttpError{
 	ActiveSessionsListFailed: {
 		StatusCode:  http.StatusInternalServerError,
 		Description: "Failed to list all active sessions.",
+	},
+	TwoFACreateFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Failed to setup 2FA. Please try again.",
+	},
+	InvalidTwoFA: {
+		StatusCode:  http.StatusUnauthorized,
+		Description: "Invalid 2FA. Please try again.",
+	},
+	UserSignUpFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "User signup failed. Please try again.",
+	},
+	UserSignUpWith2FAFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "User signup with 2FA failed. Please try again.",
+	},
+	UserAlreadyExists: {
+		StatusCode:  http.StatusConflict,
+		Description: "User already exists with given email",
+	},
+	UserAccountLocked: {
+		StatusCode:  http.StatusForbidden,
+		Description: "User account is locked",
 	},
 }
 

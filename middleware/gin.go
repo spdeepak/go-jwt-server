@@ -11,13 +11,6 @@ import (
 var IgnorePaths = []string{
 	"/live",
 	"/ready",
-	"/api-docs",
-	"/v2/api-docs",
-	"/swagger/doc.json",
-	"/swagger/v1/swagger.json",
-	"/swagger-json",
-	"/api-json",
-	"/swagger.json",
 }
 
 // GinLogger is the middleware function that uses zerolog for logging
@@ -28,13 +21,12 @@ func GinLogger() gin.HandlerFunc {
 		}
 
 		startTime := time.Now()
-		log.Info().Msgf("Request path: %s", c.Request.URL.Path)
 		c.Next()
 		endTime := time.Now()
 		latency := endTime.Sub(startTime).Milliseconds()
 		statusCode := c.Writer.Status()
 
-		logEvent := log.Info().
+		logEvent := log.Debug().
 			Str("method", c.Request.Method).
 			Str("path", c.Request.URL.Path).
 			Int("status", statusCode).

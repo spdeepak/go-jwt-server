@@ -14,12 +14,13 @@ import (
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/db"
-	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/jwt_secret"
 	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
+	"github.com/spdeepak/go-jwt-server/twoFA"
+	otp "github.com/spdeepak/go-jwt-server/twoFA/repository"
 	"github.com/spdeepak/go-jwt-server/users"
 	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
@@ -41,13 +42,17 @@ func main() {
 	tokenRepository := token.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenRepository)
 	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
+	//2FA
+	twoFAQuery := otp.New(dbConnection.DB)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, tokenService)
+	userService := users.NewService(userStorage, twoFAService, tokenService)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService, tokenService)
+	server := NewServer(userService, tokenService, twoFAService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
@@ -59,7 +64,7 @@ func main() {
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), nil)
 
 	router := gin.New()
-	router.Use(httperror.Middleware)
+	router.Use(middleware.ErrorMiddleware)
 	router.Use(middleware.GinLogger())
 	router.Use(authMiddleware)
 	api.RegisterHandlers(router, server)

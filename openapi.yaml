@@ -5,11 +5,11 @@ info:
 paths:
   /api/v1/auth/signup:
     post:
-      description: User signup
-      summary: Endpoint for user signup
+      summary: User signup
+      description: Endpoint for user signup
       operationId: signup
       tags:
-        - auth
+        - User
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -20,15 +20,23 @@ paths:
             schema:
               $ref: '#/components/schemas/UserSignup'
       responses:
-        '200':
-          description: OK
+        '204':
+          description: User created without 2FA
+        '409':
+          description: User already exists
+        '201':
+          description: User created with 2FA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignUpWith2FAResponse'
   /api/v1/auth/login:
     post:
-      description: User login
-      summary: Endpoint for user login
+      summary: User login
+      description: Endpoint for user login
       operationId: login
       tags:
-        - auth
+        - User
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -45,14 +53,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/LoginSuccessWithJWT'
+                  - $ref: '#/components/schemas/LoginRequires2FA'
+                discriminator:
+                  propertyName: type
+  /api/v1/auth/password:
+    post:
+      summary: Change password
+      description: Endpoint to change password
+      operationId: changePassword
+      tags:
+        - User
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Change password request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: UNAUTHORISED
   /api/v1/auth/refresh:
     post:
-      description: Token refresh
-      summary: Endpoint to get new token using refresh token
+      summary: Token refresh
+      description: Endpoint to get new token using refresh token
       operationId: refresh
       tags:
-        - auth
+        - Auth
       security:
         - bearerAuth: [ ]
       parameters:
@@ -71,14 +107,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/LoginSuccessWithJWT'
   /api/v1/auth/sessions:
     get:
-      description: Get all sessions
-      summary: Endpoint to get all active sessions of a given user
+      summary: Get all sessions
+      description: Endpoint to get all active sessions of a given user
       operationId: getAllSessions
       tags:
-        - auth
+        - Auth
       security:
         - bearerAuth: [ ]
       parameters:
@@ -91,11 +127,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/GetAllSessionResponse'
     delete:
-      description: Revoke all refresh tokens
-      summary: Endpoint to revoke all refresh tokens of a user
+      summary: Revoke all refresh tokens
+      description: Endpoint to revoke all refresh tokens of a user
       operationId: revokeAllTokens
       tags:
-        - auth
+        - Auth
       security:
         - bearerAuth: [ ]
       parameters:
@@ -105,11 +141,11 @@ paths:
           description: OK
   /api/v1/auth/sessions/current:
     delete:
-      description: Revoke refresh token
-      summary: Endpoint to revoke single refresh token
+      summary: Revoke refresh token
+      description: Endpoint to revoke single refresh token
       operationId: revokeRefreshToken
       tags:
-        - auth
+        - Auth
       security:
         - bearerAuth: [ ]
       parameters:
@@ -124,10 +160,81 @@ paths:
       responses:
         '200':
           description: OK
+  /api/v1/auth/2fa/setup:
+    post:
+      summary: Create 2fa
+      description: Endpoint to create 2fa for a user
+      operationId: create2FA
+      tags:
+        - 2FA
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFAResponse'
+  /api/v1/auth/2fa/login:
+    post:
+      summary: Verify 2FA code and login
+      description: Endpoint to verify 2FA code of a user with temp_token to login and get bearer and refresh token
+      operationId: login2FA
+      tags:
+        - 2FA
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Verify 2FA code
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login2FARequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessWithJWT'
+        '401':
+          description: UNAUTHORISED
+  /api/v1/auth/2fa:
+    delete:
+      summary: Remove 2fa
+      description: Endpoint to remove 2fa code of a user
+      operationId: remove2FA
+      tags:
+        - 2FA
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Verify 2FA code
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Remove2FARequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: UNAUTHORISED
   /ready:
     get:
-      description: Ready check
       summary: Ready check
+      description: Ready check
       tags:
         - Probe
       responses:
@@ -135,8 +242,8 @@ paths:
           description: OK
   /live:
     get:
-      description: Live check
       summary: Live check
+      description: Live check
       tags:
         - Probe
       responses:
@@ -176,16 +283,33 @@ components:
         - firstName
         - lastName
         - password
+        - twoFAEnabled
       properties:
         email:
           type: string
-          pattern:
+          format: email
           example: first.last@example.com
         firstName:
           type: string
         lastName:
           type: string
         password:
+          type: string
+          minLength: 8
+          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"
+          description: "At least 8 characters, one uppercase, one lowercase, one number, one special character"
+        twoFAEnabled:
+          type: boolean
+          default: false
+    SignUpWith2FAResponse:
+      type: object
+      required:
+        - qr_image
+        - secret
+      properties:
+        qr_image:
+          type: string
+        secret:
           type: string
     UserLogin:
       type: object
@@ -199,7 +323,17 @@ components:
           example: first.last@example.com
         password:
           type: string
-    TokenResponse:
+    ChangePassword:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+        newPassword:
+          type: string
+    LoginSuccessWithJWT:
       type: object
       required:
         - accessToken
@@ -209,6 +343,16 @@ components:
           type: string
         refreshToken:
           type: string
+    LoginRequires2FA:
+      type: object
+      required: [ type, temp_token ]
+      properties:
+        type:
+          type: string
+          enum: [ 2fa ]
+        temp_token:
+          type: string
+          description: Temporary token to use for 2FA verification
     Refresh:
       type: object
       required:
@@ -244,3 +388,34 @@ components:
           type: string
         createdBy:
           type: string
+    TwoFAResponse:
+      type: object
+      required:
+        - qr_image
+        - secret
+      properties:
+        qr_image:
+          type: string
+        secret:
+          type: string
+    Login2FARequest:
+      type: object
+      required:
+        - twoFACode
+        - tempToken
+      properties:
+        tempToken:
+          type: string
+        twoFACode:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'
+    Remove2FARequest:
+      type: object
+      required:
+        - twoFACode
+      properties:
+        twoFACode:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'

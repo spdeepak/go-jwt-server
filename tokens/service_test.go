@@ -443,7 +443,8 @@ func TestService_ListActiveSessions_OK(t *testing.T) {
 	}
 	query.On("ListAllActiveSessions", ctx, "first.last@example.com").Return(queryResponse, nil)
 	storage := NewStorage(query)
-	service := NewService(storage, []byte("SOME_RANDOM_SECRET"))
+	secret := "SOME_RANDOM_SECRET"
+	service := NewService(storage, []byte(secret))
 
 	response, err := service.ListActiveSessions(ctx, "first.last@example.com")
 	assert.NoError(t, err)
@@ -462,7 +463,8 @@ func TestService_ListActiveSessions_NOK_DBQueryFail(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("ListAllActiveSessions", ctx, "first.last@example.com").Return(nil, errors.New("errror"))
 	storage := NewStorage(query)
-	service := NewService(storage, []byte("SOME_RANDOM_SECRET"))
+	secret := "SOME_RANDOM_SECRET"
+	service := NewService(storage, []byte(secret))
 
 	response, err := service.ListActiveSessions(ctx, "first.last@example.com")
 	assert.Error(t, err)

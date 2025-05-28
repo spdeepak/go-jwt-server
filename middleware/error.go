@@ -1,4 +1,4 @@
-package httperror
+package middleware
 
 import (
 	"bytes"
@@ -8,16 +8,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	httperror "github.com/spdeepak/go-jwt-server/error"
 )
 
-func Middleware(c *gin.Context) {
+func ErrorMiddleware(c *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Ctx(c).Error().Any("error", err).Str("path", c.Request.URL.Path).Msg("Panic occurred")
 			// Respond with an error to the client
 			c.AbortWithStatusJSON(
 				http.StatusInternalServerError,
-				HttpError{
+				httperror.HttpError{
 					Description: "Internal error",
 					ErrorCode:   "500",
 					Metadata:    fmt.Sprintf("%v", err),
@@ -26,7 +27,7 @@ func Middleware(c *gin.Context) {
 			)
 		} else {
 			for _, err := range c.Errors {
-				var e HttpError
+				var e httperror.HttpError
 				switch {
 				case errors.As(err.Err, &e):
 					if e.StatusCode >= 400 && e.StatusCode < 500 {

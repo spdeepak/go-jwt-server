@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 )
 
@@ -84,8 +85,30 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
 			return
 		}
 
+		switch claims["typ"].(string) {
+		case "2FA":
+			c.Set("X-User-ID", claims["sub"].(string))
+		case "Bearer", "Refresh":
+			c.Set("X-User-Email", claims["email"].(string))
+		default:
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: jwt.ErrTokenInvalidClaims.Error(),
+				Metadata:    fmt.Sprintf("%v", err.Error()),
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+
+		userId, err := uuid.Parse(claims["sub"].(string))
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: "Invalid token",
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+		c.Set("X-User-ID", userId)
 		c.Set("user", token.Claims)
-		c.Set("X-JWT-EMAIL", claims["email"].(string))
 		c.Next()
 	}
 }
