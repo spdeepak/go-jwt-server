@@ -7,18 +7,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spdeepak/go-jwt-server/api"
+	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
+	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func TestService_Signup_OK(t *testing.T) {
+func TestService_Signup_No2FA_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
-		Email:     "first.last@trendyol.com",
+		Email:     "first.last@example.com",
 		FirstName: "First name",
 		LastName:  "Last name",
 		Password:  "Som€_$trong_P@$$word",
@@ -36,6 +38,143 @@ func TestService_Signup_OK(t *testing.T) {
 	assert.Empty(t, res)
 }
 
+func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+
+	query := repository.NewMockQuerier(t)
+	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
+		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
+	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
+	userStorage := NewStorage(query)
+	userService := NewService(userStorage, nil, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.Error(t, err)
+	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	assert.Empty(t, res)
+}
+
+func TestService_Signup_No2FA_NOK_DBError(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+
+	query := repository.NewMockQuerier(t)
+	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
+		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
+	})).Return(errors.New("error"))
+	userStorage := NewStorage(query)
+	userService := NewService(userStorage, nil, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.Error(t, err)
+	assert.Equal(t, httperror.UserSignUpFailed, err.(httperror.HttpError).ErrorCode)
+	assert.Empty(t, res)
+}
+
+func TestService_Signup_2FA_OK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	query := repository.NewMockQuerier(t)
+	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository.SignupWith2FAParams) bool {
+		return string(user.Email) == params.Email &&
+			user.FirstName == params.FirstName &&
+			user.LastName == params.LastName &&
+			validPassword(user.Password, params.Password) &&
+			params.Secret != "" && params.Url != "" &&
+			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
+	})).Return(nil)
+	twoFaService := twoFA.NewService("go-jwt-server", nil, nil)
+	userStorage := NewStorage(query)
+	userService := NewService(userStorage, twoFaService, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res)
+	assert.NotEmpty(t, res.Secret)
+	assert.NotEmpty(t, res.QrImage)
+}
+
+func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	query := repository.NewMockQuerier(t)
+	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository.SignupWith2FAParams) bool {
+		return string(user.Email) == params.Email &&
+			user.FirstName == params.FirstName &&
+			user.LastName == params.LastName &&
+			validPassword(user.Password, params.Password) &&
+			params.Secret != "" && params.Url != "" &&
+			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
+	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
+	twoFaService := twoFA.NewService("go-jwt-server", nil, nil)
+	userStorage := NewStorage(query)
+	userService := NewService(userStorage, twoFaService, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.Error(t, err)
+	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	assert.Empty(t, res)
+}
+
+func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	query := repository.NewMockQuerier(t)
+	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository.SignupWith2FAParams) bool {
+		return string(user.Email) == params.Email &&
+			user.FirstName == params.FirstName &&
+			user.LastName == params.LastName &&
+			validPassword(user.Password, params.Password) &&
+			params.Secret != "" && params.Url != "" &&
+			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
+	})).Return(errors.New("ERROR"))
+	twoFaService := twoFA.NewService("go-jwt-server", nil, nil)
+	userStorage := NewStorage(query)
+	userService := NewService(userStorage, twoFaService, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.Error(t, err)
+	assert.Equal(t, httperror.UserSignUpWith2FAFailed, err.(httperror.HttpError).ErrorCode)
+	assert.Empty(t, res)
+}
+
 func TestService_Login_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
@@ -45,7 +184,7 @@ func TestService_Login_OK(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	email := "first.last@trendyol.com"
+	email := "first.last@example.com"
 	userLogin := api.UserLogin{
 		Email:    email,
 		Password: "Som€_$trong_P@$$word",
@@ -54,7 +193,7 @@ func TestService_Login_OK(t *testing.T) {
 	userQuery := repository.NewMockQuerier(t)
 	userQuery.On("UserLogin", ctx, email).
 		Return(repository.User{
-			Email:     "first.last@trendyol.com",
+			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
@@ -83,7 +222,7 @@ func TestService_Login_OK(t *testing.T) {
 func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	email := "first.last@trendyol.com"
+	email := "first.last@example.com"
 	userLogin := api.UserLogin{
 		Email:    email,
 		Password: "Som€_P@$$word",
@@ -92,7 +231,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("UserLogin", ctx, email).
 		Return(repository.User{
-			Email:     "first.last@trendyol.com",
+			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
@@ -115,7 +254,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 func TestService_Login_NOK_DB(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	email := "first.last@trendyol.com"
+	email := "first.last@example.com"
 	userLogin := api.UserLogin{
 		Email:    email,
 		Password: "Som€_$trong_P@$$word",
@@ -141,7 +280,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 func TestService_Login_NOK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	email := "first.last@trendyol.com"
+	email := "first.last@example.com"
 	userLogin := api.UserLogin{
 		Email:    email,
 		Password: "Som€_$trong_P@$$word",

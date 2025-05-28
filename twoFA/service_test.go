@@ -68,7 +68,7 @@ func TestService_Verify2FALogin_OK(t *testing.T) {
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
-	valid, err := otpService.Verify2FALogin(ctx, api.Verify2FAParams{XLoginSource: "test", UserAgent: "test"}, userId, passcode)
+	valid, err := otpService.Verify2FALogin(ctx, api.Login2FAParams{XLoginSource: "test", UserAgent: "test"}, userId, passcode)
 	assert.NoError(t, err)
 	assert.True(t, valid)
 }
@@ -84,7 +84,7 @@ func TestService_Verify2FALogin_NOK_MinuteOldPasscode(t *testing.T) {
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
-	valid, err := otpService.Verify2FALogin(ctx, api.Verify2FAParams{}, userId, passcode)
+	valid, err := otpService.Verify2FALogin(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.NoError(t, err)
 	assert.False(t, valid)
 }
@@ -100,7 +100,7 @@ func TestService_Verify2FALogin_NOK_NotFoundInDB(t *testing.T) {
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
-	valid, err := otpService.Verify2FALogin(ctx, api.Verify2FAParams{}, userId, passcode)
+	valid, err := otpService.Verify2FALogin(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.False(t, valid)
 }

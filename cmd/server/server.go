@@ -136,13 +136,13 @@ func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 	ctx.AbortWithStatus(http.StatusUnauthorized)
 }
 
-func (s *Server) Verify2FA(ctx *gin.Context, params api.Verify2FAParams) {
+func (s *Server) Login2FA(ctx *gin.Context, params api.Login2FAParams) {
 	userId, userIdPresent := ctx.Get("X-User-ID")
 	if !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	var verify2FARequest api.Verify2FARequest
+	var verify2FARequest api.Login2FARequest
 	if err := ctx.ShouldBindJSON(&verify2FARequest); err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -162,7 +162,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	var verify2FARequest api.Verify2FARequest
+	var verify2FARequest api.Remove2FARequest
 	if err := ctx.ShouldBindJSON(&verify2FARequest); err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return

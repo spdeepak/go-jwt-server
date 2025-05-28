@@ -179,11 +179,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TwoFAResponse'
-  /api/v1/auth/2fa/verify:
+  /api/v1/auth/2fa/login:
     post:
-      summary: Verify 2FA code to login
-      description: Endpoint to verify 2FA code of a user with tem_token to get bearer and refresh token
-      operationId: verify2FA
+      summary: Verify 2FA code and login
+      description: Endpoint to verify 2FA code of a user with temp_token to login and get bearer and refresh token
+      operationId: login2FA
       tags:
         - 2FA
       security:
@@ -197,7 +197,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Verify2FARequest'
+              $ref: '#/components/schemas/Login2FARequest'
       responses:
         '200':
           description: OK
@@ -225,7 +225,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Verify2FARequest'
+              $ref: '#/components/schemas/Remove2FARequest'
       responses:
         '200':
           description: OK
@@ -398,7 +398,7 @@ components:
           type: string
         secret:
           type: string
-    Verify2FARequest:
+    Login2FARequest:
       type: object
       required:
         - twoFACode
@@ -406,6 +406,15 @@ components:
       properties:
         tempToken:
           type: string
+        twoFACode:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'
+    Remove2FARequest:
+      type: object
+      required:
+        - twoFACode
+      properties:
         twoFACode:
           type: string
           pattern: '^\d{6}$'

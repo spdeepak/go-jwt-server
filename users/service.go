@@ -23,7 +23,7 @@ type Service interface {
 	GetUser(ctx *gin.Context, userId string) (repository.User, error)
 	Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error)
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
-	Login2FA(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (any, error)
+	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (any, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
 }
 
@@ -121,7 +121,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
 }
 
-func (s *service) Login2FA(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (any, error) {
+func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (any, error) {
 	isValid, err := s.twoFAService.Verify2FALogin(ctx, params, userId, passcode)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidTwoFA, err.Error())

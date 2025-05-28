@@ -25,7 +25,7 @@ type service struct {
 
 type Service interface {
 	Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
-	Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (bool, error)
+	Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (bool, error)
 	Remove2FA(ctx *gin.Context, userId, passcode string) error
 }
 
@@ -62,7 +62,7 @@ func (s *service) Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
 	}, nil
 }
 
-func (s *service) Verify2FALogin(ctx *gin.Context, params api.Verify2FAParams, userId, passcode string) (bool, error) {
+func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (bool, error) {
 	twoFADetails, err := s.storage.get2FADetails(ctx, uuid.MustParse(userId))
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)

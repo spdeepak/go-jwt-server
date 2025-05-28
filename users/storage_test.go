@@ -11,7 +11,7 @@ import (
 func TestStorage_UserSignup(t *testing.T) {
 	ctx := context.Background()
 	arg := repository.SignupParams{
-		Email:     "first.last@trendyol.com",
+		Email:     "first.last@example.com",
 		FirstName: "First name",
 		LastName:  "Last name",
 		Password:  "Som€_$trong_P@$$word",
@@ -28,12 +28,12 @@ func TestStorage_UserSignup(t *testing.T) {
 
 func TestStorage_GetUser(t *testing.T) {
 	ctx := context.Background()
-	email := "first.last@trendyol.com"
+	email := "first.last@example.com"
 
 	query := repository.NewMockQuerier(t)
 	query.On("UserLogin", ctx, email).
 		Return(repository.User{
-			Email:     "first.last@trendyol.com",
+			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
 			Password:  "Som€_$trong_P@$$word"},
