@@ -1,6 +1,8 @@
 package users
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -20,10 +22,9 @@ type service struct {
 }
 
 type Service interface {
-	GetUser(ctx *gin.Context, userId string) (repository.User, error)
 	Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error)
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
-	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (any, error)
+	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
 }
 
@@ -33,15 +34,6 @@ func NewService(storage Storage, twoFAService twoFA.Service, tokenService tokens
 		twoFAService: twoFAService,
 		tokenService: tokenService,
 	}
-}
-
-func (s *service) GetUser(ctx *gin.Context, userId string) (repository.User, error) {
-	user, err := s.storage.GetUserById(ctx, uuid.MustParse(userId))
-	if err != nil {
-		log.Err(err).Msgf("Failed to get user with id %s", userId)
-		return repository.User{}, err
-	}
-	return user, nil
 }
 
 func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error) {
@@ -121,7 +113,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
 }
 
-func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (any, error) {
+func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error) {
 	isValid, err := s.twoFAService.Verify2FALogin(ctx, params, userId, passcode)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidTwoFA, err.Error())
@@ -135,7 +127,11 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, 
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 		}
-		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
+		return api.LoginSuccessWithJWT{}, httperror.NewWithStatus(httperror.UndefinedErrorCode, err.Error(), http.StatusBadRequest)
+	}
+
+	if user.Locked {
+		return api.LoginSuccessWithJWT{}, httperror.New(httperror.UserAccountLocked)
 	}
 
 	jwtUser := token.User{

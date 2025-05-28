@@ -14,41 +14,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//func TestService_GenerateSecret_OK(t *testing.T) {
-//	w := httptest.NewRecorder()
-//	ctx, _ := gin.CreateTestContext(w)
-//	userId := uuid.NewString()
-//	email := "first.last@example.com"
-//	query := repository.NewMockQuerier(t)
-//	query.On("Setup2FA", ctx, mock.MatchedBy(func(c repository.Setup2FAParams) bool {
-//		return c.UserID == uuid.MustParse(userId) && c.Secret != "" && c.Url != ""
-//	})).Return(nil)
-//	optStorage := NewStorage(query)
-//	otpService := NewService("go-jwt-server", optStorage, nil, nil)
-//
-//	response, err := otpService.Setup2FA(ctx, email, userId)
-//	assert.NoError(t, err)
-//	assert.NotEmpty(t, response)
-//	assert.NotEmpty(t, response.Secret)
-//	assert.NotEmpty(t, response.QrImage)
-//}
-//
-//func TestService_GenerateSecret_NOK_SaveToDBError(t *testing.T) {
-//	w := httptest.NewRecorder()
-//	ctx, _ := gin.CreateTestContext(w)
-//	userId := uuid.NewString()
-//	email := "first.last@example.com"
-//	query := repository.NewMockQuerier(t)
-//	query.On("Setup2FA", ctx, mock.MatchedBy(func(c repository.Setup2FAParams) bool {
-//		return c.UserID == uuid.MustParse(userId) && c.Secret != "" && c.Url != ""
-//	})).Return(errors.New("error"))
-//	optStorage := NewStorage(query)
-//	otpService := NewService("go-jwt-server", optStorage, nil, nil)
-//
-//	response, err := otpService.Setup2FA(ctx, email, userId)
-//	assert.Error(t, err)
-//	assert.Empty(t, response)
-//}
+func TestService_GenerateSecret_OK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	email := "first.last@example.com"
+	otpService := NewService("go-jwt-server", nil)
+
+	response, err := otpService.Setup2FA(ctx, email)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, response)
+	assert.NotEmpty(t, response.Secret)
+	assert.NotEmpty(t, response.QrImage)
+	assert.Equal(t, "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+response.Secret, response.Url)
+}
 
 func TestService_Verify2FALogin_OK(t *testing.T) {
 	w := httptest.NewRecorder()
@@ -64,7 +42,7 @@ func TestService_Verify2FALogin_OK(t *testing.T) {
 	twoFAQuery := repository.NewMockQuerier(t)
 	twoFAQuery.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	twoFAStorage := NewStorage(twoFAQuery)
-	otpService := NewService("go-jwt-server", twoFAStorage, nil)
+	otpService := NewService("go-jwt-server", twoFAStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -80,7 +58,7 @@ func TestService_Verify2FALogin_NOK_MinuteOldPasscode(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage, nil)
+	otpService := NewService("go-jwt-server", optStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -96,7 +74,7 @@ func TestService_Verify2FALogin_NOK_NotFoundInDB(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{}, errors.New("error"))
 	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage, nil)
+	otpService := NewService("go-jwt-server", optStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -113,7 +91,7 @@ func TestService_Remove2FA_OK(t *testing.T) {
 	query.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	query.On("Delete2FA", ctx, repository.Delete2FAParams{UserID: uuid.MustParse(userId), Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(nil)
 	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage, nil)
+	otpService := NewService("go-jwt-server", optStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -128,7 +106,7 @@ func TestService_Remove2FA_NOK_MinuteOldPasscode(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage, nil)
+	otpService := NewService("go-jwt-server", optStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -143,7 +121,7 @@ func TestService_Remove2FA_NOK_NotFoundInDB(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{}, errors.New("error"))
 	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage, nil)
+	otpService := NewService("go-jwt-server", optStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -159,7 +137,7 @@ func TestService_Remove2FA_NOK_DeleteInDB(t *testing.T) {
 	query.On("Get2FADetails", ctx, uuid.MustParse(userId)).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	query.On("Delete2FA", ctx, repository.Delete2FAParams{UserID: uuid.MustParse(userId), Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(errors.New("error"))
 	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage, nil)
+	otpService := NewService("go-jwt-server", optStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)

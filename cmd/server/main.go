@@ -45,7 +45,7 @@ func main() {
 	//2FA
 	twoFAQuery := otp.New(dbConnection.DB)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage, tokenService)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	//Users
 	userRepository := user.New(dbConnection.DB)
 	userStorage := users.NewStorage(userRepository)

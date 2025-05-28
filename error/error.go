@@ -34,9 +34,14 @@ const (
 	UserSignUpFailed         = "JWT0014"
 	UserSignUpWith2FAFailed  = "JWT0015"
 	UserAlreadyExists        = "JWT0016"
+	UserAccountLocked        = "JWT0017"
 )
 
 var httpErrors = map[string]HttpError{
+	UndefinedErrorCode: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Unexpected error occurred",
+	},
 	Unauthorized: {
 		StatusCode:  http.StatusUnauthorized,
 		Description: "Invalid Bearer token. Please login again.",
@@ -100,6 +105,10 @@ var httpErrors = map[string]HttpError{
 	UserAlreadyExists: {
 		StatusCode:  http.StatusConflict,
 		Description: "User already exists with given email",
+	},
+	UserAccountLocked: {
+		StatusCode:  http.StatusForbidden,
+		Description: "User account is locked",
 	},
 }
 

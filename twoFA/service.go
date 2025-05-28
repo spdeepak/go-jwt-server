@@ -13,14 +13,12 @@ import (
 	_ "github.com/skip2/go-qrcode"
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
-	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA/repository"
 )
 
 type service struct {
-	appName      string
-	storage      Storage
-	tokenService tokens.Service
+	appName string
+	storage Storage
 }
 
 type Service interface {
@@ -29,11 +27,10 @@ type Service interface {
 	Remove2FA(ctx *gin.Context, userId, passcode string) error
 }
 
-func NewService(appName string, storage Storage, tokenService tokens.Service) Service {
+func NewService(appName string, storage Storage) Service {
 	return &service{
-		appName:      appName,
-		storage:      storage,
-		tokenService: tokenService,
+		appName: appName,
+		storage: storage,
 	}
 }
 
