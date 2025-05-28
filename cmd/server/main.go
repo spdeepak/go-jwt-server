@@ -64,6 +64,7 @@ func main() {
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), nil)
 
 	router := gin.New()
+	router.Use(middleware.OpenApiErrors(swagger))
 	router.Use(middleware.ErrorMiddleware)
 	router.Use(middleware.GinLogger())
 	router.Use(authMiddleware)

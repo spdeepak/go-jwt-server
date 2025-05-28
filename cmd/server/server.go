@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spdeepak/go-jwt-server/api"
+	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users"
@@ -35,11 +36,11 @@ func (s *Server) GetReady(ctx *gin.Context) {
 func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
 	if err := ctx.ShouldBindJSON(&signup); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.AbortWithError(http.StatusBadRequest, httperror.NewWithDescription(err.Error(), http.StatusBadRequest))
 		return
 	}
 	if res, err := s.userService.Signup(ctx, signup); err != nil {
-		ctx.Error(err)
+		ctx.AbortWithError(http.StatusInternalServerError, err)
 		return
 	} else if res.QrImage != "" || res.Secret != "" {
 		ctx.JSON(http.StatusCreated, res)
