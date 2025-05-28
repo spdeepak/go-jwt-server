@@ -9,6 +9,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users"
+	"github.com/spdeepak/go-jwt-server/util"
 )
 
 type Server struct {
@@ -37,6 +38,10 @@ func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
 	if err := ctx.ShouldBindJSON(&signup); err != nil {
 		ctx.AbortWithError(http.StatusBadRequest, httperror.NewWithDescription(err.Error(), http.StatusBadRequest))
+		return
+	}
+	if !util.PasswordValidator(signup.Password) {
+		ctx.AbortWithError(http.StatusBadRequest, httperror.NewWithDescription("Password doesn't meet requirements", http.StatusBadRequest))
 		return
 	}
 	if res, err := s.userService.Signup(ctx, signup); err != nil {

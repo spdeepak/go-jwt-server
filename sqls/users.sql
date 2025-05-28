@@ -14,7 +14,7 @@ INTO users_2fa (user_id, secret, url, created_at)
 SELECT id, sqlc.arg('secret'), sqlc.arg('url'), NOW()
 FROM signup_new_user;
 
--- name: UserLogin :one
+-- name: GetUserByEmail :one
 SELECT *
 FROM users
 where email = sqlc.arg('email');
@@ -23,14 +23,6 @@ where email = sqlc.arg('email');
 SELECT *
 FROM users
 where id = sqlc.arg('id');
-
--- name: UpdateUser :exec
-UPDATE users
-SET first_name = COALESCE(sqlc.narg('first_name'), first_name),
-    last_name  = COALESCE(sqlc.narg('last_name'), last_name),
-    password   = COALESCE(sqlc.narg('password'), password),
-    updated_at = NOW()
-WHERE email = sqlc.arg('email');
 
 -- name: Setup2FA :exec
 WITH revoke_old_2fa AS (

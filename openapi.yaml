@@ -296,7 +296,6 @@ components:
         password:
           type: string
           minLength: 8
-          pattern: "^[A-Za-z\\d@$!%*?&]{8,}$"
           description: "At least 8 characters, one uppercase, one lowercase, one number, one special character"
         twoFAEnabled:
           type: boolean

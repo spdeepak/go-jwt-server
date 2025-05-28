@@ -195,7 +195,7 @@ func TestService_Login_OK(t *testing.T) {
 	}
 
 	userQuery := repository.NewMockQuerier(t)
-	userQuery.On("UserLogin", ctx, email).
+	userQuery.On("GetUserByEmail", ctx, email).
 		Return(repository.User{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
@@ -233,7 +233,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("UserLogin", ctx, email).
+	query.On("GetUserByEmail", ctx, email).
 		Return(repository.User{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
@@ -265,7 +265,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
+	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
@@ -291,7 +291,7 @@ func TestService_Login_NOK(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("error"))
+	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("error"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
