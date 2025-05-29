@@ -337,7 +337,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, tokenService)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, login2FA)
 	assert.NotEmpty(t, login2FA.AccessToken)
@@ -369,7 +369,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.UserAccountLocked, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)
@@ -400,7 +400,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.InvalidCredentials, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)
@@ -431,7 +431,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.UndefinedErrorCode, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)
@@ -459,7 +459,7 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 
 	userService := NewService(nil, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.InvalidTwoFA, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)

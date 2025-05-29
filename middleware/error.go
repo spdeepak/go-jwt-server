@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
-	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/rs/zerolog/log"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 )
@@ -68,17 +65,4 @@ func logDebug(c *gin.Context, err *gin.Error) {
 	buf.ReadFrom(c.Request.Body)
 	log.Ctx(c).Debug().Any("error", err).Any("requestBody", buf.String()).Str("path", c.Request.URL.Path).
 		Send()
-}
-
-func OpenApiErrors(swagger *openapi3.T) gin.HandlerFunc {
-	return ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
-		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
-			body, _ := io.ReadAll(c.Request.Body)
-			log.Ctx(c).Debug().Any("error", message).Any("requestBody", string(body)).Str("path", c.Request.URL.Path).Send()
-			c.AbortWithStatusJSON(statusCode, httperror.HttpError{
-				StatusCode:  statusCode,
-				Description: message,
-			})
-		},
-	})
 }

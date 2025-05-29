@@ -23,8 +23,8 @@ type service struct {
 
 type Service interface {
 	Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
-	Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (bool, error)
-	Remove2FA(ctx *gin.Context, userId, passcode string) error
+	Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (bool, error)
+	Remove2FA(ctx *gin.Context, userId uuid.UUID, passcode string) error
 }
 
 func NewService(appName string, storage Storage) Service {
@@ -59,8 +59,8 @@ func (s *service) Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
 	}, nil
 }
 
-func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (bool, error) {
-	twoFADetails, err := s.storage.get2FADetails(ctx, uuid.MustParse(userId))
+func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (bool, error) {
+	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
 		return false, httperror.New(httperror.InvalidTwoFA)
@@ -73,11 +73,10 @@ func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, us
 	})
 }
 
-func (s *service) Remove2FA(ctx *gin.Context, userId, passcode string) error {
-	userUUID := uuid.MustParse(userId)
-	twoFADetails, err := s.storage.get2FADetails(ctx, userUUID)
+func (s *service) Remove2FA(ctx *gin.Context, userId uuid.UUID, passcode string) error {
+	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
-		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userUUID)
+		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	is2FAValid, err := totp.ValidateCustom(passcode, twoFADetails.Secret, time.Now(), totp.ValidateOpts{
@@ -94,7 +93,7 @@ func (s *service) Remove2FA(ctx *gin.Context, userId, passcode string) error {
 		log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
 		return httperror.New(httperror.InvalidTwoFA)
 	}
-	if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userUUID, Secret: twoFADetails.Secret}); err != nil {
+	if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userId, Secret: twoFADetails.Secret}); err != nil {
 		log.Err(err).Msgf("Failed to delete 2FA setup for user: %s", userId)
 		return err
 	}
