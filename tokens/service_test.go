@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens/repository"
@@ -470,4 +471,25 @@ func TestService_ListActiveSessions_NOK_DBQueryFail(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, httperror.ActiveSessionsListFailed, err.(httperror.HttpError).ErrorCode)
 	assert.Nil(t, response)
+}
+
+func TestService_GenerateTempToken_OK(t *testing.T) {
+	secret := "JWT_$€CR€T"
+	service := NewService(nil, []byte(secret))
+	userId := uuid.New()
+
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	response, err := service.GenerateTempToken(ctx, userId)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.NotEmpty(t, response.TempToken)
+	assert.NotEmpty(t, response.Type)
 }

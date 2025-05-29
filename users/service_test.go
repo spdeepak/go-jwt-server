@@ -195,7 +195,7 @@ func TestService_Login_OK(t *testing.T) {
 	}
 
 	userQuery := repository.NewMockQuerier(t)
-	userQuery.On("UserLogin", ctx, email).
+	userQuery.On("GetUserByEmail", ctx, email).
 		Return(repository.User{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
@@ -233,7 +233,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("UserLogin", ctx, email).
+	query.On("GetUserByEmail", ctx, email).
 		Return(repository.User{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
@@ -265,7 +265,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
+	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
@@ -291,7 +291,7 @@ func TestService_Login_NOK(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("UserLogin", ctx, email).Return(repository.User{}, errors.New("error"))
+	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("error"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
@@ -337,7 +337,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, tokenService)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, login2FA)
 	assert.NotEmpty(t, login2FA.AccessToken)
@@ -369,7 +369,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.UserAccountLocked, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)
@@ -400,7 +400,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.InvalidCredentials, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)
@@ -431,7 +431,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.UndefinedErrorCode, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)
@@ -459,7 +459,7 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 
 	userService := NewService(nil, twoFAService, nil)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.String(), passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
 	assert.Equal(t, httperror.InvalidTwoFA, err.(httperror.HttpError).ErrorCode)
 	assert.Empty(t, login2FA)

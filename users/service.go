@@ -24,7 +24,7 @@ type service struct {
 type Service interface {
 	Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error)
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
-	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error)
+	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
 }
 
@@ -113,7 +113,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
 }
 
-func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, passcode string) (api.LoginSuccessWithJWT, error) {
+func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error) {
 	isValid, err := s.twoFAService.Verify2FALogin(ctx, params, userId, passcode)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidTwoFA, err.Error())
@@ -122,7 +122,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId, 
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 
-	user, err := s.storage.GetUserById(ctx, uuid.MustParse(userId))
+	user, err := s.storage.GetUserById(ctx, userId)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)

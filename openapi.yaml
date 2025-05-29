@@ -296,7 +296,6 @@ components:
         password:
           type: string
           minLength: 8
-          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"
           description: "At least 8 characters, one uppercase, one lowercase, one number, one special character"
         twoFAEnabled:
           type: boolean
@@ -402,10 +401,7 @@ components:
       type: object
       required:
         - twoFACode
-        - tempToken
       properties:
-        tempToken:
-          type: string
         twoFACode:
           type: string
           pattern: '^\d{6}$'

@@ -26,18 +26,18 @@ func ErrorMiddleware(c *gin.Context) {
 				},
 			)
 		} else {
-			for _, err := range c.Errors {
+			for _, er := range c.Errors {
 				var e httperror.HttpError
 				switch {
-				case errors.As(err.Err, &e):
+				case errors.As(er.Err, &e):
 					if e.StatusCode >= 400 && e.StatusCode < 500 {
-						logWarning(c, err)
+						logWarning(c, er)
 					} else {
-						logError(c, err)
+						logError(c, er)
 					}
 					c.AbortWithStatusJSON(e.StatusCode, e)
 				default:
-					logError(c, err)
+					logError(c, er)
 					c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{"message": "Service Unavailable"})
 				}
 			}

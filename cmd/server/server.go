@@ -4,11 +4,16 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/spdeepak/go-jwt-server/api"
+	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users"
+	"github.com/spdeepak/go-jwt-server/util"
 )
+
+const emailHeader = "X-User-Email"
 
 type Server struct {
 	userService  users.Service
@@ -35,11 +40,15 @@ func (s *Server) GetReady(ctx *gin.Context) {
 func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
 	if err := ctx.ShouldBindJSON(&signup); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.AbortWithError(http.StatusBadRequest, httperror.NewWithDescription(err.Error(), http.StatusBadRequest))
+		return
+	}
+	if !util.PasswordValidator(signup.Password) {
+		ctx.AbortWithError(http.StatusBadRequest, httperror.NewWithDescription("Password doesn't meet requirements", http.StatusBadRequest))
 		return
 	}
 	if res, err := s.userService.Signup(ctx, signup); err != nil {
-		ctx.Error(err)
+		ctx.AbortWithError(http.StatusInternalServerError, err)
 		return
 	} else if res.QrImage != "" || res.Secret != "" {
 		ctx.JSON(http.StatusCreated, res)
@@ -97,7 +106,7 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 }
 
 func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
-	if email, present := ctx.Get("X-User-Email"); present {
+	if email, present := ctx.Get(emailHeader); present {
 		err := s.tokenService.RevokeAllTokens(ctx, email.(string))
 		if err != nil {
 			ctx.Error(err)
@@ -110,7 +119,7 @@ func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensPar
 }
 
 func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParams) {
-	if email, present := ctx.Get("X-User-Email"); present {
+	if email, present := ctx.Get(emailHeader); present {
 		response, err := s.tokenService.ListActiveSessions(ctx, email.(string))
 		if err != nil {
 			ctx.Error(err)
@@ -123,7 +132,7 @@ func (s *Server) GetAllSessions(ctx *gin.Context, params api.GetAllSessionsParam
 }
 
 func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
-	email, emailPresent := ctx.Get("X-User-Email")
+	email, emailPresent := ctx.Get(emailHeader)
 	if emailPresent {
 		response, err := s.twoFAService.Setup2FA(ctx, email.(string))
 		if err != nil {
@@ -147,7 +156,7 @@ func (s *Server) Login2FA(ctx *gin.Context, params api.Login2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	response, err := s.userService.Login2FA(ctx, params, userId.(string), verify2FARequest.TwoFACode)
+	response, err := s.userService.Login2FA(ctx, params, userId.(uuid.UUID), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return
@@ -156,7 +165,7 @@ func (s *Server) Login2FA(ctx *gin.Context, params api.Login2FAParams) {
 }
 
 func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
-	_, emailPresent := ctx.Get("X-User-Email")
+	_, emailPresent := ctx.Get(emailHeader)
 	userId, userIdPresent := ctx.Get("X-User-ID")
 	if !emailPresent || !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
@@ -167,7 +176,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	err := s.twoFAService.Remove2FA(ctx, userId.(string), verify2FARequest.TwoFACode)
+	err := s.twoFAService.Remove2FA(ctx, userId.(uuid.UUID), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return

@@ -35,6 +35,7 @@ const (
 	UserSignUpWith2FAFailed  = "JWT0015"
 	UserAlreadyExists        = "JWT0016"
 	UserAccountLocked        = "JWT0017"
+	InvalidRequest           = "JWT0018"
 )
 
 var httpErrors = map[string]HttpError{
@@ -110,6 +111,10 @@ var httpErrors = map[string]HttpError{
 		StatusCode:  http.StatusForbidden,
 		Description: "User account is locked",
 	},
+	InvalidRequest: {
+		StatusCode:  http.StatusBadRequest,
+		Description: "Invalid request",
+	},
 }
 
 func New(key string) HttpError {
@@ -130,4 +135,12 @@ func NewWithStatus(key, metadata string, status int) HttpError {
 		return err
 	}
 	return httpErrors[UndefinedErrorCode]
+}
+
+func NewWithDescription(description string, status int) HttpError {
+	return HttpError{
+		ErrorCode:   "JWT_ERROR",
+		Description: description,
+		StatusCode:  status,
+	}
 }
