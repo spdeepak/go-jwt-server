@@ -1,5 +1,15 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Multi-Tenant
+CREATE TABLE IF NOT EXISTS tenants
+(
+    id   VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT no_spaces CHECK (id NOT LIKE '% %')
+);
+
 CREATE TABLE IF NOT EXISTS jwt_secrets
 (
     id          UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
@@ -68,3 +78,51 @@ CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens (refresh_token);
 CREATE INDEX IF NOT EXISTS idx_tokens_email ON tokens (email);
 CREATE INDEX IF NOT EXISTS idx_bearer_valid ON tokens (token, ip_address, user_agent, device_name, revoked);
 CREATE INDEX IF NOT EXISTS idx_refresh_valid ON tokens (refresh_token, ip_address, user_agent, device_name, revoked);
+
+-- Roles per tenant
+CREATE TABLE roles
+(
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   UUID         NOT NULL REFERENCES tenants (id) ON DELETE CASCADE,
+    name        VARCHAR(100) NOT NULL,
+    description TEXT,
+    UNIQUE (tenant_id, name)
+);
+
+-- Permissions per tenant
+CREATE TABLE permissions
+(
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   UUID         NOT NULL REFERENCES tenants (id) ON DELETE CASCADE,
+    name        VARCHAR(100) NOT NULL,
+    description TEXT,
+    UNIQUE (tenant_id, name)
+);
+
+-- Role to Permission mapping (per tenant)
+CREATE TABLE role_permissions
+(
+    tenant_id     UUID NOT NULL REFERENCES tenants (id) ON DELETE CASCADE,
+    role_id       UUID NOT NULL REFERENCES roles (id) ON DELETE CASCADE,
+    permission_id UUID NOT NULL REFERENCES permissions (id) ON DELETE CASCADE,
+    PRIMARY KEY (tenant_id, role_id, permission_id)
+);
+
+-- User to Role mapping (per tenant)
+CREATE TABLE user_roles
+(
+    tenant_id UUID NOT NULL REFERENCES tenants (id) ON DELETE CASCADE,
+    user_id   UUID NOT NULL,
+    role_id   UUID NOT NULL REFERENCES roles (id) ON DELETE CASCADE,
+    PRIMARY KEY (tenant_id, user_id, role_id)
+);
+
+-- Per-user permission overrides (per tenant)
+CREATE TABLE user_permission_grants
+(
+    tenant_id     UUID        NOT NULL REFERENCES tenants (id) ON DELETE CASCADE,
+    user_id       UUID        NOT NULL,
+    permission_id UUID        NOT NULL REFERENCES permissions (id) ON DELETE CASCADE,
+    grant_type    VARCHAR(10) NOT NULL CHECK (grant_type IN ('grant', 'deny')),
+    PRIMARY KEY (tenant_id, user_id, permission_id)
+);
