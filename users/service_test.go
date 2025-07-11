@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 	"github.com/spdeepak/go-jwt-server/api"
+	"github.com/spdeepak/go-jwt-server/config"
+	"github.com/spdeepak/go-jwt-server/db"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
@@ -34,6 +36,36 @@ func TestService_Signup_No2FA_OK(t *testing.T) {
 	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(nil)
+	userStorage := NewStorage(query)
+	userService := NewService(userStorage, nil, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.Empty(t, res)
+}
+
+func TestService_Signup_No2FA_OK_DB(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+	dbConnection, err := db.Connect(config.PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		DBName:   "jwt_server",
+		UserName: "admin",
+		Password: "admin",
+		SSLMode:  "disable",
+		Timeout:  5 * time.Second,
+		MaxRetry: 5,
+	})
+	assert.NoError(t, err)
+	db.RunMigrationQueries(dbConnection, "../migrations")
+	query := repository.New(dbConnection.DB)
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
 
