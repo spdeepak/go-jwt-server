@@ -20,6 +20,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.24
+          cache: true
+
+      - name: Start dependency stack
+        run: |
+          docker compose up -d --build
+          # optional: wait for health-checks
+          docker compose ps
 
       - name: Run Makefile pre-step
         run: make
@@ -29,6 +36,10 @@ jobs:
 
       - name: Test
         run: go test ./... -coverprofile=coverage.out
+
+      - name: Shut down stack
+        if: always()
+        run: docker compose down -v
 
   docker-build-test:
     permissions:
