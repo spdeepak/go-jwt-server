@@ -9,6 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
@@ -16,8 +19,6 @@ import (
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	twoFARepo "github.com/spdeepak/go-jwt-server/twoFA/repository"
 	"github.com/spdeepak/go-jwt-server/users/repository"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestService_Signup_No2FA_OK(t *testing.T) {

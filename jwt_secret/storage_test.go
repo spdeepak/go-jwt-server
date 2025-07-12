@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 )
 
 func TestStorage_saveDefaultSecret_OK_DefaultSecretExists(t *testing.T) {

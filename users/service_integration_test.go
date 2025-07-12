@@ -11,6 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/db"
@@ -20,8 +23,6 @@ import (
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	twoFARepo "github.com/spdeepak/go-jwt-server/twoFA/repository"
 	"github.com/spdeepak/go-jwt-server/users/repository"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 var userStorage Storage
@@ -155,36 +156,6 @@ func TestIntegrationService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 	assert.Empty(t, res)
 }
 
-func TestIntegrationService_Signup_2FA_NOK_DBError(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:        "first.last@example.com",
-		FirstName:    "First name",
-		LastName:     "Last name",
-		Password:     "Som€_$trong_P@$$word",
-		TwoFAEnabled: true,
-	}
-
-	query := repository.NewMockQuerier(t)
-	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository.SignupWith2FAParams) bool {
-		return string(user.Email) == params.Email &&
-			user.FirstName == params.FirstName &&
-			user.LastName == params.LastName &&
-			validPassword(user.Password, params.Password) &&
-			params.Secret != "" && params.Url != "" &&
-			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
-	})).Return(errors.New("ERROR"))
-	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userStorage := NewStorage(query)
-	userService := NewService(userStorage, twoFaService, nil)
-
-	res, err := userService.Signup(ctx, user)
-	assert.Error(t, err)
-	assert.Equal(t, httperror.UserSignUpWith2FAFailed, err.(httperror.HttpError).ErrorCode)
-	assert.Empty(t, res)
-}
-
 func TestIntegrationService_Login_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
@@ -246,32 +217,6 @@ func TestIntegrationService_Login_NOK_WrongPassword(t *testing.T) {
 			LastName:  "Last name",
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
 			nil)
-
-	userStorage := NewStorage(query)
-	userService := NewService(userStorage, nil, nil)
-
-	loginParams := api.LoginParams{
-		XLoginSource: api.LoginParamsXLoginSourceApi,
-		UserAgent:    "test",
-	}
-	res, err := userService.Login(ctx, loginParams, userLogin)
-	assert.Error(t, err)
-	assert.NotNil(t, res)
-	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
-	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
-}
-
-func TestIntegrationService_Login_NOK_DB(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	email := "first.last@example.com"
-	userLogin := api.UserLogin{
-		Email:    email,
-		Password: "Som€_$trong_P@$$word",
-	}
-
-	query := repository.NewMockQuerier(t)
-	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)

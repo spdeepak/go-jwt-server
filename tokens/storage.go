@@ -2,6 +2,7 @@ package tokens
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"github.com/spdeepak/go-jwt-server/tokens/repository"
 )
 

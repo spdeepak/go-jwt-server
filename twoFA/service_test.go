@@ -9,9 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/twoFA/repository"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestService_GenerateSecret_OK(t *testing.T) {
