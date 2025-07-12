@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var dbConnection *db.Database
+var userStorage Storage
 
 func TestMain(m *testing.M) {
 	dbConnection, err := db.Connect(config.PostgresConfig{
@@ -41,7 +41,8 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to connect to DB: %v", err)
 	}
 	db.RunMigrationQueries(dbConnection, "../migrations")
-
+	query := repository.New(dbConnection.DB)
+	userStorage = NewStorage(query)
 	// Run all tests
 	code := m.Run()
 
@@ -68,8 +69,6 @@ func signup_No2fa_OK(t *testing.T) {
 		LastName:  "Last name",
 		Password:  "Som€_$trong_P@$$word",
 	}
-	query := repository.New(dbConnection.DB)
-	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
@@ -87,8 +86,6 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
-	query := repository.New(dbConnection.DB)
-	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
