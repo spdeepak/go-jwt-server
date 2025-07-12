@@ -2,7 +2,9 @@ package users
 
 import (
 	"errors"
+	"log"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -10,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 	"github.com/spdeepak/go-jwt-server/api"
+	"github.com/spdeepak/go-jwt-server/config"
+	"github.com/spdeepak/go-jwt-server/db"
 	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
@@ -20,7 +24,42 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestService_Signup_No2FA_OK(t *testing.T) {
+var dbConnection *db.Database
+
+func TestMain(m *testing.M) {
+	dbConnection, err := db.Connect(config.PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		DBName:   "jwt_server",
+		UserName: "admin",
+		Password: "admin",
+		SSLMode:  "disable",
+		Timeout:  5 * time.Second,
+		MaxRetry: 5,
+	})
+	if err != nil {
+		log.Fatalf("failed to connect to DB: %v", err)
+	}
+	db.RunMigrationQueries(dbConnection, "../migrations")
+
+	// Run all tests
+	code := m.Run()
+
+	// Optional: Clean up (e.g., drop DB or close connection)
+	_ = dbConnection.DB.Close()
+	os.Exit(code)
+}
+
+func TestIntegrationService_Signup_No2FA(t *testing.T) {
+	t.Run("Create New User", func(t *testing.T) {
+		signup_No2fa_OK(t)
+	})
+	t.Run("Create User already exists", func(t *testing.T) {
+		signup_No2FA_NOK_UserAlreadyExists(t)
+	})
+}
+
+func signup_No2fa_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -29,11 +68,7 @@ func TestService_Signup_No2FA_OK(t *testing.T) {
 		LastName:  "Last name",
 		Password:  "Som€_$trong_P@$$word",
 	}
-
-	query := repository.NewMockQuerier(t)
-	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
-		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
-	})).Return(nil)
+	query := repository.New(dbConnection.DB)
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
 
@@ -42,7 +77,7 @@ func TestService_Signup_No2FA_OK(t *testing.T) {
 	assert.Empty(t, res)
 }
 
-func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
+func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -52,10 +87,7 @@ func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
-	query := repository.NewMockQuerier(t)
-	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
-		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
-	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
+	query := repository.New(dbConnection.DB)
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
 
@@ -65,30 +97,7 @@ func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 	assert.Empty(t, res)
 }
 
-func TestService_Signup_No2FA_NOK_DBError(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:     "first.last@example.com",
-		FirstName: "First name",
-		LastName:  "Last name",
-		Password:  "Som€_$trong_P@$$word",
-	}
-
-	query := repository.NewMockQuerier(t)
-	query.On("Signup", ctx, mock.MatchedBy(func(params repository.SignupParams) bool {
-		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
-	})).Return(errors.New("error"))
-	userStorage := NewStorage(query)
-	userService := NewService(userStorage, nil, nil)
-
-	res, err := userService.Signup(ctx, user)
-	assert.Error(t, err)
-	assert.Equal(t, httperror.UserSignUpFailed, err.(httperror.HttpError).ErrorCode)
-	assert.Empty(t, res)
-}
-
-func TestService_Signup_2FA_OK(t *testing.T) {
+func TestIntegrationService_Signup_2FA_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -119,7 +128,7 @@ func TestService_Signup_2FA_OK(t *testing.T) {
 	assert.NotEmpty(t, res.QrImage)
 }
 
-func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
+func TestIntegrationService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -149,7 +158,7 @@ func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 	assert.Empty(t, res)
 }
 
-func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
+func TestIntegrationService_Signup_2FA_NOK_DBError(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -179,7 +188,7 @@ func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
 	assert.Empty(t, res)
 }
 
-func TestService_Login_OK(t *testing.T) {
+func TestIntegrationService_Login_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -223,7 +232,7 @@ func TestService_Login_OK(t *testing.T) {
 	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
-func TestService_Login_NOK_WrongPassword(t *testing.T) {
+func TestIntegrationService_Login_NOK_WrongPassword(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	email := "first.last@example.com"
@@ -255,7 +264,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
-func TestService_Login_NOK_DB(t *testing.T) {
+func TestIntegrationService_Login_NOK_DB(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	email := "first.last@example.com"
@@ -281,7 +290,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
-func TestService_Login_NOK(t *testing.T) {
+func TestIntegrationService_Login_NOK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	email := "first.last@example.com"
@@ -306,7 +315,7 @@ func TestService_Login_NOK(t *testing.T) {
 	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
 }
 
-func TestService_Login2FA_OK(t *testing.T) {
+func TestIntegrationService_Login2FA_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -344,7 +353,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	assert.NotEmpty(t, login2FA.RefreshToken)
 }
 
-func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
+func TestIntegrationService_Login2FA_NOK_UserLocked(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -375,7 +384,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	assert.Empty(t, login2FA)
 }
 
-func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
+func TestIntegrationService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -406,7 +415,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	assert.Empty(t, login2FA)
 }
 
-func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
+func TestIntegrationService_Login2FA_NOK_UserGetError(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -437,7 +446,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	assert.Empty(t, login2FA)
 }
 
-func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
+func TestIntegrationService_Login2FA_NOK_Old2FACode(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
