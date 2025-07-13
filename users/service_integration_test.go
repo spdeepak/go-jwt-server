@@ -1,7 +1,9 @@
 package users
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http/httptest"
 	"os"
@@ -26,6 +28,7 @@ import (
 )
 
 var userStorage Storage
+var dba *db.Database
 
 func TestMain(m *testing.M) {
 	dbConnection, err := db.Connect(config.PostgresConfig{
@@ -41,6 +44,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to connect to DB: %v", err)
 	}
+	dba = dbConnection
 	db.RunMigrationQueries(dbConnection, "../migrations")
 	query := repository.New(dbConnection.DB)
 	userStorage = NewStorage(query)
@@ -52,13 +56,26 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func truncateTables(t *testing.T, db *sql.DB) {
+	_, err := db.Exec(`
+        TRUNCATE TABLE
+            users_2fa,
+            users_password,
+            users
+        RESTART IDENTITY CASCADE
+    `)
+	assert.NoError(t, err)
+}
+
 func TestIntegrationService_Signup_No2FA(t *testing.T) {
-	t.Run("Create New User", func(t *testing.T) {
+	t.Run("Create New User without 2FA", func(t *testing.T) {
 		signup_No2fa_OK(t)
 	})
-	t.Run("Create User already exists", func(t *testing.T) {
+	t.Run("Create User already exists without 2FA", func(t *testing.T) {
 		signup_No2FA_NOK_UserAlreadyExists(t)
 	})
+	truncateTables(t, dba.DB)
+	fmt.Println("asd")
 }
 
 func signup_No2fa_OK(t *testing.T) {
@@ -95,7 +112,18 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 	assert.Empty(t, res)
 }
 
-func TestIntegrationService_Signup_2FA_OK(t *testing.T) {
+func TestIntegrationService_Signup_2FA(t *testing.T) {
+	t.Run("Create New User with 2FA", func(t *testing.T) {
+		signup_2FA_OK(t)
+	})
+	t.Run("Create User already exists with 2FA", func(t *testing.T) {
+		signup_2FA_NOK_UserAlreadyExists(t)
+	})
+	truncateTables(t, dba.DB)
+	fmt.Println("asd")
+}
+
+func signup_2FA_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -106,17 +134,7 @@ func TestIntegrationService_Signup_2FA_OK(t *testing.T) {
 		TwoFAEnabled: true,
 	}
 
-	query := repository.NewMockQuerier(t)
-	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository.SignupWith2FAParams) bool {
-		return string(user.Email) == params.Email &&
-			user.FirstName == params.FirstName &&
-			user.LastName == params.LastName &&
-			validPassword(user.Password, params.Password) &&
-			params.Secret != "" && params.Url != "" &&
-			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
-	})).Return(nil)
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
@@ -126,7 +144,7 @@ func TestIntegrationService_Signup_2FA_OK(t *testing.T) {
 	assert.NotEmpty(t, res.QrImage)
 }
 
-func TestIntegrationService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
+func signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	user := api.UserSignup{
@@ -137,17 +155,7 @@ func TestIntegrationService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 		TwoFAEnabled: true,
 	}
 
-	query := repository.NewMockQuerier(t)
-	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository.SignupWith2FAParams) bool {
-		return string(user.Email) == params.Email &&
-			user.FirstName == params.FirstName &&
-			user.LastName == params.LastName &&
-			validPassword(user.Password, params.Password) &&
-			params.Secret != "" && params.Url != "" &&
-			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
-	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userStorage := NewStorage(query)
 	userService := NewService(userStorage, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
