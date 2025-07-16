@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/spdeepak/go-jwt-server/config"
-	"github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/spdeepak/go-jwt-server/config"
+	"github.com/spdeepak/go-jwt-server/jwt_secret/repository"
 )
 
 func TestService_GetOrCreateSecret_OK_SecretInDB(t *testing.T) {

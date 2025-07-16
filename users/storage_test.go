@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/spdeepak/go-jwt-server/users/repository"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
 func TestStorage_UserSignup(t *testing.T) {

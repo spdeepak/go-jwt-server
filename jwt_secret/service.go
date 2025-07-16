@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
+
 	"github.com/spdeepak/go-jwt-server/config"
 )
 
