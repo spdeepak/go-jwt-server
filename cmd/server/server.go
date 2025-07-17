@@ -185,3 +185,68 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 	ctx.Status(http.StatusOK)
 	return
 }
+
+func (s *Server) ListAllPermissions(ctx *gin.Context, params api.ListAllPermissionsParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) CreateNewPermission(ctx *gin.Context, params api.CreateNewPermissionParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) DeletePermissionById(ctx *gin.Context, id api.UuId, params api.DeletePermissionByIdParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) GetPermissionById(ctx *gin.Context, id api.UuId, params api.GetPermissionByIdParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api.UpdatePermissionByIdParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) DeleteRoleById(ctx *gin.Context, id api.UuId, params api.DeleteRoleByIdParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) GetRoleById(ctx *gin.Context, id api.UuId, params api.GetRoleByIdParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) AssignRolesToUser(ctx *gin.Context, id api.UuId, params api.AssignRolesToUserParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) RemoveRolesForUser(ctx *gin.Context, id api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) {
+	//TODO implement me
+	panic("implement me")
+}

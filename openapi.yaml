@@ -231,6 +231,191 @@ paths:
           description: OK
         '401':
           description: UNAUTHORISED
+  /api/v1/access-control/roles:
+    get:
+      summary: List all roles
+      description: Endpoint to list all roles in the system
+      operationId: listAllRoles
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '200':
+          description: List of all roles available in the system
+    post:
+      summary: Create a new role
+      description: Endpoint to create a new role
+      operationId: createNewRole
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '201':
+          description: Create a new role in the system
+  /api/v1/access-control/roles/{id}:
+    get:
+      summary: Get role by ID
+      description: Endpoint to Get role details by it's id
+      operationId: getRoleById
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Role details
+    put:
+      summary: Update role
+      description: Endpoint to update a role by it's ID
+      operationId: updateRoleById
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Updated role details
+    delete:
+      summary: Delete role
+      description: Endpoint to delete a role by it's ID
+      operationId: deleteRoleById
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Delete role confirmation
+  /api/v1/access-control/permissions:
+    get:
+      summary: List all permissions
+      description: Endpoint to list all permissions in the system
+      operationId: listAllPermissions
+      tags:
+        - Permissions
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '200':
+          description: List of all permissions available in the system
+    post:
+      summary: Create a new role
+      description: Endpoint to create a new role
+      operationId: createNewPermission
+      tags:
+        - Permissions
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '201':
+          description: Create a new permission in the system
+  /api/v1/access-control/permissions/{id}:
+    get:
+      summary: Get role by ID
+      description: Endpoint to Get role details by it's id
+      operationId: getPermissionById
+      tags:
+        - Permissions
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Permission details
+    put:
+      summary: Update role
+      description: Endpoint to update a role by it's ID
+      operationId: updatePermissionById
+      tags:
+        - Permissions
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Updated permission details
+    delete:
+      summary: Delete role
+      description: Endpoint to delete a role by it's ID
+      operationId: deletePermissionById
+      tags:
+        - Permissions
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Delete permission confirmation
+  /api/v1/users/{id}/roles:
+    get:
+      summary: Get user's roles
+      description: Endpoint to list roles of a user
+      operationId: getRolesOfUser
+      tags:
+        - User
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Roles of a user
+    post:
+      summary: Assign roles to user
+      description: Endpoint to assign roles to a given user
+      operationId: assignRolesToUser
+      tags:
+        - User
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Role assignment confirmation
+  /api/v1/users/{id}/roles/{roleId}:
+    delete:
+      summary: Remove roles of user
+      description: Endpoint to remove roles of a user
+      operationId: removeRolesForUser
+      tags:
+        - User
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Role removal confirmation
   /ready:
     get:
       summary: Ready check
@@ -272,6 +457,22 @@ components:
       name: User-Agent
       description: User Agent
       in: header
+      required: true
+      schema:
+        type: string
+    UuId:
+      name: id
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: path
+      required: true
+      schema:
+        type: string
+    RoleId:
+      name: roleId
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: path
       required: true
       schema:
         type: string

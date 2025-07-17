@@ -79,23 +79,34 @@ CREATE INDEX IF NOT EXISTS idx_refresh_valid ON tokens (refresh_token, ip_addres
 CREATE TABLE IF NOT EXISTS roles
 (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name        TEXT NOT NULL UNIQUE, -- e.g., "admin", "user"
-    description TEXT
+    name        TEXT        NOT NULL UNIQUE, -- e.g., "admin", "user"
+    description TEXT,
+    created_at  TIMESTAMPTZ NOT NULL,
+    created_by  TEXT        NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    updated_by  TEXT        NOT NULL
+
 );
 
 -- Permissions
 CREATE TABLE IF NOT EXISTS permissions
 (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name        TEXT NOT NULL UNIQUE, -- e.g., "user:read"
-    description TEXT
+    name        TEXT        NOT NULL UNIQUE, -- e.g., "user:read"
+    description TEXT,
+    created_at  TIMESTAMPTZ NOT NULL,
+    created_by  TEXT        NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    updated_by  TEXT        NOT NULL
 );
 
 -- Role → Permissions
 CREATE TABLE IF NOT EXISTS role_permissions
 (
-    role_id       UUID NOT NULL,
-    permission_id UUID NOT NULL,
+    role_id       UUID        NOT NULL,
+    permission_id UUID        NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL,
+    created_by    TEXT        NOT NULL,
     PRIMARY KEY (role_id, permission_id),
     CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE,
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
@@ -104,8 +115,10 @@ CREATE TABLE IF NOT EXISTS role_permissions
 -- User → Roles
 CREATE TABLE IF NOT EXISTS user_roles
 (
-    user_id UUID NOT NULL,
-    role_id UUID NOT NULL,
+    user_id    UUID        NOT NULL,
+    role_id    UUID        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    created_by TEXT        NOT NULL,
     PRIMARY KEY (user_id, role_id),
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
@@ -114,8 +127,10 @@ CREATE TABLE IF NOT EXISTS user_roles
 -- User → Permissions (optional overrides)
 CREATE TABLE IF NOT EXISTS user_permissions
 (
-    user_id       UUID NOT NULL,
-    permission_id UUID NOT NULL,
+    user_id       UUID        NOT NULL,
+    permission_id UUID        NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL,
+    created_by    TEXT        NOT NULL,
     PRIMARY KEY (user_id, permission_id),
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
