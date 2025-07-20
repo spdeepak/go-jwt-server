@@ -9,7 +9,7 @@ paths:
       description: Endpoint for user signup
       operationId: signup
       tags:
-        - User
+        - Auth
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -36,7 +36,7 @@ paths:
       description: Endpoint for user login
       operationId: login
       tags:
-        - User
+        - Auth
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -64,7 +64,7 @@ paths:
       description: Endpoint to change password
       operationId: changePassword
       tags:
-        - User
+        - Auth
       security:
         - bearerAuth: [ ]
       parameters:
