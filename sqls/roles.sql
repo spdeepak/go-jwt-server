@@ -17,7 +17,7 @@ UPDATE roles
 SET description = COALESCE(sqlc.narg('description'), description),
     name        = COALESCE(sqlc.narg('name'), name),
     updated_at  = NOW(),
-    updated_by  = sqlc.narg('updated_by')
+    updated_by  = sqlc.arg('updated_by')
 WHERE id = sqlc.arg('id');
 
 -- name: DeleteRoleById :exec

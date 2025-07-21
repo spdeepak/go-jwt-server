@@ -295,6 +295,13 @@ paths:
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
+      requestBody:
+        description: Create role request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRole'
       responses:
         '200':
           description: Updated role details
@@ -479,6 +486,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
     RoleId:
       name: roleId
       description: id
@@ -632,6 +640,14 @@ components:
       required:
         - name
         - description
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    UpdateRole:
+      type: object
       properties:
         name:
           type: string

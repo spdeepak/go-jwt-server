@@ -1,6 +1,8 @@
 package roles
 
 import (
+	"database/sql"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
@@ -19,7 +21,7 @@ type Service interface {
 	DeleteRoleById(ctx *gin.Context, id uuid.UUID) error
 	GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error)
 	ListRoles(ctx *gin.Context) ([]api.RoleResponse, error)
-	UpdateRoleById(ctx *gin.Context, arg repository.UpdateRoleByIdParams) error
+	UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) error
 }
 
 func NewService(storage Storage) Service {
@@ -50,21 +52,60 @@ func (s *service) CreateNewRole(ctx *gin.Context, arg api.CreateNewRoleParams, r
 }
 
 func (s *service) DeleteRoleById(ctx *gin.Context, id uuid.UUID) error {
-	//TODO implement me
-	panic("implement me")
+	return s.storage.DeleteRoleById(ctx, id)
 }
 
 func (s *service) GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	getRoleById, err := s.storage.GetRoleById(ctx, id)
+	if err != nil {
+		return api.RoleResponse{}, err
+	}
+	return api.RoleResponse{
+		CreatedAt:   getRoleById.CreatedAt,
+		CreatedBy:   getRoleById.CreatedBy,
+		Description: getRoleById.Description,
+		Name:        getRoleById.Name,
+		UpdatedAt:   getRoleById.UpdatedAt,
+		UpdatedBy:   getRoleById.UpdatedBy,
+	}, nil
 }
 
 func (s *service) ListRoles(ctx *gin.Context) ([]api.RoleResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	listRoles, err := s.storage.ListRoles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	roles := make([]api.RoleResponse, len(listRoles))
+	for index, role := range listRoles {
+		roles[index] = api.RoleResponse{
+			CreatedAt:   role.CreatedAt,
+			CreatedBy:   role.CreatedBy,
+			Description: role.Description,
+			Name:        role.Name,
+			UpdatedAt:   role.UpdatedAt,
+			UpdatedBy:   role.UpdatedBy,
+		}
+	}
+	return roles, nil
 }
 
-func (s *service) UpdateRoleById(ctx *gin.Context, arg repository.UpdateRoleByIdParams) error {
-	//TODO implement me
-	panic("implement me")
+func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) error {
+	email, _ := ctx.Get(emailHeader)
+	updateRoleById := repository.UpdateRoleByIdParams{
+		ID:        id,
+		UpdatedBy: email.(string),
+	}
+	if req.Description != nil && *req.Description != "" {
+		updateRoleById.Description = sql.NullString{
+			String: *req.Description,
+			Valid:  true,
+		}
+	}
+	if req.Name != nil && *req.Name != "" {
+		updateRoleById.Name = sql.NullString{
+			String: *req.Name,
+			Valid:  true,
+		}
+	}
+	return s.storage.UpdateRoleById(ctx, updateRoleById)
 }
