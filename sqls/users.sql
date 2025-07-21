@@ -42,17 +42,17 @@ WITH user_base AS (SELECT *
                    FROM users
                    WHERE users.email = sqlc.arg('email')),
      user_roles_joined AS (SELECT r.*
-                           FROM user_roles as ur
-                                    JOIN roles r ON ur.role_id = r.id
-                                    JOIN user_base u ON ur.user_id = u.id),
+                           FROM user_base as u
+                                    LEFT JOIN user_roles as ur ON ur.user_id = u.id
+                                    LEFT JOIN roles as r ON ur.role_id = r.id),
      role_permissions_joined AS (SELECT p.*
-                                 FROM role_permissions as rp
-                                          JOIN permissions p ON rp.permission_id = p.id
-                                          JOIN user_roles_joined r ON rp.role_id = r.id),
+                                 FROM user_roles_joined as r
+                                          LEFT JOIN role_permissions as rp ON rp.role_id = r.id
+                                          LEFT JOIN permissions as p ON rp.permission_id = p.id),
      user_permissions_joined AS (SELECT p.*
-                                 FROM user_permissions as up
-                                          JOIN permissions p ON up.permission_id = p.id
-                                          JOIN user_base u ON up.user_id = u.id),
+                                 FROM user_base as u
+                                          LEFT JOIN user_permissions as up ON up.user_id = u.id
+                                          LEFT JOIN permissions as p ON up.permission_id = p.id),
      all_permissions AS (SELECT *
                          FROM role_permissions_joined
                          UNION
@@ -70,5 +70,5 @@ SELECT u.id         AS user_id,
        r.name       AS role_name,
        p.name       AS permission_name
 FROM user_base u
-         LEFT JOIN user_roles_joined r ON TRUE
-         LEFT JOIN all_permissions p ON TRUE;
+         LEFT JOIN user_roles_joined as r ON TRUE
+         LEFT JOIN all_permissions as p ON TRUE;
