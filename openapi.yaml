@@ -305,6 +305,10 @@ paths:
       responses:
         '200':
           description: Updated role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
     delete:
       summary: Delete role
       description: Endpoint to delete a role by it's ID
@@ -487,6 +491,20 @@ components:
       schema:
         type: string
         format: uuid
+    GETId:
+      name: id
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: query
+      schema:
+        type: string
+        format: uuid
+    GETName:
+      name: name
+      description: name
+      in: query
+      schema:
+        type: string
     RoleId:
       name: roleId
       description: id

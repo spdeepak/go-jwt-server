@@ -12,13 +12,14 @@ SELECT *
 FROM roles
 WHERE id = sqlc.arg('id');
 
--- name: UpdateRoleById :exec
+-- name: UpdateRoleById :one
 UPDATE roles
 SET description = COALESCE(sqlc.narg('description'), description),
     name        = COALESCE(sqlc.narg('name'), name),
     updated_at  = NOW(),
     updated_by  = sqlc.arg('updated_by')
-WHERE id = sqlc.arg('id');
+WHERE id = sqlc.arg('id')
+RETURNING id, name, description, created_at, created_by, updated_at, updated_by;
 
 -- name: DeleteRoleById :exec
 DELETE

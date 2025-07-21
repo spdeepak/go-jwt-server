@@ -17,11 +17,11 @@ type service struct {
 }
 
 type Service interface {
-	CreateNewRole(ctx *gin.Context, arg api.CreateNewRoleParams, request api.CreateRole) (api.RoleResponse, error)
+	CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, request api.CreateRole) (api.RoleResponse, error)
 	DeleteRoleById(ctx *gin.Context, id uuid.UUID) error
 	GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error)
 	ListRoles(ctx *gin.Context) ([]api.RoleResponse, error)
-	UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) error
+	UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error)
 }
 
 func NewService(storage Storage) Service {
@@ -30,7 +30,7 @@ func NewService(storage Storage) Service {
 	}
 }
 
-func (s *service) CreateNewRole(ctx *gin.Context, arg api.CreateNewRoleParams, request api.CreateRole) (api.RoleResponse, error) {
+func (s *service) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, request api.CreateRole) (api.RoleResponse, error) {
 	email, _ := ctx.Get(emailHeader)
 	createNewRole := repository.CreateNewRoleParams{
 		Name:        request.Name,
@@ -89,7 +89,7 @@ func (s *service) ListRoles(ctx *gin.Context) ([]api.RoleResponse, error) {
 	return roles, nil
 }
 
-func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) error {
+func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error) {
 	email, _ := ctx.Get(emailHeader)
 	updateRoleById := repository.UpdateRoleByIdParams{
 		ID:        id,
@@ -107,5 +107,16 @@ func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Updat
 			Valid:  true,
 		}
 	}
-	return s.storage.UpdateRoleById(ctx, updateRoleById)
+	updatedRole, err := s.storage.UpdateRoleById(ctx, updateRoleById)
+	if err != nil {
+		return api.RoleResponse{}, err
+	}
+	return api.RoleResponse{
+		CreatedAt:   updatedRole.CreatedAt,
+		CreatedBy:   updatedRole.CreatedBy,
+		Description: updatedRole.Description,
+		Name:        updatedRole.Name,
+		UpdatedAt:   updatedRole.UpdatedAt,
+		UpdatedBy:   updatedRole.UpdatedBy,
+	}, nil
 }

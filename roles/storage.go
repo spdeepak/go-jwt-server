@@ -17,7 +17,7 @@ type Storage interface {
 	DeleteRoleById(ctx context.Context, id uuid.UUID) error
 	GetRoleById(ctx context.Context, id uuid.UUID) (repository.Role, error)
 	ListRoles(ctx context.Context) ([]repository.Role, error)
-	UpdateRoleById(ctx context.Context, arg repository.UpdateRoleByIdParams) error
+	UpdateRoleById(ctx context.Context, arg repository.UpdateRoleByIdParams) (repository.Role, error)
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -42,6 +42,6 @@ func (s *storage) ListRoles(ctx context.Context) ([]repository.Role, error) {
 	return s.query.ListRoles(ctx)
 }
 
-func (s *storage) UpdateRoleById(ctx context.Context, arg repository.UpdateRoleByIdParams) error {
+func (s *storage) UpdateRoleById(ctx context.Context, arg repository.UpdateRoleByIdParams) (repository.Role, error) {
 	return s.query.UpdateRoleById(ctx, arg)
 }

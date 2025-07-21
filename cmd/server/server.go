@@ -8,6 +8,7 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/spdeepak/go-jwt-server/roles"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users"
@@ -18,13 +19,15 @@ const emailHeader = "X-User-Email"
 
 type Server struct {
 	userService  users.Service
+	roleService  roles.Service
 	tokenService tokens.Service
 	twoFAService twoFA.Service
 }
 
-func NewServer(userService users.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
+func NewServer(userService users.Service, roleService roles.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
 	return &Server{
 		userService:  userService,
+		roleService:  roleService,
 		tokenService: tokenService,
 		twoFAService: otpService,
 	}
@@ -212,28 +215,73 @@ func (s *Server) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api.
 }
 
 func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
-	//TODO implement me
-	panic("implement me")
+	listRoles, err := s.roleService.ListRoles(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, listRoles)
+	return
 }
 
 func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams) {
-	//TODO implement me
-	panic("implement me")
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var createRole api.CreateRole
+	if err := ctx.ShouldBindJSON(&createRole); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	createNewRole, err := s.roleService.CreateNewRole(ctx, params, createRole)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusCreated, createNewRole)
+	return
 }
 
 func (s *Server) DeleteRoleById(ctx *gin.Context, id api.UuId, params api.DeleteRoleByIdParams) {
-	//TODO implement me
-	panic("implement me")
+	err := s.roleService.DeleteRoleById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
 func (s *Server) GetRoleById(ctx *gin.Context, id api.UuId, params api.GetRoleByIdParams) {
-	//TODO implement me
-	panic("implement me")
+	roleById, err := s.roleService.GetRoleById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, roleById)
+	return
 }
 
 func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
-	//TODO implement me
-	panic("implement me")
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.UpdateRole
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, params, req)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, updatedRole)
+	return
 }
 
 func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
