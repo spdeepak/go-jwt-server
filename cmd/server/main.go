@@ -68,7 +68,7 @@ func main() {
 	}
 	swagger.Servers = nil
 
-	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), nil)
+	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
 
 	router := gin.New()
 	router.Use(middleware.ErrorMiddleware)
