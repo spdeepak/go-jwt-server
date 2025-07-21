@@ -255,9 +255,20 @@ paths:
         - bearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Create role request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRole'
       responses:
         '201':
           description: Create a new role in the system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
   /api/v1/access-control/roles/{id}:
     get:
       summary: Get role by ID
@@ -616,3 +627,39 @@ components:
           type: string
           pattern: '^\d{6}$'
           example: '123456'
+    CreateRole:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    RoleResponse:
+      type: object
+      required:
+        - name
+        - description
+        - createdAt
+        - createdBy
+        - updatedAt
+        - updatedBy
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string

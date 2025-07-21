@@ -5,7 +5,7 @@ FROM roles;
 -- name: CreateNewRole :one
 INSERT INTO roles (name, description, created_at, created_by, updated_at, updated_by)
 VALUES (sqlc.arg('name'), sqlc.arg('description'), NOW(), sqlc.arg('createdBy'), NOW(), sqlc.arg('createdBy'))
-RETURNING name, description, created_at, created_by;
+RETURNING name, description, created_at, created_by, updated_at, updated_by;
 
 -- name: GetRoleById :one
 SELECT *

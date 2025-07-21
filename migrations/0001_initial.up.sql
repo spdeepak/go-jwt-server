@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS users
     updated_at     TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS users_email ON users (email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
 -- Password History
 CREATE TABLE IF NOT EXISTS users_password
@@ -52,35 +52,12 @@ CREATE UNIQUE INDEX unique_active_totp_per_user
     ON users_2fa (user_id)
     WHERE revoked = false;
 
--- Tokens
-CREATE TABLE IF NOT EXISTS tokens
-(
-    token              TEXT PRIMARY KEY,
-    refresh_token      TEXT        NOT NULL,
-    issued_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    token_expires_at   TIMESTAMPTZ NOT NULL,
-    refresh_expires_at TIMESTAMPTZ NOT NULL,
-    revoked            BOOLEAN     NOT NULL DEFAULT FALSE,
-    revoked_at         TIMESTAMPTZ,
-    email              TEXT        NOT NULL,
-    ip_address         TEXT        NOT NULL,
-    user_agent         TEXT        NOT NULL,
-    device_name        TEXT        NOT NULL,
-    created_by         TEXT        NOT NULL --Source of request web/mobile/api
-);
-
-CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens (token);
-CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens (refresh_token);
-CREATE INDEX IF NOT EXISTS idx_tokens_email ON tokens (email);
-CREATE INDEX IF NOT EXISTS idx_bearer_valid ON tokens (token, ip_address, user_agent, device_name, revoked);
-CREATE INDEX IF NOT EXISTS idx_refresh_valid ON tokens (refresh_token, ip_address, user_agent, device_name, revoked);
-
 -- Roles
 CREATE TABLE IF NOT EXISTS roles
 (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name        TEXT        NOT NULL UNIQUE, -- e.g., "admin", "user"
-    description TEXT,
+    description TEXT        NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL,
     created_by  TEXT        NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL,
@@ -112,6 +89,9 @@ CREATE TABLE IF NOT EXISTS role_permissions
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
+CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
+
 -- User → Roles
 CREATE TABLE IF NOT EXISTS user_roles
 (
@@ -124,6 +104,9 @@ CREATE TABLE IF NOT EXISTS user_roles
     CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+
 -- User → Permissions (optional overrides)
 CREATE TABLE IF NOT EXISTS user_permissions
 (
@@ -135,3 +118,29 @@ CREATE TABLE IF NOT EXISTS user_permissions
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
 );
+
+CREATE INDEX idx_user_permissions_user_id ON user_permissions(user_id);
+CREATE INDEX idx_user_permissions_permission_id ON user_permissions(permission_id);
+
+-- Tokens
+CREATE TABLE IF NOT EXISTS tokens
+(
+    token              TEXT PRIMARY KEY,
+    refresh_token      TEXT        NOT NULL,
+    issued_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    token_expires_at   TIMESTAMPTZ NOT NULL,
+    refresh_expires_at TIMESTAMPTZ NOT NULL,
+    revoked            BOOLEAN     NOT NULL DEFAULT FALSE,
+    revoked_at         TIMESTAMPTZ,
+    email              TEXT        NOT NULL,
+    ip_address         TEXT        NOT NULL,
+    user_agent         TEXT        NOT NULL,
+    device_name        TEXT        NOT NULL,
+    created_by         TEXT        NOT NULL --Source of request web/mobile/api
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens (token);
+CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens (refresh_token);
+CREATE INDEX IF NOT EXISTS idx_tokens_email ON tokens (email);
+CREATE INDEX IF NOT EXISTS idx_bearer_valid ON tokens (token, ip_address, user_agent, device_name, revoked);
+CREATE INDEX IF NOT EXISTS idx_refresh_valid ON tokens (refresh_token, ip_address, user_agent, device_name, revoked);

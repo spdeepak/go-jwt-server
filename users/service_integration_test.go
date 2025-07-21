@@ -300,7 +300,7 @@ func login2FA_OK(t *testing.T) {
 	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.ID, passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.UserID, passcode)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, login2FA)
 	assert.NotEmpty(t, login2FA.AccessToken)
@@ -341,7 +341,7 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
 
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.ID, passcode)
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.UserID, passcode)
 	assert.Error(t, err)
 	assert.Empty(t, login2FA)
 }

@@ -32,8 +32,8 @@ func TestStorage_GetUser(t *testing.T) {
 	email := "first.last@example.com"
 
 	query := repository.NewMockQuerier(t)
-	query.On("GetUserByEmail", ctx, email).
-		Return(repository.User{
+	query.On("GetEntireUserByEmail", ctx, email).
+		Return(repository.GetEntireUserByEmailRow{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
