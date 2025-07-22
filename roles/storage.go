@@ -18,6 +18,8 @@ type Storage interface {
 	GetRoleById(ctx context.Context, id uuid.UUID) (repository.Role, error)
 	ListRoles(ctx context.Context) ([]repository.Role, error)
 	UpdateRoleById(ctx context.Context, arg repository.UpdateRoleByIdParams) (repository.Role, error)
+	AssignPermissions(ctx context.Context, arg repository.AssignPermissionsParams) error
+	UnassignPermissions(ctx context.Context, arg repository.UnAssignPermissionParams) error
 }
 
 func NewStorage(query repository.Querier) Storage {
@@ -44,4 +46,12 @@ func (s *storage) ListRoles(ctx context.Context) ([]repository.Role, error) {
 
 func (s *storage) UpdateRoleById(ctx context.Context, arg repository.UpdateRoleByIdParams) (repository.Role, error) {
 	return s.query.UpdateRoleById(ctx, arg)
+}
+
+func (s *storage) AssignPermissions(ctx context.Context, arg repository.AssignPermissionsParams) error {
+	return s.query.AssignPermissions(ctx, arg)
+}
+
+func (s *storage) UnassignPermissions(ctx context.Context, arg repository.UnAssignPermissionParams) error {
+	return s.query.UnAssignPermission(ctx, arg)
 }

@@ -28,15 +28,14 @@ WHERE id = sqlc.arg('id');
 
 -- name: AssignPermissions :exec
 INSERT INTO role_permissions (role_id, permission_id, created_at, created_by)
-SELECT
-    sqlc.arg('role_id'),
-    unnest(sqlc.arg('permission_id')::uuid[]),
-    now(),
-    sqlc.arg('createdBy')
+SELECT sqlc.arg('role_id'),
+       unnest(sqlc.arg('permission_id')::uuid[]),
+       now(),
+       sqlc.arg('createdBy')
 ON CONFLICT DO NOTHING;
 
--- name: RemovePermission :exec
+-- name: UnAssignPermission :exec
 DELETE
 FROM role_permissions
-WHERE role_id =$1
+WHERE role_id = $1
   AND permission_id = $2;

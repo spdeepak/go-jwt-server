@@ -839,21 +839,11 @@ components:
           type: string
     AssignPermission:
       type: object
-      oneOf:
-        - type: object
-          properties:
-            ids:
-              type: array
-              items:
-                type: string
-                format: uuid
-          required:
-            - ids
-        - type: object
-          properties:
-            names:
-              type: array
-              items:
-                type: string
-          required:
-            - names
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid

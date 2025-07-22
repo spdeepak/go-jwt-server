@@ -24,6 +24,8 @@ type Service interface {
 	GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error)
 	ListRoles(ctx *gin.Context) ([]api.RoleResponse, error)
 	UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error)
+	AssignPermissionToRole(ctx *gin.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error
+	UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) error
 }
 
 func NewService(storage Storage) Service {
@@ -131,4 +133,27 @@ func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Updat
 		UpdatedAt:   updatedRole.UpdatedAt,
 		UpdatedBy:   updatedRole.UpdatedBy,
 	}, nil
+}
+
+func (s *service) AssignPermissionToRole(ctx *gin.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error {
+	assignPermissionsToRole := repository.AssignPermissionsParams{
+		RoleID:       roleId,
+		PermissionID: assignPermission.Ids,
+		CreatedBy:    email,
+	}
+	if err := s.storage.AssignPermissions(ctx, assignPermissionsToRole); err != nil {
+		return httperror.NewWithDescription("Failed to assign permission to role", http.StatusInternalServerError)
+	}
+	return nil
+}
+
+func (s *service) UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) error {
+	UnassignPermissionFromRole := repository.UnAssignPermissionParams{
+		RoleID:       roleId,
+		PermissionID: permissionId,
+	}
+	if err := s.storage.UnassignPermissions(ctx, UnassignPermissionFromRole); err != nil {
+		return httperror.NewWithDescription("Failed to assign permission to role", http.StatusInternalServerError)
+	}
+	return nil
 }

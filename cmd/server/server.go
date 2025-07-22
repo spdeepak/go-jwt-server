@@ -332,13 +332,31 @@ func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Update
 }
 
 func (s *Server) AssignPermissionToRole(ctx *gin.Context, id api.UuId, params api.AssignPermissionToRoleParams) {
-	//TODO implement me
-	panic("implement me")
+	email, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.AssignPermission
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Error(err)
+		return
+	}
+	if err := s.roleService.AssignPermissionToRole(ctx, id, params, req, email.(string)); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
 func (s *Server) RemovePermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) {
-	//TODO implement me
-	panic("implement me")
+	if err := s.roleService.UnassignPermissionFromRole(ctx, roleId, permissionId); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
 func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
