@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS permissions
 (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name        TEXT        NOT NULL UNIQUE, -- e.g., "user:read"
-    description TEXT,
+    description TEXT        NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL,
     created_by  TEXT        NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL,
@@ -89,8 +89,8 @@ CREATE TABLE IF NOT EXISTS role_permissions
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
-CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
+CREATE INDEX idx_role_permissions_role_id ON role_permissions (role_id);
+CREATE INDEX idx_role_permissions_permission_id ON role_permissions (permission_id);
 
 -- User → Roles
 CREATE TABLE IF NOT EXISTS user_roles
@@ -104,8 +104,8 @@ CREATE TABLE IF NOT EXISTS user_roles
     CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
-CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+CREATE INDEX idx_user_roles_user_id ON user_roles (user_id);
+CREATE INDEX idx_user_roles_role_id ON user_roles (role_id);
 
 -- User → Permissions (optional overrides)
 CREATE TABLE IF NOT EXISTS user_permissions
@@ -119,8 +119,8 @@ CREATE TABLE IF NOT EXISTS user_permissions
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_user_permissions_user_id ON user_permissions(user_id);
-CREATE INDEX idx_user_permissions_permission_id ON user_permissions(permission_id);
+CREATE INDEX idx_user_permissions_user_id ON user_permissions (user_id);
+CREATE INDEX idx_user_permissions_permission_id ON user_permissions (permission_id);
 
 -- Tokens
 CREATE TABLE IF NOT EXISTS tokens

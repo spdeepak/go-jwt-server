@@ -245,6 +245,12 @@ paths:
       responses:
         '200':
           description: List of all roles available in the system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleResponse'
     post:
       summary: Create a new role
       description: Endpoint to create a new role
@@ -284,7 +290,11 @@ paths:
       responses:
         '200':
           description: Role details
-    put:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+    patch:
       summary: Update role
       description: Endpoint to update a role by it's ID
       operationId: updateRoleById
@@ -337,9 +347,15 @@ paths:
       responses:
         '200':
           description: List of all permissions available in the system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionResponse'
     post:
-      summary: Create a new role
-      description: Endpoint to create a new role
+      summary: Create a new permission
+      description: Endpoint to create a new permission
       operationId: createNewPermission
       tags:
         - Permissions
@@ -347,13 +363,24 @@ paths:
         - bearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Create permission request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePermission'
       responses:
         '201':
           description: Create a new permission in the system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
   /api/v1/access-control/permissions/{id}:
     get:
-      summary: Get role by ID
-      description: Endpoint to Get role details by it's id
+      summary: Get permission by ID
+      description: Endpoint to Get permission details by it's id
       operationId: getPermissionById
       tags:
         - Permissions
@@ -365,9 +392,13 @@ paths:
       responses:
         '200':
           description: Permission details
-    put:
-      summary: Update role
-      description: Endpoint to update a role by it's ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
+    patch:
+      summary: Update permission
+      description: Endpoint to update a permission by it's ID
       operationId: updatePermissionById
       tags:
         - Permissions
@@ -376,12 +407,23 @@ paths:
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
+      requestBody:
+        description: Create role request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermission'
       responses:
         '200':
           description: Updated permission details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
     delete:
-      summary: Delete role
-      description: Endpoint to delete a role by it's ID
+      summary: Delete permission
+      description: Endpoint to delete a permission by it's ID
       operationId: deletePermissionById
       tags:
         - Permissions
@@ -672,7 +714,55 @@ components:
           pattern: '[a-zA-Z_-]+'
         description:
           type: string
+    CreatePermission:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    UpdatePermission:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
     RoleResponse:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - createdAt
+        - createdBy
+        - updatedAt
+        - updatedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+    PermissionResponse:
       type: object
       required:
         - id

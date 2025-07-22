@@ -8,6 +8,7 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/spdeepak/go-jwt-server/permissions"
 	"github.com/spdeepak/go-jwt-server/roles"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA"
@@ -18,10 +19,11 @@ import (
 const emailHeader = "X-User-Email"
 
 type Server struct {
-	userService  users.Service
-	roleService  roles.Service
-	tokenService tokens.Service
-	twoFAService twoFA.Service
+	userService       users.Service
+	roleService       roles.Service
+	permissionService permissions.Service
+	tokenService      tokens.Service
+	twoFAService      twoFA.Service
 }
 
 func NewServer(userService users.Service, roleService roles.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
@@ -190,28 +192,73 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 }
 
 func (s *Server) ListAllPermissions(ctx *gin.Context, params api.ListAllPermissionsParams) {
-	//TODO implement me
-	panic("implement me")
+	permissionList, err := s.permissionService.ListPermissions(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, permissionList)
+	return
 }
 
 func (s *Server) CreateNewPermission(ctx *gin.Context, params api.CreateNewPermissionParams) {
-	//TODO implement me
-	panic("implement me")
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var createPermission api.CreatePermission
+	if err := ctx.ShouldBindJSON(&createPermission); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	createNewPermission, err := s.permissionService.CreateNewPermission(ctx, params, createPermission)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusCreated, createNewPermission)
+	return
 }
 
 func (s *Server) DeletePermissionById(ctx *gin.Context, id api.UuId, params api.DeletePermissionByIdParams) {
-	//TODO implement me
-	panic("implement me")
+	err := s.permissionService.DeletePermissionById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
 func (s *Server) GetPermissionById(ctx *gin.Context, id api.UuId, params api.GetPermissionByIdParams) {
-	//TODO implement me
-	panic("implement me")
+	permissionById, err := s.permissionService.GetPermissionById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, permissionById)
+	return
 }
 
 func (s *Server) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api.UpdatePermissionByIdParams) {
-	//TODO implement me
-	panic("implement me")
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.UpdatePermission
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	updatedPermission, err := s.permissionService.UpdatePermissionById(ctx, id, params, req)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, updatedPermission)
+	return
 }
 
 func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {

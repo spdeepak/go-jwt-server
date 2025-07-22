@@ -39,6 +39,9 @@ const (
 	RoleAlreadyExists        = "JWT0019"
 	RoleCreationFailed       = "JWT0020"
 	RoleDoesntExist          = "JWT0021"
+	PermissionAlreadyExists  = "JWT0022"
+	PermissionCreationFailed = "JWT0023"
+	PermissionDoesntExist    = "JWT0024"
 )
 
 var httpErrors = map[string]HttpError{
@@ -129,6 +132,18 @@ var httpErrors = map[string]HttpError{
 	RoleDoesntExist: {
 		StatusCode:  http.StatusNotFound,
 		Description: "Role doesn't exist",
+	},
+	PermissionAlreadyExists: {
+		StatusCode:  http.StatusConflict,
+		Description: "Permission already exists with given name",
+	},
+	PermissionCreationFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Permission creation failed",
+	},
+	PermissionDoesntExist: {
+		StatusCode:  http.StatusNotFound,
+		Description: "Permission doesn't exist",
 	},
 }
 
