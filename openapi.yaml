@@ -480,6 +480,42 @@ paths:
       responses:
         '200':
           description: Role removal confirmation
+  /api/v1/access-control/roles/{id}/permissions:
+    post:
+      summary: Attach permissions to a role
+      description: Assign multiple permissions to a role
+      operationId: assignPermissionToRole
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      requestBody:
+        description: List of permissions to assign to a role
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignPermission'
+      responses:
+        '200':
+          description: Permissions added to role
+  /api/v1/access-control/roles/{roleId}/permissions/{permissionId}:
+    delete:
+      summary: Remove a permission from a role
+      description: Remove a permission from a role
+      operationId: removePermissionFromRole
+      tags:
+        - Roles
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/PermissionId'
+      responses:
+        '204':
+          description: Permission removed from role
   /ready:
     get:
       summary: Ready check
@@ -555,6 +591,16 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
+    PermissionId:
+      name: permissionId
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
     UserSignup:
       type: object
@@ -791,3 +837,23 @@ components:
           format: date-time
         updatedBy:
           type: string
+    AssignPermission:
+      type: object
+      oneOf:
+        - type: object
+          properties:
+            ids:
+              type: array
+              items:
+                type: string
+                format: uuid
+          required:
+            - ids
+        - type: object
+          properties:
+            names:
+              type: array
+              items:
+                type: string
+          required:
+            - names

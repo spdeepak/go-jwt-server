@@ -331,6 +331,16 @@ func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Update
 	return
 }
 
+func (s *Server) AssignPermissionToRole(ctx *gin.Context, id api.UuId, params api.AssignPermissionToRoleParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) RemovePermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
 	//TODO implement me
 	panic("implement me")
