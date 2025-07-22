@@ -10,15 +10,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/db"
+	"github.com/spdeepak/go-jwt-server/permissions"
+	permissionsRepo "github.com/spdeepak/go-jwt-server/permissions/repository"
 	"github.com/spdeepak/go-jwt-server/roles/repository"
 )
 
 var roleStorage Storage
+var permissionStorage permissions.Storage
 var dba *db.Database
 
 func TestMain(m *testing.M) {
@@ -39,6 +43,8 @@ func TestMain(m *testing.M) {
 	db.RunMigrationQueries(dbConnection, "../migrations")
 	query := repository.New(dbConnection.DB)
 	roleStorage = NewStorage(query)
+	permissionQuery := permissionsRepo.New(dbConnection.DB)
+	permissionStorage = permissions.NewStorage(permissionQuery)
 	// Run all tests
 	code := m.Run()
 
@@ -54,7 +60,9 @@ func truncateTables(t *testing.T, db *sql.DB) {
             users_password,
             users,
             tokens,
-            roles
+            roles,
+            permissions,
+            role_permissions
         RESTART IDENTITY CASCADE
     `)
 	assert.NoError(t, err)
@@ -214,4 +222,54 @@ func TestService_UpdateRoleById(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, role)
 	})
+}
+
+func TestService_AssignPermissionToRole(t *testing.T) {
+	t.Run("Assign Permission to Role OK", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		ctx.Set("X-User-Email", "first.last@example.com")
+		request := api.CreateRole{
+			Description: "role description",
+			Name:        "role_name",
+		}
+		roleService := NewService(roleStorage)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, createdRole)
+		permissionsService := permissions.NewService(permissionStorage)
+		permission, err := permissionsService.CreateNewPermission(ctx, api.CreateNewPermissionParams{}, api.CreatePermission{Description: "permission description", Name: "role::create"})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, permission)
+
+		err = roleService.AssignPermissionToRole(ctx, createdRole.Id, api.AssignPermissionToRoleParams{}, api.AssignPermission{Ids: []openapi_types.UUID{permission.Id}}, "first.last@example.com")
+		assert.NoError(t, err)
+	})
+	truncateTables(t, dba.DB)
+}
+
+func TestService_UnassignPermissionToRole(t *testing.T) {
+	t.Run("Assign Permission to Role OK", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		ctx.Set("X-User-Email", "first.last@example.com")
+		request := api.CreateRole{
+			Description: "role description",
+			Name:        "role_name",
+		}
+		roleService := NewService(roleStorage)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, createdRole)
+		permissionsService := permissions.NewService(permissionStorage)
+		permission, err := permissionsService.CreateNewPermission(ctx, api.CreateNewPermissionParams{}, api.CreatePermission{Description: "permission description", Name: "role::create"})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, permission)
+
+		err = roleService.AssignPermissionToRole(ctx, createdRole.Id, api.AssignPermissionToRoleParams{}, api.AssignPermission{Ids: []openapi_types.UUID{permission.Id}}, "first.last@example.com")
+		assert.NoError(t, err)
+		err = roleService.UnassignPermissionFromRole(ctx, createdRole.Id, permission.Id)
+		assert.NoError(t, err)
+	})
+	truncateTables(t, dba.DB)
 }
