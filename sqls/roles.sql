@@ -5,7 +5,7 @@ FROM roles;
 -- name: CreateNewRole :one
 INSERT INTO roles (name, description, created_at, created_by, updated_at, updated_by)
 VALUES (sqlc.arg('name'), sqlc.arg('description'), NOW(), sqlc.arg('createdBy'), NOW(), sqlc.arg('createdBy'))
-RETURNING name, description, created_at, created_by, updated_at, updated_by;
+RETURNING *;
 
 -- name: GetRoleById :one
 SELECT *
@@ -19,7 +19,7 @@ SET description = COALESCE(sqlc.narg('description'), description),
     updated_at  = NOW(),
     updated_by  = sqlc.arg('updated_by')
 WHERE id = sqlc.arg('id')
-RETURNING id, name, description, created_at, created_by, updated_at, updated_by;
+RETURNING *;
 
 -- name: DeleteRoleById :exec
 DELETE

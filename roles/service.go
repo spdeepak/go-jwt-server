@@ -2,11 +2,13 @@ package roles
 
 import (
 	"database/sql"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/spdeepak/go-jwt-server/api"
+	httperror "github.com/spdeepak/go-jwt-server/error"
 	"github.com/spdeepak/go-jwt-server/roles/repository"
 )
 
@@ -39,12 +41,16 @@ func (s *service) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams
 	}
 	createdNewRole, err := s.storage.CreateNewRole(ctx, createNewRole)
 	if err != nil {
-		return api.RoleResponse{}, err
+		if err.Error() == "ERROR: duplicate key value violates unique constraint \"roles_name_key\" (SQLSTATE 23505)" {
+			return api.RoleResponse{}, httperror.New(httperror.RoleAlreadyExists)
+		}
+		return api.RoleResponse{}, httperror.NewWithMetadata(httperror.RoleCreationFailed, err.Error())
 	}
 	return api.RoleResponse{
 		CreatedAt:   createdNewRole.CreatedAt,
 		CreatedBy:   createdNewRole.CreatedBy,
 		Description: createdNewRole.Description,
+		Id:          createdNewRole.ID,
 		Name:        createdNewRole.Name,
 		UpdatedAt:   createdNewRole.UpdatedAt,
 		UpdatedBy:   createdNewRole.UpdatedBy,
@@ -58,7 +64,10 @@ func (s *service) DeleteRoleById(ctx *gin.Context, id uuid.UUID) error {
 func (s *service) GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error) {
 	getRoleById, err := s.storage.GetRoleById(ctx, id)
 	if err != nil {
-		return api.RoleResponse{}, err
+		if err.Error() == "sql: no rows in result set" {
+			return api.RoleResponse{}, httperror.New(httperror.RoleDoesntExist)
+		}
+		return api.RoleResponse{}, httperror.NewWithDescription("Couldn't fetch Role for given ID", http.StatusInternalServerError)
 	}
 	return api.RoleResponse{
 		CreatedAt:   getRoleById.CreatedAt,
@@ -109,7 +118,10 @@ func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Updat
 	}
 	updatedRole, err := s.storage.UpdateRoleById(ctx, updateRoleById)
 	if err != nil {
-		return api.RoleResponse{}, err
+		if err.Error() == "sql: no rows in result set" {
+			return api.RoleResponse{}, httperror.New(httperror.RoleDoesntExist)
+		}
+		return api.RoleResponse{}, httperror.NewWithDescription("Couldn't fetch Role for given ID", http.StatusInternalServerError)
 	}
 	return api.RoleResponse{
 		CreatedAt:   updatedRole.CreatedAt,

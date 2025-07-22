@@ -13,7 +13,7 @@ type storage struct {
 }
 
 type Storage interface {
-	CreateNewRole(ctx context.Context, arg repository.CreateNewRoleParams) (repository.CreateNewRoleRow, error)
+	CreateNewRole(ctx context.Context, arg repository.CreateNewRoleParams) (repository.Role, error)
 	DeleteRoleById(ctx context.Context, id uuid.UUID) error
 	GetRoleById(ctx context.Context, id uuid.UUID) (repository.Role, error)
 	ListRoles(ctx context.Context) ([]repository.Role, error)
@@ -26,7 +26,7 @@ func NewStorage(query repository.Querier) Storage {
 	}
 }
 
-func (s *storage) CreateNewRole(ctx context.Context, arg repository.CreateNewRoleParams) (repository.CreateNewRoleRow, error) {
+func (s *storage) CreateNewRole(ctx context.Context, arg repository.CreateNewRoleParams) (repository.Role, error) {
 	return s.query.CreateNewRole(ctx, arg)
 }
 

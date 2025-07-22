@@ -36,6 +36,9 @@ const (
 	UserAlreadyExists        = "JWT0016"
 	UserAccountLocked        = "JWT0017"
 	InvalidRequest           = "JWT0018"
+	RoleAlreadyExists        = "JWT0019"
+	RoleCreationFailed       = "JWT0020"
+	RoleDoesntExist          = "JWT0021"
 )
 
 var httpErrors = map[string]HttpError{
@@ -114,6 +117,18 @@ var httpErrors = map[string]HttpError{
 	InvalidRequest: {
 		StatusCode:  http.StatusBadRequest,
 		Description: "Invalid request",
+	},
+	RoleAlreadyExists: {
+		StatusCode:  http.StatusConflict,
+		Description: "Role already exists with given name",
+	},
+	RoleCreationFailed: {
+		StatusCode:  http.StatusInternalServerError,
+		Description: "Role creation failed",
+	},
+	RoleDoesntExist: {
+		StatusCode:  http.StatusNotFound,
+		Description: "Role doesn't exist",
 	},
 }
 

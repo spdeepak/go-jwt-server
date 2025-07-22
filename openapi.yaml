@@ -675,6 +675,7 @@ components:
     RoleResponse:
       type: object
       required:
+        - id
         - name
         - description
         - createdAt
@@ -682,6 +683,9 @@ components:
         - updatedAt
         - updatedBy
       properties:
+        id:
+          type: string
+          format: uuid
         name:
           type: string
           pattern: '[a-zA-Z_-]+'
