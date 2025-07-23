@@ -485,6 +485,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
+      requestBody:
+        description: List of permissions to assign to a role
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleToUser'
       responses:
         '200':
           description: Role assignment confirmation
@@ -917,6 +923,7 @@ components:
         - firstName
         - lastName
         - roles
+        - permissions
       properties:
         email:
           type: string
@@ -929,11 +936,18 @@ components:
         roles:
           type: array
           items:
-            $ref: '#/components/schemas/UserRole'
-    UserRole:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    AssignRoleToUser:
       type: object
       required:
-        - name
+        - roles
       properties:
-        name:
-          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            format: uuid

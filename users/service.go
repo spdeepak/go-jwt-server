@@ -2,9 +2,11 @@ package users
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 
@@ -27,6 +29,7 @@ type Service interface {
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
 	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
+	GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error)
 }
 
 func NewService(storage Storage, twoFAService twoFA.Service, tokenService tokens.Service) Service {
@@ -172,6 +175,20 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		UserAgent:    params.UserAgent,
 	}
 	return s.tokenService.RefreshAndInvalidateToken(ctx, tokenParams, refresh, jwtUser)
+}
+
+func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error) {
+	userRolesAndPermissions, err := s.storage.GetUserRolesAndPermissionsFromID(ctx, id)
+	if err != nil {
+		return api.UserWithRoles{}, err
+	}
+	return api.UserWithRoles{
+		Email:       openapi_types.Email(userRolesAndPermissions.Email),
+		FirstName:   userRolesAndPermissions.FirstName,
+		LastName:    userRolesAndPermissions.LastName,
+		Permissions: strings.Split(userRolesAndPermissions.PermissionNames.(string), ", "),
+		Roles:       strings.Split(userRolesAndPermissions.RoleNames.(string), ", "),
+	}, nil
 }
 
 // hashPassword hashes the plaintext password using bcrypt
