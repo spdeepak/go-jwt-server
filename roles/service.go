@@ -1,6 +1,7 @@
 package roles
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 
@@ -26,6 +27,7 @@ type Service interface {
 	UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error)
 	AssignPermissionToRole(ctx *gin.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error
 	UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) error
+	ListRolesAndItsPermissions(ctx context.Context) ([]api.RolesAndPermissionResponse, error)
 }
 
 func NewService(storage Storage) Service {
@@ -156,4 +158,48 @@ func (s *service) UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId
 		return httperror.NewWithDescription("Failed to assign permission to role", http.StatusInternalServerError)
 	}
 	return nil
+}
+
+func (s *service) ListRolesAndItsPermissions(ctx context.Context) ([]api.RolesAndPermissionResponse, error) {
+	rolesAndItsPermissions, err := s.storage.ListRolesAndItsPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	roleIdRolePermissionMap := make(map[uuid.UUID]*api.RolesAndPermissionResponse)
+
+	for _, rolePermission := range rolesAndItsPermissions {
+		rolePermissionResponse, exists := roleIdRolePermissionMap[rolePermission.RoleID]
+		if !exists {
+			var rolePerm api.RolesAndPermissionResponse
+			rolePerm.Roles.CreatedAt = rolePermission.RoleCreatedAt
+			rolePerm.Roles.CreatedBy = rolePermission.RoleCreatedBy
+			rolePerm.Roles.Description = rolePermission.RoleDescription
+			rolePerm.Roles.Id = rolePermission.RoleID
+			rolePerm.Roles.Name = rolePermission.RoleName
+			rolePerm.Roles.UpdatedAt = rolePermission.RoleUpdatedAt
+			rolePerm.Roles.UpdatedBy = rolePermission.RoleUpdatedBy
+			roleIdRolePermissionMap[rolePermission.RoleID] = &rolePerm
+			rolePermissionResponse = roleIdRolePermissionMap[rolePermission.RoleID]
+		}
+
+		if rolePermission.PermissionID.Valid {
+			rolePermissionResponse.Roles.Permissions = append(rolePermissionResponse.Roles.Permissions, api.PermissionResponse{
+				CreatedAt:   rolePermission.PermissionCreatedAt.Time,
+				CreatedBy:   rolePermission.PermissionCreatedBy.String,
+				Description: rolePermission.PermissionDescription.String,
+				Id:          rolePermission.PermissionID.UUID,
+				Name:        rolePermission.PermissionName.String,
+				UpdatedAt:   rolePermission.PermissionUpdatedAt.Time,
+				UpdatedBy:   rolePermission.PermissionUpdatedBy.String,
+			})
+		}
+	}
+
+	rolePermissionResponse := make([]api.RolesAndPermissionResponse, len(roleIdRolePermissionMap))
+	for _, role := range roleIdRolePermissionMap {
+		rolePermissionResponse = append(rolePermissionResponse, *role)
+	}
+
+	return rolePermissionResponse, nil
 }

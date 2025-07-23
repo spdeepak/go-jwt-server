@@ -39,3 +39,23 @@ DELETE
 FROM role_permissions
 WHERE role_id = $1
   AND permission_id = $2;
+
+-- name: ListRolesAndItsPermissions :many
+SELECT r.id          as role_id,
+       r.name        as role_name,
+       r.description as role_description,
+       r.created_at  as role_created_at,
+       r.created_by  as role_created_by,
+       r.updated_at  as role_updated_at,
+       r.updated_by  as role_updated_by,
+       p.id          as permission_id,
+       p.name        as permission_name,
+       p.description as permission_description,
+       p.created_at  as permission_created_at,
+       p.created_by  as permission_created_by,
+       p.updated_at  as permission_updated_at,
+       p.updated_by  as permission_updated_by
+FROM roles AS r
+         LEFT JOIN role_permissions AS rp ON r.id = rp.role_id
+         LEFT JOIN permissions AS p ON p.id = rp.permission_id
+ORDER BY r.name, p.name;

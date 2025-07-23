@@ -435,6 +435,26 @@ paths:
       responses:
         '200':
           description: Delete permission confirmation
+  /api/v1/access-control/roles/permissions:
+    get:
+      summary: Roles and their permissions
+      description: List of Roles and their assigned permissions
+      operationId: rolesAndPermissions
+      tags:
+        - Roles and Permissions
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '200':
+          description: List of roles and their assigned permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RolesAndPermissionResponse'
   /api/v1/users/{id}/roles:
     get:
       summary: Get user's roles
@@ -482,7 +502,7 @@ paths:
           description: Role removal confirmation
   /api/v1/access-control/roles/{id}/permissions:
     post:
-      summary: Attach permissions to a role
+      summary: Assign permissions to a role
       description: Assign multiple permissions to a role
       operationId: assignPermissionToRole
       tags:
@@ -503,9 +523,9 @@ paths:
           description: Permissions added to role
   /api/v1/access-control/roles/{roleId}/permissions/{permissionId}:
     delete:
-      summary: Remove a permission from a role
-      description: Remove a permission from a role
-      operationId: removePermissionFromRole
+      summary: Unassign a permission from a role
+      description: Unassign a permission from a role
+      operationId: unassignPermissionFromRole
       tags:
         - Roles
       security:
@@ -847,3 +867,42 @@ components:
           items:
             type: string
             format: uuid
+    RolesAndPermissionResponse:
+      type: object
+      required:
+        - roles
+      properties:
+        roles:
+          type: object
+          required:
+            - id
+            - name
+            - description
+            - createdAt
+            - createdBy
+            - updatedAt
+            - updatedBy
+            - permissions
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              pattern: '[a-zA-Z_-]+'
+            description:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            createdBy:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+            updatedBy:
+              type: string
+            permissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/PermissionResponse'

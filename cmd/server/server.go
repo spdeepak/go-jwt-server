@@ -350,13 +350,23 @@ func (s *Server) AssignPermissionToRole(ctx *gin.Context, id api.UuId, params ap
 	return
 }
 
-func (s *Server) RemovePermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) {
+func (s *Server) UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) {
 	if err := s.roleService.UnassignPermissionFromRole(ctx, roleId, permissionId); err != nil {
 		ctx.Error(err)
 		return
 	}
 	ctx.Status(http.StatusOK)
 	return
+}
+
+func (s *Server) RolesAndPermissions(ctx *gin.Context, params api.RolesAndPermissionsParams) {
+	if rolesAndPermissionLists, err := s.roleService.ListRolesAndItsPermissions(ctx); err != nil {
+		ctx.Error(err)
+		return
+	} else {
+		ctx.JSON(http.StatusOK, rolesAndPermissionLists)
+		return
+	}
 }
 
 func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
