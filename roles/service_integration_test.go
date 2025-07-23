@@ -2,6 +2,7 @@ package roles
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http/httptest"
 	"os"
@@ -270,6 +271,43 @@ func TestService_UnassignPermissionToRole(t *testing.T) {
 		assert.NoError(t, err)
 		err = roleService.UnassignPermissionFromRole(ctx, createdRole.Id, permission.Id)
 		assert.NoError(t, err)
+	})
+	truncateTables(t, dba.DB)
+}
+
+func TestService_ListRolesAndItsPermissions(t *testing.T) {
+	t.Run("List Roles And Its Permissions OK", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		ctx.Set("X-User-Email", "first.last@example.com")
+		request := api.CreateRole{
+			Description: "role description",
+			Name:        "role_name",
+		}
+		roleService := NewService(roleStorage)
+		permissionsService := permissions.NewService(permissionStorage)
+
+		for num := range 10 {
+			request.Name = fmt.Sprintf("%s_%d", request.Name, num)
+			createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, createdRole)
+			for pn := range 5 {
+				permission, err := permissionsService.CreateNewPermission(ctx, api.CreateNewPermissionParams{}, api.CreatePermission{Description: "permission description", Name: fmt.Sprintf("role::create_%d_%d", num, pn)})
+				assert.NoError(t, err)
+				assert.NotEmpty(t, permission)
+				err = roleService.AssignPermissionToRole(ctx, createdRole.Id, api.AssignPermissionToRoleParams{}, api.AssignPermission{Ids: []openapi_types.UUID{permission.Id}}, "first.last@example.com")
+				assert.NoError(t, err)
+			}
+		}
+		rolesAndPermissions, err := roleService.ListRolesAndItsPermissions(ctx)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, rolesAndPermissions)
+		assert.Equal(t, 10, len(rolesAndPermissions))
+		for _, rolesAndPermission := range rolesAndPermissions {
+			assert.NotEmpty(t, rolesAndPermission)
+			assert.Equal(t, 5, len(rolesAndPermission.Roles.Permissions))
+		}
 	})
 	truncateTables(t, dba.DB)
 }

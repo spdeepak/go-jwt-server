@@ -196,7 +196,7 @@ func (s *service) ListRolesAndItsPermissions(ctx context.Context) ([]api.RolesAn
 		}
 	}
 
-	rolePermissionResponse := make([]api.RolesAndPermissionResponse, len(roleIdRolePermissionMap))
+	rolePermissionResponse := make([]api.RolesAndPermissionResponse, 0)
 	for _, role := range roleIdRolePermissionMap {
 		rolePermissionResponse = append(rolePermissionResponse, *role)
 	}
