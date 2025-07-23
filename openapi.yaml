@@ -470,6 +470,10 @@ paths:
       responses:
         '200':
           description: Roles of a user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithRoles'
     post:
       summary: Assign roles to user
       description: Endpoint to assign roles to a given user
@@ -906,3 +910,30 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/PermissionResponse'
+    UserWithRoles:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+        - roles
+      properties:
+        email:
+          type: string
+          format: email
+          example: first.last@example.com
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+    UserRole:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
