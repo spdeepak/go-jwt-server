@@ -40,35 +40,37 @@ WHERE users.id = sqlc.arg('user_id');
 -- name: GetEntireUserByEmail :one
 WITH user_base AS (SELECT *
                    FROM users
-                   WHERE users.email = sqlc.arg('email')),
-     user_roles_joined AS (SELECT r.*
-                           FROM user_base as u
-                                    LEFT JOIN user_roles as ur ON ur.user_id = u.id
-                                    LEFT JOIN roles as r ON ur.role_id = r.id),
-     role_permissions_joined AS (SELECT p.*
-                                 FROM user_roles_joined as r
-                                          LEFT JOIN role_permissions as rp ON rp.role_id = r.id
-                                          LEFT JOIN permissions as p ON rp.permission_id = p.id),
-     user_permissions_joined AS (SELECT p.*
-                                 FROM user_base as u
-                                          LEFT JOIN user_permissions as up ON up.user_id = u.id
-                                          LEFT JOIN permissions as p ON up.permission_id = p.id),
+                   WHERE email = sqlc.arg('email')),
+     user_roles_joined AS (SELECT r.name AS role_name, ur.user_id
+                           FROM user_base u
+                                    LEFT JOIN user_roles ur ON ur.user_id = u.id
+                                    LEFT JOIN roles r ON ur.role_id = r.id),
+     role_permissions_joined AS (SELECT p.name AS permission_name, ur.user_id
+                                 FROM user_roles_joined urj
+                                          JOIN user_roles ur ON ur.user_id = urj.user_id
+                                          JOIN role_permissions rp ON rp.role_id = ur.role_id
+                                          JOIN permissions p ON p.id = rp.permission_id),
+     user_permissions_joined AS (SELECT p.name AS permission_name, up.user_id
+                                 FROM user_base u
+                                          LEFT JOIN user_permissions up ON up.user_id = u.id
+                                          LEFT JOIN permissions p ON up.permission_id = p.id),
      all_permissions AS (SELECT *
                          FROM role_permissions_joined
                          UNION
                          SELECT *
                          FROM user_permissions_joined)
 
-SELECT u.id         AS user_id,
+SELECT u.id                                                       AS user_id,
        u.email,
        u.password,
        u.first_name,
        u.last_name,
        u.locked,
        u.two_fa_enabled,
-       u.created_at AS user_created_at,
-       r.name       AS role_name,
-       p.name       AS permission_name
+       u.created_at                                               AS user_created_at,
+       COALESCE(STRING_AGG(DISTINCT r.role_name, ', '), '')       AS role_names,
+       COALESCE(STRING_AGG(DISTINCT p.permission_name, ', '), '') AS permission_names
 FROM user_base u
-         LEFT JOIN user_roles_joined as r ON TRUE
-         LEFT JOIN all_permissions as p ON TRUE;
+         LEFT JOIN user_roles_joined r ON r.user_id = u.id
+         LEFT JOIN all_permissions p ON p.user_id = u.id
+GROUP BY u.id, u.email, u.password, u.first_name, u.last_name;

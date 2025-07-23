@@ -294,7 +294,7 @@ func login2FA_OK(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	userByEmail, err := userStorage.GetUserByEmail(context.Background(), "first.last@example.com")
+	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 
 	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-20*time.Second))
@@ -335,7 +335,7 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	userByEmail, err := userStorage.GetUserByEmail(context.Background(), "first.last@example.com")
+	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 
 	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-60*time.Second))

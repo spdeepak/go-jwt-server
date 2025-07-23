@@ -14,7 +14,7 @@ type storage struct {
 
 type Storage interface {
 	UserSignup(ctx context.Context, arg repository.SignupParams) error
-	GetUserByEmail(ctx context.Context, email string) (repository.GetEntireUserByEmailRow, error)
+	GetUserByEmailForAuth(ctx context.Context, email string) (repository.GetEntireUserByEmailRow, error)
 	GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error)
 	UserSignupWith2FA(ctx context.Context, arg repository.SignupWith2FAParams) error
 }
@@ -33,7 +33,7 @@ func (s *storage) UserSignupWith2FA(ctx context.Context, arg repository.SignupWi
 	return s.userRepository.SignupWith2FA(ctx, arg)
 }
 
-func (s *storage) GetUserByEmail(ctx context.Context, email string) (repository.GetEntireUserByEmailRow, error) {
+func (s *storage) GetUserByEmailForAuth(ctx context.Context, email string) (repository.GetEntireUserByEmailRow, error) {
 	return s.userRepository.GetEntireUserByEmail(ctx, email)
 }
 

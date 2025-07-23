@@ -88,7 +88,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 }
 
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
-	user, err := s.storage.GetUserByEmail(ctx, login.Email)
+	user, err := s.storage.GetUserByEmailForAuth(ctx, login.Email)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -157,7 +157,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 
-	user, err := s.storage.GetUserByEmail(ctx, email)
+	user, err := s.storage.GetUserByEmailForAuth(ctx, email)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
