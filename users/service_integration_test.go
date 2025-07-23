@@ -464,3 +464,125 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 
 	truncateTables(t, dba.DB)
 }
+
+func TestService_AssignRolesToUser(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Set("X-User-Email", "first.last@example.com")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	request := api.CreateRole{
+		Description: "role description",
+		Name:        "role_name",
+	}
+	roleService := roles.NewService(roleStorage)
+	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, createdRole)
+
+	rolesAndPermissions, err := roleService.ListRolesAndItsPermissions(ctx)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, rolesAndPermissions)
+	assert.Len(t, rolesAndPermissions, 1)
+	for _, rolesAndPermission := range rolesAndPermissions {
+		assert.NotEmpty(t, rolesAndPermission)
+		assert.Len(t, rolesAndPermission.Roles.Permissions, 0)
+	}
+
+	secret := "JWT_$€CR€T"
+	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userService := NewService(userStorage, twoFaService, tokenService)
+
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.Empty(t, res)
+
+	userByEmail, err := userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, userByEmail)
+
+	err = userService.AssignRolesToUser(ctx, userByEmail.UserID, api.AssignRolesToUserParams{}, api.AssignRoleToUser{Roles: []uuid.UUID{createdRole.Id}}, "first.last@example.com")
+	assert.NoError(t, err)
+
+	truncateTables(t, dba.DB)
+}
+
+func TestService_UnassignRolesToUser(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Set("X-User-Email", "first.last@example.com")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	request := api.CreateRole{
+		Description: "role description",
+		Name:        "role_name",
+	}
+	roleService := roles.NewService(roleStorage)
+	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, createdRole)
+
+	rolesAndPermissions, err := roleService.ListRolesAndItsPermissions(ctx)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, rolesAndPermissions)
+	assert.Len(t, rolesAndPermissions, 1)
+	for _, rolesAndPermission := range rolesAndPermissions {
+		assert.NotEmpty(t, rolesAndPermission)
+		assert.Len(t, rolesAndPermission.Roles.Permissions, 0)
+	}
+
+	secret := "JWT_$€CR€T"
+	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userService := NewService(userStorage, twoFaService, tokenService)
+
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.Empty(t, res)
+
+	userByEmail, err := userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, userByEmail)
+
+	err = userService.AssignRolesToUser(ctx, userByEmail.UserID, api.AssignRolesToUserParams{}, api.AssignRoleToUser{Roles: []uuid.UUID{createdRole.Id}}, "first.last@example.com")
+	assert.NoError(t, err)
+
+	userRolesAndPermissions, err := userService.GetUserRolesAndPermissions(ctx, userByEmail.UserID, api.GetRolesOfUserParams{})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, userRolesAndPermissions)
+	assert.NotEmpty(t, userRolesAndPermissions.Roles)
+	assert.Len(t, userRolesAndPermissions.Roles, 1)
+
+	err = userService.UnassignRolesOfUser(ctx, userByEmail.UserID, createdRole.Id, api.RemoveRolesForUserParams{})
+	assert.NoError(t, err)
+
+	userByEmail, err = userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, userByEmail)
+	assert.Empty(t, userByEmail.RoleNames)
+
+	truncateTables(t, dba.DB)
+}
