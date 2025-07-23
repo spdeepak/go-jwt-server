@@ -30,6 +30,8 @@ type Service interface {
 	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
 	GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error)
+	AssignRolesToUser(ctx *gin.Context, userId api.UuId, params api.AssignRolesToUserParams, assignRoleToUser api.AssignRoleToUser, email string) error
+	UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error
 }
 
 func NewService(storage Storage, twoFAService twoFA.Service, tokenService tokens.Service) Service {
@@ -189,6 +191,30 @@ func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, para
 		Permissions: strings.Split(userRolesAndPermissions.PermissionNames.(string), ", "),
 		Roles:       strings.Split(userRolesAndPermissions.RoleNames.(string), ", "),
 	}, nil
+}
+
+func (s *service) AssignRolesToUser(ctx *gin.Context, userId api.UuId, params api.AssignRolesToUserParams, assignRoleToUser api.AssignRoleToUser, email string) error {
+	assignRolesToUser := repository.AssignRolesToUserParams{
+		UserID:    userId,
+		RoleID:    assignRoleToUser.Roles,
+		CreatedBy: email,
+	}
+	if err := s.storage.AssignRolesToUser(ctx, assignRolesToUser); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *service) UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error {
+	unassignRolesToUser := repository.UnassignRolesToUserParams{
+		UserID: userId,
+		RoleID: roleId,
+	}
+	err := s.storage.UnassignRolesToUser(ctx, unassignRolesToUser)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // hashPassword hashes the plaintext password using bcrypt

@@ -107,3 +107,15 @@ SELECT sqlc.arg('user_id'),
        now(),
        sqlc.arg('createdBy')
 ON CONFLICT DO NOTHING;
+
+-- name: UnassignRolesToUser :exec
+DELETE
+FROM user_roles
+where user_id = sqlc.arg('user_id')
+  and role_id = sqlc.arg('role_id');
+
+-- name: UnassignPermissionToUser :exec
+DELETE
+FROM user_permissions
+where user_id = sqlc.arg('user_id')
+  and permission_id = sqlc.arg('permission_id');

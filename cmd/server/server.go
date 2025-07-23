@@ -375,11 +375,29 @@ func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRol
 }
 
 func (s *Server) AssignRolesToUser(ctx *gin.Context, id api.UuId, params api.AssignRolesToUserParams) {
-	//TODO implement me
-	panic("implement me")
+	email, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.AssignRoleToUser
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Error(err)
+		return
+	}
+	if err := s.userService.AssignRolesToUser(ctx, id, params, req, email.(string)); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
-func (s *Server) RemoveRolesForUser(ctx *gin.Context, id api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) {
-	//TODO implement me
-	panic("implement me")
+func (s *Server) RemoveRolesForUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) {
+	if err := s.userService.UnassignRolesOfUser(ctx, userId, roleId, params); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }

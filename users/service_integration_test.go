@@ -417,10 +417,10 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	rolesAndPermissions, err := roleService.ListRolesAndItsPermissions(ctx)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, rolesAndPermissions)
-	assert.Equal(t, 10, len(rolesAndPermissions))
+	assert.Len(t, rolesAndPermissions, 10)
 	for _, rolesAndPermission := range rolesAndPermissions {
 		assert.NotEmpty(t, rolesAndPermission)
-		assert.Equal(t, 5, len(rolesAndPermission.Roles.Permissions))
+		assert.Len(t, rolesAndPermission.Roles.Permissions, 5)
 	}
 
 	secret := "JWT_$€CR€T"
@@ -451,7 +451,7 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	assert.NoError(t, err)
 	err = userStorage.AssignPermissionToUser(ctx, repository.AssignPermissionToUserParams{
 		UserID:       userByEmail.UserID,
-		PermissionID: []uuid.UUID{permissionIds[10], permissionIds[11], permissionIds[12]},
+		PermissionID: []uuid.UUID{permissionIds[10], permissionIds[11], permissionIds[12], permissionIds[13]},
 		CreatedBy:    "first.last@example.com",
 	})
 	assert.NoError(t, err)
@@ -459,6 +459,8 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	userRolesAndPermissions, err := userService.GetUserRolesAndPermissions(ctx, userByEmail.UserID, api.GetRolesOfUserParams{})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userRolesAndPermissions)
+	assert.Len(t, userRolesAndPermissions.Roles, 3)
+	assert.Len(t, userRolesAndPermissions.Permissions, 4)
 
 	truncateTables(t, dba.DB)
 }

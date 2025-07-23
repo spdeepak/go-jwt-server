@@ -20,6 +20,7 @@ type Storage interface {
 	GetUserRolesAndPermissionsFromID(ctx context.Context, id uuid.UUID) (repository.GetUserRolesAndPermissionsFromIDRow, error)
 	AssignPermissionToUser(ctx context.Context, arg repository.AssignPermissionToUserParams) error
 	AssignRolesToUser(ctx context.Context, arg repository.AssignRolesToUserParams) error
+	UnassignRolesToUser(ctx context.Context, arg repository.UnassignRolesToUserParams) error
 }
 
 func NewStorage(userRepository repository.Querier) Storage {
@@ -54,4 +55,8 @@ func (s *storage) AssignPermissionToUser(ctx context.Context, arg repository.Ass
 
 func (s *storage) AssignRolesToUser(ctx context.Context, arg repository.AssignRolesToUserParams) error {
 	return s.userRepository.AssignRolesToUser(ctx, arg)
+}
+
+func (s *storage) UnassignRolesToUser(ctx context.Context, arg repository.UnassignRolesToUserParams) error {
+	return s.userRepository.UnassignRolesToUser(ctx, arg)
 }

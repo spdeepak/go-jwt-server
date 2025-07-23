@@ -303,10 +303,10 @@ func TestService_ListRolesAndItsPermissions(t *testing.T) {
 		rolesAndPermissions, err := roleService.ListRolesAndItsPermissions(ctx)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, rolesAndPermissions)
-		assert.Equal(t, 10, len(rolesAndPermissions))
+		assert.Len(t, rolesAndPermissions, 10)
 		for _, rolesAndPermission := range rolesAndPermissions {
 			assert.NotEmpty(t, rolesAndPermission)
-			assert.Equal(t, 5, len(rolesAndPermission.Roles.Permissions))
+			assert.Len(t, rolesAndPermission.Roles.Permissions, 5)
 		}
 	})
 	truncateTables(t, dba.DB)

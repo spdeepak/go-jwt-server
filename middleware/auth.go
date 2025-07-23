@@ -90,6 +90,7 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
 		case "2FA":
 			c.Set("X-User-ID", claims["sub"].(string))
 		case "Bearer", "Refresh":
+			c.Set("X-User-ID", claims["sub"].(string))
 			c.Set("X-User-Email", claims["email"].(string))
 		default:
 			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
