@@ -73,4 +73,4 @@ SELECT u.id                                                       AS user_id,
 FROM user_base u
          LEFT JOIN user_roles_joined r ON r.user_id = u.id
          LEFT JOIN all_permissions p ON p.user_id = u.id
-GROUP BY u.id, u.email, u.password, u.first_name, u.last_name;
+GROUP BY u.id, u.email, u.password, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at;
