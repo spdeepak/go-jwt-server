@@ -8,6 +8,8 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/spdeepak/go-jwt-server/permissions"
+	"github.com/spdeepak/go-jwt-server/roles"
 	"github.com/spdeepak/go-jwt-server/tokens"
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users"
@@ -17,14 +19,17 @@ import (
 const emailHeader = "X-User-Email"
 
 type Server struct {
-	userService  users.Service
-	tokenService tokens.Service
-	twoFAService twoFA.Service
+	userService       users.Service
+	roleService       roles.Service
+	permissionService permissions.Service
+	tokenService      tokens.Service
+	twoFAService      twoFA.Service
 }
 
-func NewServer(userService users.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
+func NewServer(userService users.Service, roleService roles.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
 	return &Server{
 		userService:  userService,
+		roleService:  roleService,
 		tokenService: tokenService,
 		twoFAService: otpService,
 	}
@@ -179,6 +184,222 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 	}
 	err := s.twoFAService.Remove2FA(ctx, userId.(uuid.UUID), verify2FARequest.TwoFACode)
 	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
+}
+
+func (s *Server) ListAllPermissions(ctx *gin.Context, params api.ListAllPermissionsParams) {
+	permissionList, err := s.permissionService.ListPermissions(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, permissionList)
+	return
+}
+
+func (s *Server) CreateNewPermission(ctx *gin.Context, params api.CreateNewPermissionParams) {
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var createPermission api.CreatePermission
+	if err := ctx.ShouldBindJSON(&createPermission); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	createNewPermission, err := s.permissionService.CreateNewPermission(ctx, params, createPermission)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusCreated, createNewPermission)
+	return
+}
+
+func (s *Server) DeletePermissionById(ctx *gin.Context, id api.UuId, params api.DeletePermissionByIdParams) {
+	err := s.permissionService.DeletePermissionById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
+}
+
+func (s *Server) GetPermissionById(ctx *gin.Context, id api.UuId, params api.GetPermissionByIdParams) {
+	permissionById, err := s.permissionService.GetPermissionById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, permissionById)
+	return
+}
+
+func (s *Server) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api.UpdatePermissionByIdParams) {
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.UpdatePermission
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	updatedPermission, err := s.permissionService.UpdatePermissionById(ctx, id, params, req)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, updatedPermission)
+	return
+}
+
+func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
+	listRoles, err := s.roleService.ListRoles(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, listRoles)
+	return
+}
+
+func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams) {
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var createRole api.CreateRole
+	if err := ctx.ShouldBindJSON(&createRole); err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	createNewRole, err := s.roleService.CreateNewRole(ctx, params, createRole)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusCreated, createNewRole)
+	return
+}
+
+func (s *Server) DeleteRoleById(ctx *gin.Context, id api.UuId, params api.DeleteRoleByIdParams) {
+	err := s.roleService.DeleteRoleById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
+}
+
+func (s *Server) GetRoleById(ctx *gin.Context, id api.UuId, params api.GetRoleByIdParams) {
+	roleById, err := s.roleService.GetRoleById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, roleById)
+	return
+}
+
+func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.UpdateRole
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, params, req)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, updatedRole)
+	return
+}
+
+func (s *Server) AssignPermissionToRole(ctx *gin.Context, id api.UuId, params api.AssignPermissionToRoleParams) {
+	email, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.AssignPermission
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Error(err)
+		return
+	}
+	if err := s.roleService.AssignPermissionToRole(ctx, id, params, req, email.(string)); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
+}
+
+func (s *Server) UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) {
+	if err := s.roleService.UnassignPermissionFromRole(ctx, roleId, permissionId); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
+}
+
+func (s *Server) RolesAndPermissions(ctx *gin.Context, params api.RolesAndPermissionsParams) {
+	if rolesAndPermissionLists, err := s.roleService.ListRolesAndItsPermissions(ctx); err != nil {
+		ctx.Error(err)
+		return
+	} else {
+		ctx.JSON(http.StatusOK, rolesAndPermissionLists)
+		return
+	}
+}
+
+func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
+	if userRolesAndPermissions, err := s.userService.GetUserRolesAndPermissions(ctx, id, params); err != nil {
+		ctx.Error(err)
+		return
+	} else {
+		ctx.JSON(http.StatusOK, userRolesAndPermissions)
+		return
+	}
+}
+
+func (s *Server) AssignRolesToUser(ctx *gin.Context, id api.UuId, params api.AssignRolesToUserParams) {
+	email, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.AssignRoleToUser
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Error(err)
+		return
+	}
+	if err := s.userService.AssignRolesToUser(ctx, id, params, req, email.(string)); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
+}
+
+func (s *Server) RemoveRolesForUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) {
+	if err := s.userService.UnassignRolesOfUser(ctx, userId, roleId, params); err != nil {
 		ctx.Error(err)
 		return
 	}

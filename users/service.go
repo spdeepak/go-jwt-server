@@ -2,9 +2,11 @@ package users
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 
@@ -27,6 +29,9 @@ type Service interface {
 	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
 	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error)
 	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
+	GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error)
+	AssignRolesToUser(ctx *gin.Context, userId api.UuId, params api.AssignRolesToUserParams, assignRoleToUser api.AssignRoleToUser, email string) error
+	UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error
 }
 
 func NewService(storage Storage, twoFAService twoFA.Service, tokenService tokens.Service) Service {
@@ -88,7 +93,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 }
 
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
-	user, err := s.storage.GetUserByEmail(ctx, login.Email)
+	user, err := s.storage.GetUserByEmailForAuth(ctx, login.Email)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -100,7 +105,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 	}
 	if user.TwoFaEnabled {
-		return s.tokenService.GenerateTempToken(ctx, user.ID)
+		return s.tokenService.GenerateTempToken(ctx, user.UserID)
 	}
 	jwtUser := token.User{
 		Email:     user.Email,
@@ -157,7 +162,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 
-	user, err := s.storage.GetUserByEmail(ctx, email)
+	user, err := s.storage.GetUserByEmailForAuth(ctx, email)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
@@ -172,6 +177,44 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		UserAgent:    params.UserAgent,
 	}
 	return s.tokenService.RefreshAndInvalidateToken(ctx, tokenParams, refresh, jwtUser)
+}
+
+func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error) {
+	userRolesAndPermissions, err := s.storage.GetUserRolesAndPermissionsFromID(ctx, id)
+	if err != nil {
+		return api.UserWithRoles{}, err
+	}
+	return api.UserWithRoles{
+		Email:       openapi_types.Email(userRolesAndPermissions.Email),
+		FirstName:   userRolesAndPermissions.FirstName,
+		LastName:    userRolesAndPermissions.LastName,
+		Permissions: strings.Split(userRolesAndPermissions.PermissionNames.(string), ", "),
+		Roles:       strings.Split(userRolesAndPermissions.RoleNames.(string), ", "),
+	}, nil
+}
+
+func (s *service) AssignRolesToUser(ctx *gin.Context, userId api.UuId, params api.AssignRolesToUserParams, assignRoleToUser api.AssignRoleToUser, email string) error {
+	assignRolesToUser := repository.AssignRolesToUserParams{
+		UserID:    userId,
+		RoleID:    assignRoleToUser.Roles,
+		CreatedBy: email,
+	}
+	if err := s.storage.AssignRolesToUser(ctx, assignRolesToUser); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *service) UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error {
+	unassignRolesToUser := repository.UnassignRolesToUserParams{
+		UserID: userId,
+		RoleID: roleId,
+	}
+	err := s.storage.UnassignRolesToUser(ctx, unassignRolesToUser)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // hashPassword hashes the plaintext password using bcrypt

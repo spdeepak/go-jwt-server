@@ -196,8 +196,8 @@ func TestService_Login_OK(t *testing.T) {
 	}
 
 	userQuery := repository.NewMockQuerier(t)
-	userQuery.On("GetUserByEmail", ctx, email).
-		Return(repository.User{
+	userQuery.On("GetEntireUserByEmail", ctx, email).
+		Return(repository.GetEntireUserByEmailRow{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
@@ -234,8 +234,8 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("GetUserByEmail", ctx, email).
-		Return(repository.User{
+	query.On("GetEntireUserByEmail", ctx, email).
+		Return(repository.GetEntireUserByEmailRow{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
@@ -266,7 +266,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("sql: no rows in result set"))
+	query.On("GetEntireUserByEmail", ctx, email).Return(repository.GetEntireUserByEmailRow{}, errors.New("sql: no rows in result set"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)
@@ -292,7 +292,7 @@ func TestService_Login_NOK(t *testing.T) {
 	}
 
 	query := repository.NewMockQuerier(t)
-	query.On("GetUserByEmail", ctx, email).Return(repository.User{}, errors.New("error"))
+	query.On("GetEntireUserByEmail", ctx, email).Return(repository.GetEntireUserByEmailRow{}, errors.New("error"))
 
 	userStorage := NewStorage(query)
 	userService := NewService(userStorage, nil, nil)

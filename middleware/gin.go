@@ -27,12 +27,14 @@ func GinLogger() gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 
 		logEvent := log.Debug().
-			Str("method", c.Request.Method).
-			Str("path", c.Request.URL.Path).
-			Int("status", statusCode).
-			Int64("latency_ms", latency).
-			Str("client_ip", c.ClientIP()).
-			Str("user_agent", c.Request.UserAgent())
+			Any("extra", map[string]interface{}{
+				"method":     c.Request.Method,
+				"path":       c.Request.URL.Path,
+				"status":     statusCode,
+				"latency_ms": latency,
+				"client_ip":  c.ClientIP(),
+				"user_agent": c.Request.UserAgent(),
+			})
 
 		if len(c.Errors) > 0 {
 			logEvent.Str("errors", c.Errors.String())

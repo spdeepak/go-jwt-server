@@ -1,5 +1,7 @@
+-- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- JWT Secrets
 CREATE TABLE IF NOT EXISTS jwt_secrets
 (
     id          UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
@@ -9,6 +11,7 @@ CREATE TABLE IF NOT EXISTS jwt_secrets
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Users
 CREATE TABLE IF NOT EXISTS users
 (
     id             UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
@@ -22,8 +25,9 @@ CREATE TABLE IF NOT EXISTS users
     updated_at     TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS users_email ON users (email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
+-- Password History
 CREATE TABLE IF NOT EXISTS users_password
 (
     user_id    UUID        NOT NULL,
@@ -32,6 +36,7 @@ CREATE TABLE IF NOT EXISTS users_password
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+-- 2FA
 CREATE TABLE IF NOT EXISTS users_2fa
 (
     id         UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
@@ -47,6 +52,77 @@ CREATE UNIQUE INDEX unique_active_totp_per_user
     ON users_2fa (user_id)
     WHERE revoked = false;
 
+-- Roles
+CREATE TABLE IF NOT EXISTS roles
+(
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name        TEXT        NOT NULL UNIQUE, -- e.g., "admin", "user"
+    description TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL,
+    created_by  TEXT        NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    updated_by  TEXT        NOT NULL
+
+);
+
+-- Permissions
+CREATE TABLE IF NOT EXISTS permissions
+(
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name        TEXT        NOT NULL UNIQUE, -- e.g., "user:read"
+    description TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL,
+    created_by  TEXT        NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    updated_by  TEXT        NOT NULL
+);
+
+-- Role → Permissions
+CREATE TABLE IF NOT EXISTS role_permissions
+(
+    role_id       UUID        NOT NULL,
+    permission_id UUID        NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL,
+    created_by    TEXT        NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE,
+    CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_role_permissions_role_id ON role_permissions (role_id);
+CREATE INDEX idx_role_permissions_permission_id ON role_permissions (permission_id);
+
+-- User → Roles
+CREATE TABLE IF NOT EXISTS user_roles
+(
+    user_id    UUID        NOT NULL,
+    role_id    UUID        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    created_by TEXT        NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_roles_user_id ON user_roles (user_id);
+CREATE INDEX idx_user_roles_role_id ON user_roles (role_id);
+
+-- User → Permissions (optional overrides)
+CREATE TABLE IF NOT EXISTS user_permissions
+(
+    user_id       UUID        NOT NULL,
+    permission_id UUID        NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL,
+    created_by    TEXT        NOT NULL,
+    PRIMARY KEY (user_id, permission_id),
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_permissions_user_id ON user_permissions (user_id);
+CREATE INDEX idx_user_permissions_permission_id ON user_permissions (permission_id);
+
+-- Tokens
 CREATE TABLE IF NOT EXISTS tokens
 (
     token              TEXT PRIMARY KEY,

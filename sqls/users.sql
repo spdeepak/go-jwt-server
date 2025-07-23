@@ -36,3 +36,86 @@ WITH revoke_old_2fa AS (
 UPDATE users
 SET two_fa_enabled = true
 WHERE users.id = sqlc.arg('user_id');
+
+-- name: GetEntireUserByEmail :one
+WITH user_base AS (SELECT *
+                   FROM users
+                   WHERE email = sqlc.arg('email')),
+     user_roles_joined AS (SELECT r.name AS role_name, ur.user_id
+                           FROM user_base u
+                                    LEFT JOIN user_roles ur ON ur.user_id = u.id
+                                    LEFT JOIN roles r ON ur.role_id = r.id),
+     user_permissions_joined AS (SELECT p.name AS permission_name, up.user_id
+                                 FROM user_base u
+                                          LEFT JOIN user_permissions up ON up.user_id = u.id
+                                          LEFT JOIN permissions p ON up.permission_id = p.id)
+
+SELECT u.id                                                       AS user_id,
+       u.email,
+       u.password,
+       u.first_name,
+       u.last_name,
+       u.locked,
+       u.two_fa_enabled,
+       u.created_at                                               AS user_created_at,
+       COALESCE(STRING_AGG(DISTINCT r.role_name, ', '), '')       AS role_names,
+       COALESCE(STRING_AGG(DISTINCT p.permission_name, ', '), '') AS permission_names
+FROM user_base u
+         LEFT JOIN user_roles_joined AS r ON r.user_id = u.id
+         LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id
+GROUP BY u.id, u.email, u.password, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at;
+
+-- name: GetUserRolesAndPermissionsFromID :one
+WITH user_base AS (SELECT *
+                   FROM users
+                   WHERE users.id = sqlc.arg('id')),
+     user_roles_joined AS (SELECT r.name AS role_name, ur.user_id
+                           FROM user_base u
+                                    LEFT JOIN user_roles ur ON ur.user_id = u.id
+                                    LEFT JOIN roles r ON ur.role_id = r.id),
+     user_permissions_joined AS (SELECT p.name AS permission_name, up.user_id
+                                 FROM user_base u
+                                          LEFT JOIN user_permissions up ON up.user_id = u.id
+                                          LEFT JOIN permissions p ON up.permission_id = p.id)
+
+SELECT u.id                                                       AS user_id,
+       u.email,
+       u.first_name,
+       u.last_name,
+       u.locked,
+       u.two_fa_enabled,
+       u.created_at                                               AS user_created_at,
+       COALESCE(STRING_AGG(DISTINCT r.role_name, ', '), '')       AS role_names,
+       COALESCE(STRING_AGG(DISTINCT p.permission_name, ', '), '') AS permission_names
+FROM user_base u
+         LEFT JOIN user_roles_joined AS r ON r.user_id = u.id
+         LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id
+GROUP BY u.id, u.email, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at;
+
+-- name: AssignRolesToUser :exec
+INSERT INTO user_roles (user_id, role_id, created_at, created_by)
+SELECT sqlc.arg('user_id'),
+       unnest(sqlc.arg('role_id')::uuid[]),
+       now(),
+       sqlc.arg('createdBy')
+ON CONFLICT DO NOTHING;
+
+-- name: AssignPermissionToUser :exec
+INSERT INTO user_permissions (user_id, permission_id, created_at, created_by)
+SELECT sqlc.arg('user_id'),
+       unnest(sqlc.arg('permission_id')::uuid[]),
+       now(),
+       sqlc.arg('createdBy')
+ON CONFLICT DO NOTHING;
+
+-- name: UnassignRolesToUser :exec
+DELETE
+FROM user_roles
+where user_id = sqlc.arg('user_id')
+  and role_id = sqlc.arg('role_id');
+
+-- name: UnassignPermissionToUser :exec
+DELETE
+FROM user_permissions
+where user_id = sqlc.arg('user_id')
+  and permission_id = sqlc.arg('permission_id');

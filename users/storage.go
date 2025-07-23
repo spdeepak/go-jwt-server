@@ -14,9 +14,13 @@ type storage struct {
 
 type Storage interface {
 	UserSignup(ctx context.Context, arg repository.SignupParams) error
-	GetUserByEmail(ctx context.Context, email string) (repository.User, error)
+	GetUserByEmailForAuth(ctx context.Context, email string) (repository.GetEntireUserByEmailRow, error)
 	GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error)
 	UserSignupWith2FA(ctx context.Context, arg repository.SignupWith2FAParams) error
+	GetUserRolesAndPermissionsFromID(ctx context.Context, id uuid.UUID) (repository.GetUserRolesAndPermissionsFromIDRow, error)
+	AssignPermissionToUser(ctx context.Context, arg repository.AssignPermissionToUserParams) error
+	AssignRolesToUser(ctx context.Context, arg repository.AssignRolesToUserParams) error
+	UnassignRolesToUser(ctx context.Context, arg repository.UnassignRolesToUserParams) error
 }
 
 func NewStorage(userRepository repository.Querier) Storage {
@@ -33,10 +37,26 @@ func (s *storage) UserSignupWith2FA(ctx context.Context, arg repository.SignupWi
 	return s.userRepository.SignupWith2FA(ctx, arg)
 }
 
-func (s *storage) GetUserByEmail(ctx context.Context, email string) (repository.User, error) {
-	return s.userRepository.GetUserByEmail(ctx, email)
+func (s *storage) GetUserByEmailForAuth(ctx context.Context, email string) (repository.GetEntireUserByEmailRow, error) {
+	return s.userRepository.GetEntireUserByEmail(ctx, email)
 }
 
 func (s *storage) GetUserById(ctx context.Context, userId uuid.UUID) (repository.User, error) {
 	return s.userRepository.GetUserById(ctx, userId)
+}
+
+func (s *storage) GetUserRolesAndPermissionsFromID(ctx context.Context, id uuid.UUID) (repository.GetUserRolesAndPermissionsFromIDRow, error) {
+	return s.userRepository.GetUserRolesAndPermissionsFromID(ctx, id)
+}
+
+func (s *storage) AssignPermissionToUser(ctx context.Context, arg repository.AssignPermissionToUserParams) error {
+	return s.userRepository.AssignPermissionToUser(ctx, arg)
+}
+
+func (s *storage) AssignRolesToUser(ctx context.Context, arg repository.AssignRolesToUserParams) error {
+	return s.userRepository.AssignRolesToUser(ctx, arg)
+}
+
+func (s *storage) UnassignRolesToUser(ctx context.Context, arg repository.UnassignRolesToUserParams) error {
+	return s.userRepository.UnassignRolesToUser(ctx, arg)
 }

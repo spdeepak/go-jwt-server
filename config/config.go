@@ -13,6 +13,7 @@ type AppConfig struct {
 	v        *viper.Viper
 	Token    Token          `required:"true" json:"token" yaml:"token"`
 	Postgres PostgresConfig `required:"true" json:"postgres" yaml:"postgres"`
+	Auth     Auth           `required:"true" json:"auth" yaml:"auth"`
 }
 
 type Token struct {
@@ -30,6 +31,10 @@ type PostgresConfig struct {
 	SSLMode  string        `required:"true" json:"sslMode" yaml:"sslMode"`
 	Timeout  time.Duration `required:"true" json:"timeout" yaml:"timeout"`
 	MaxRetry int           `required:"true" json:"maxRetry" yaml:"maxRetry"`
+}
+
+type Auth struct {
+	SkipPaths []string `json:"skipPaths" yaml:"skipPaths"`
 }
 
 type Bearer struct {
