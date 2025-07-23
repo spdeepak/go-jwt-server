@@ -370,8 +370,13 @@ func (s *Server) RolesAndPermissions(ctx *gin.Context, params api.RolesAndPermis
 }
 
 func (s *Server) GetRolesOfUser(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) {
-	//TODO implement me
-	panic("implement me")
+	if userRolesAndPermissions, err := s.userService.GetUserRolesAndPermissions(ctx, id, params); err != nil {
+		ctx.Error(err)
+		return
+	} else {
+		ctx.JSON(http.StatusOK, userRolesAndPermissions)
+		return
+	}
 }
 
 func (s *Server) AssignRolesToUser(ctx *gin.Context, id api.UuId, params api.AssignRolesToUserParams) {
