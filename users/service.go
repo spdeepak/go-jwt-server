@@ -108,6 +108,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 		return s.tokenService.GenerateTempToken(ctx, user.UserID)
 	}
 	jwtUser := token.User{
+		ID:        user.UserID,
 		Email:     user.Email,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
@@ -141,6 +142,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 	}
 
 	jwtUser := token.User{
+		ID:        user.ID,
 		Email:     user.Email,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
@@ -167,6 +169,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 	jwtUser := token.User{
+		ID:        user.UserID,
 		Email:     user.Email,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,

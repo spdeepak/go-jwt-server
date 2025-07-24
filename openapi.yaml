@@ -700,11 +700,14 @@ components:
           type: string
     LoginRequires2FA:
       type: object
-      required: [ type, temp_token ]
+      required:
+        - type
+        - temp_token
       properties:
         type:
           type: string
-          enum: [ 2fa ]
+          enum:
+            - 2fa
         temp_token:
           type: string
           description: Temporary token to use for 2FA verification

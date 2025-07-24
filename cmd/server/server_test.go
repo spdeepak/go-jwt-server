@@ -29,11 +29,6 @@ import (
 	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
-var twoFaService twoFA.Service
-var tokenService tokens.Service
-var userService users.Service
-var rolesService roles.Service
-var permissionService permissions.Service
 var router *gin.Engine
 var dba *db.Database
 
@@ -55,19 +50,19 @@ func TestMain(m *testing.M) {
 	db.RunMigrationQueries(dbConnection, "../../migrations")
 	twoFAQuery := twoFARepo.New(dbConnection.DB)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService = twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	tokenQuery := tokenRepo.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService = tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
 	userQuery := repository.New(dbConnection.DB)
 	userStorage := users.NewStorage(userQuery)
-	userService = users.NewService(userStorage, twoFaService, tokenService)
+	userService := users.NewService(userStorage, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection.DB)
 	roleStorage := roles.NewStorage(roleQuery)
-	rolesService = roles.NewService(roleStorage)
+	rolesService := roles.NewService(roleStorage)
 	permissionQuery := permissionsRepo.New(dbConnection.DB)
 	permissionStorage := permissions.NewStorage(permissionQuery)
-	permissionService = permissions.NewService(permissionStorage)
+	permissionService := permissions.NewService(permissionStorage)
 	//Setup router
 	swagger, _ := api.GetSwagger()
 	swagger.Servers = nil
@@ -128,6 +123,32 @@ func TestServer_Signup_OK(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.Empty(t, rec.Body.String())
+	truncateTables(t, dba.DB)
+}
+
+func TestServer_Signup_OK_2FA(t *testing.T) {
+	signup := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: true,
+	}
+	signupBytes, err := json.Marshal(signup)
+	assert.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	req.Header.Set("User-Agent", "api-test")
+	assert.NoError(t, err)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.NotEmpty(t, rec.Body)
+	assert.NotEmpty(t, rec.Body.String())
+	var res api.SignUpWith2FAResponse
+	assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.NotEmpty(t, res.Secret)
+	assert.NotEmpty(t, res.QrImage)
 	truncateTables(t, dba.DB)
 }
 
@@ -147,6 +168,7 @@ func TestServer_Signup_NOK_Password(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Empty(t, rec.Body.String())
 }
 
 func TestServer_Signup_NOK_BadRequestBody(t *testing.T) {
@@ -158,17 +180,17 @@ func TestServer_Signup_NOK_BadRequestBody(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Empty(t, rec.Body.String())
 }
 
 func TestServer_Signup_NOK_Duplicate(t *testing.T) {
-	signup := api.UserSignup{
+	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
 		LastName:     "Last",
 		Password:     "$trong_P@$$w0rd",
 		TwoFAEnabled: false,
-	}
-	signupBytes, err := json.Marshal(signup)
+	})
 	assert.NoError(t, err)
 	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
 	assert.NotNil(t, req1)
@@ -177,6 +199,16 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	rec1 := httptest.NewRecorder()
 	router.ServeHTTP(rec1, req1)
 	assert.Equal(t, http.StatusCreated, rec1.Code)
+	assert.Empty(t, rec1.Body.String())
+
+	signupBytes, err = json.Marshal(api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	})
+	assert.NoError(t, err)
 	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
 	assert.NotNil(t, req2)
 	assert.NoError(t, err)
@@ -184,5 +216,106 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	rec2 := httptest.NewRecorder()
 	router.ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusConflict, rec2.Code)
+	assert.Empty(t, rec2.Body.String())
 	truncateTables(t, dba.DB)
+}
+
+func TestServer_Login_OK_No2FA(t *testing.T) {
+	signupBytes, err := json.Marshal(api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	})
+	assert.NoError(t, err)
+	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req1)
+	assert.NoError(t, err)
+	req1.Header.Set("User-Agent", "api-test")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusCreated, rec1.Code)
+	assert.Empty(t, rec1.Body.String())
+
+	loginBytes, err := json.Marshal(api.UserLogin{
+		Email:    "first.last@example.com",
+		Password: "$trong_P@$$w0rd",
+	})
+	assert.NoError(t, err)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	req2.Header.Set("x-login-source", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusOK, rec2.Code)
+	assert.NotEmpty(t, rec2.Body.String())
+	var res api.LoginSuccessWithJWT
+	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
+	assert.NotEmpty(t, res.RefreshToken)
+	assert.NotEmpty(t, res.AccessToken)
+	truncateTables(t, dba.DB)
+}
+
+func TestServer_Login_OK_2FA(t *testing.T) {
+	signupBytes, err := json.Marshal(api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: true,
+	})
+	assert.NoError(t, err)
+	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req1)
+	assert.NoError(t, err)
+	req1.Header.Set("User-Agent", "api-test")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusCreated, rec1.Code)
+	assert.NotEmpty(t, rec1.Body.String())
+	var signupRes api.SignUpWith2FAResponse
+	assert.NoError(t, json.Unmarshal(rec1.Body.Bytes(), &signupRes))
+	assert.NotEmpty(t, signupRes.QrImage)
+	assert.NotEmpty(t, signupRes.Secret)
+
+	loginBytes, err := json.Marshal(api.UserLogin{
+		Email:    "first.last@example.com",
+		Password: "$trong_P@$$w0rd",
+	})
+	assert.NoError(t, err)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	req2.Header.Set("x-login-source", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusOK, rec2.Code)
+	assert.NotEmpty(t, rec2.Body.String())
+	var res api.LoginRequires2FA
+	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
+	assert.NotEmpty(t, res)
+	assert.NotEmpty(t, res.TempToken)
+	assert.NotEmpty(t, res.Type)
+	assert.Equal(t, api.N2fa, res.Type)
+	truncateTables(t, dba.DB)
+}
+
+func TestServer_Login_NOK_RequestBody(t *testing.T) {
+	loginBytes, err := json.Marshal(`{
+		"email":    "first.last@example.com",
+	}`)
+	assert.NoError(t, err)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	req2.Header.Set("x-login-source", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusBadRequest, rec2.Code)
+	assert.Empty(t, rec2.Body.String())
 }
