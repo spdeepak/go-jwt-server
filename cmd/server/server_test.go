@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -371,14 +372,15 @@ func TestServer_Refresh_OK(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	req3, err := http.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(refreshBytes))
-	assert.NoError(t, err)
 	assert.NotNil(t, req3)
+	assert.NoError(t, err)
 	req3.Header.Set("User-Agent", "api-test")
 	req3.Header.Set("x-login-source", "api-test")
 	rec3 := httptest.NewRecorder()
 	router.ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusOK, rec3.Code)
 	assert.NotEmpty(t, rec3.Body.String())
+	fmt.Println(rec3.Body.String())
 	var refreshResp api.LoginSuccessWithJWT
 	assert.NoError(t, json.Unmarshal(rec3.Body.Bytes(), &refreshResp))
 	assert.NotEmpty(t, refreshResp)
