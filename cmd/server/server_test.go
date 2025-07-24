@@ -32,6 +32,11 @@ import (
 	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
+var twoFaService twoFA.Service
+var tokenService tokens.Service
+var userService users.Service
+var rolesService roles.Service
+var permissionService permissions.Service
 var router *gin.Engine
 var dba *db.Database
 
@@ -53,26 +58,23 @@ func TestMain(m *testing.M) {
 	db.RunMigrationQueries(dbConnection, "../../migrations")
 	twoFAQuery := twoFARepo.New(dbConnection.DB)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService = twoFA.NewService("go-jwt-server", twoFAStorage)
 	tokenQuery := tokenRepo.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	tokenService = tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
 	userQuery := repository.New(dbConnection.DB)
 	userStorage := users.NewStorage(userQuery)
-	userService := users.NewService(userStorage, twoFaService, tokenService)
+	userService = users.NewService(userStorage, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection.DB)
 	roleStorage := roles.NewStorage(roleQuery)
-	rolesService := roles.NewService(roleStorage)
+	rolesService = roles.NewService(roleStorage)
 	permissionQuery := permissionsRepo.New(dbConnection.DB)
 	permissionStorage := permissions.NewStorage(permissionQuery)
-	permissionService := permissions.NewService(permissionStorage)
+	permissionService = permissions.NewService(permissionStorage)
 	//Setup router
 	swagger, _ := api.GetSwagger()
 	swagger.Servers = nil
-	router = gin.New()
-	router.Use(middleware.JWTAuthMiddleware([]byte("JWT_$€Cr€t"), nil))
-	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService)
-	api.RegisterHandlers(router, server)
+
 	// Run all tests
 	code := m.Run()
 
@@ -80,6 +82,14 @@ func TestMain(m *testing.M) {
 	_ = dbConnection.DB.Close()
 	_ = dba.DB.Close()
 	os.Exit(code)
+}
+
+func setUpRouter() *gin.Engine {
+	router = gin.New()
+	router.Use(middleware.JWTAuthMiddleware([]byte("JWT_$€Cr€t"), nil))
+	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService)
+	api.RegisterHandlers(router, server)
+	return router
 }
 
 func truncateTables(t *testing.T, db *sql.DB) {
@@ -101,14 +111,14 @@ func truncateTables(t *testing.T, db *sql.DB) {
 func TestServer_GetReady(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	setUpRouter().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestServer_GetLive(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/live", nil)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	setUpRouter().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -126,7 +136,7 @@ func TestServer_Signup_OK(t *testing.T) {
 	req.Header.Set("User-Agent", "api-test")
 	assert.NoError(t, err)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	setUpRouter().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 	assert.Empty(t, rec.Body.String())
 
@@ -147,7 +157,7 @@ func TestServer_Signup_OK_2FA(t *testing.T) {
 	req.Header.Set("User-Agent", "api-test")
 	assert.NoError(t, err)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	setUpRouter().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 	assert.NotEmpty(t, rec.Body)
 	assert.NotEmpty(t, rec.Body.String())
@@ -173,7 +183,7 @@ func TestServer_Signup_NOK_Password(t *testing.T) {
 	req.Header.Set("User-Agent", "api-test")
 	assert.NoError(t, err)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	setUpRouter().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Empty(t, rec.Body.String())
 }
@@ -185,7 +195,7 @@ func TestServer_Signup_NOK_BadRequestBody(t *testing.T) {
 	req.Header.Set("User-Agent", "api-test")
 	assert.NoError(t, err)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	setUpRouter().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Empty(t, rec.Body.String())
 }
@@ -204,7 +214,7 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	assert.NoError(t, err)
 	req1.Header.Set("User-Agent", "api-test")
 	rec1 := httptest.NewRecorder()
-	router.ServeHTTP(rec1, req1)
+	setUpRouter().ServeHTTP(rec1, req1)
 	assert.Equal(t, http.StatusCreated, rec1.Code)
 	assert.Empty(t, rec1.Body.String())
 
@@ -221,7 +231,7 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	assert.NoError(t, err)
 	req2.Header.Set("User-Agent", "api-test")
 	rec2 := httptest.NewRecorder()
-	router.ServeHTTP(rec2, req2)
+	setUpRouter().ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusConflict, rec2.Code)
 	assert.Empty(t, rec2.Body.String())
 
@@ -242,7 +252,7 @@ func TestServer_Login_OK_No2FA(t *testing.T) {
 	assert.NoError(t, err)
 	req1.Header.Set("User-Agent", "api-test")
 	rec1 := httptest.NewRecorder()
-	router.ServeHTTP(rec1, req1)
+	setUpRouter().ServeHTTP(rec1, req1)
 	assert.Equal(t, http.StatusCreated, rec1.Code)
 	assert.Empty(t, rec1.Body.String())
 
@@ -257,7 +267,7 @@ func TestServer_Login_OK_No2FA(t *testing.T) {
 	req2.Header.Set("User-Agent", "api-test")
 	req2.Header.Set("x-login-source", "api-test")
 	rec2 := httptest.NewRecorder()
-	router.ServeHTTP(rec2, req2)
+	setUpRouter().ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusOK, rec2.Code)
 	assert.NotEmpty(t, rec2.Body.String())
 	var res api.LoginSuccessWithJWT
@@ -283,7 +293,7 @@ func TestServer_Login_OK_2FA(t *testing.T) {
 	assert.NoError(t, err)
 	req1.Header.Set("User-Agent", "api-test")
 	rec1 := httptest.NewRecorder()
-	router.ServeHTTP(rec1, req1)
+	setUpRouter().ServeHTTP(rec1, req1)
 	assert.Equal(t, http.StatusCreated, rec1.Code)
 	assert.NotEmpty(t, rec1.Body.String())
 	var signupRes api.SignUpWith2FAResponse
@@ -303,7 +313,7 @@ func TestServer_Login_OK_2FA(t *testing.T) {
 	req2.Header.Set("User-Agent", "api-test")
 	req2.Header.Set("x-login-source", "api-test")
 	rec2 := httptest.NewRecorder()
-	router.ServeHTTP(rec2, req2)
+	setUpRouter().ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusOK, rec2.Code)
 	assert.NotEmpty(t, rec2.Body.String())
 	var res api.LoginRequires2FA
@@ -326,7 +336,7 @@ func TestServer_Login_OK_2FA(t *testing.T) {
 	req3.Header.Set("x-login-source", "api-test")
 	req3.Header.Set("Authorization", "Bearer "+res.TempToken)
 	rec3 := httptest.NewRecorder()
-	router.ServeHTTP(rec3, req3)
+	setUpRouter().ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusOK, rec3.Code)
 	assert.NotEmpty(t, rec3.Body.String())
 	var twoFaLoginResp api.LoginSuccessWithJWT
@@ -349,7 +359,7 @@ func TestServer_Login_NOK_RequestBody(t *testing.T) {
 	req2.Header.Set("User-Agent", "api-test")
 	req2.Header.Set("x-login-source", "api-test")
 	rec2 := httptest.NewRecorder()
-	router.ServeHTTP(rec2, req2)
+	setUpRouter().ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusBadRequest, rec2.Code)
 	assert.Empty(t, rec2.Body.String())
 }
@@ -369,7 +379,7 @@ func TestServer_Refresh_OK(t *testing.T) {
 	assert.NoError(t, err)
 	req1.Header.Set("User-Agent", "api-test")
 	rec1 := httptest.NewRecorder()
-	router.ServeHTTP(rec1, req1)
+	setUpRouter().ServeHTTP(rec1, req1)
 	assert.Equal(t, http.StatusCreated, rec1.Code)
 	assert.Empty(t, rec1.Body.String())
 
@@ -385,7 +395,7 @@ func TestServer_Refresh_OK(t *testing.T) {
 	req2.Header.Set("User-Agent", "api-test")
 	req2.Header.Set("x-login-source", "api-test")
 	rec2 := httptest.NewRecorder()
-	router.ServeHTTP(rec2, req2)
+	setUpRouter().ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusOK, rec2.Code)
 	assert.NotEmpty(t, rec2.Body.String())
 	var res api.LoginSuccessWithJWT
@@ -405,7 +415,7 @@ func TestServer_Refresh_OK(t *testing.T) {
 	req3.Header.Set("x-login-source", "api-test")
 	req3.Header.Set("Authorization", "Bearer "+res.AccessToken)
 	rec3 := httptest.NewRecorder()
-	router.ServeHTTP(rec3, req3)
+	setUpRouter().ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusOK, rec3.Code)
 	respBody := rec3.Body.Bytes()
 	//This test fails if I remove the below line because Gin’s ctx.JSON(...) writes to the underlying http.ResponseWriter.
@@ -437,7 +447,7 @@ func TestServer_Refresh_NOK(t *testing.T) {
 	assert.NoError(t, err)
 	req1.Header.Set("User-Agent", "api-test")
 	rec1 := httptest.NewRecorder()
-	router.ServeHTTP(rec1, req1)
+	setUpRouter().ServeHTTP(rec1, req1)
 	assert.Equal(t, http.StatusCreated, rec1.Code)
 	assert.Empty(t, rec1.Body.String())
 
@@ -453,7 +463,7 @@ func TestServer_Refresh_NOK(t *testing.T) {
 	req2.Header.Set("User-Agent", "api-test")
 	req2.Header.Set("x-login-source", "api-test")
 	rec2 := httptest.NewRecorder()
-	router.ServeHTTP(rec2, req2)
+	setUpRouter().ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusOK, rec2.Code)
 	assert.NotEmpty(t, rec2.Body.String())
 	var res api.LoginSuccessWithJWT
@@ -471,7 +481,7 @@ func TestServer_Refresh_NOK(t *testing.T) {
 	req3.Header.Set("x-login-source", "api-test")
 	req3.Header.Set("Authorization", "Bearer "+res.AccessToken)
 	rec3 := httptest.NewRecorder()
-	router.ServeHTTP(rec3, req3)
+	setUpRouter().ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusBadRequest, rec3.Code)
 	assert.Empty(t, rec3.Body.String())
 
