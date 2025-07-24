@@ -194,13 +194,73 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 	return
 }
 
-func (s *Server) ListAllPermissions(ctx *gin.Context, params api.ListAllPermissionsParams) {
-	permissionList, err := s.permissionService.ListPermissions(ctx)
+func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams) {
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var createRole api.CreateRole
+	if err := ctx.ShouldBindJSON(&createRole); err != nil {
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
+		return
+	}
+	createNewRole, err := s.roleService.CreateNewRole(ctx, params, createRole)
 	if err != nil {
 		ctx.Error(err)
 		return
 	}
-	ctx.JSON(http.StatusOK, permissionList)
+	ctx.JSON(http.StatusCreated, createNewRole)
+	return
+}
+
+func (s *Server) GetRoleById(ctx *gin.Context, id api.UuId, params api.GetRoleByIdParams) {
+	roleById, err := s.roleService.GetRoleById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, roleById)
+	return
+}
+
+func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
+	listRoles, err := s.roleService.ListRoles(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, listRoles)
+	return
+}
+
+func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
+	_, emailPresent := ctx.Get(emailHeader)
+	if !emailPresent {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var req api.UpdateRole
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
+		return
+	}
+	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, params, req)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, updatedRole)
+	return
+}
+
+func (s *Server) DeleteRoleById(ctx *gin.Context, id api.UuId, params api.DeleteRoleByIdParams) {
+	err := s.roleService.DeleteRoleById(ctx, id)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
 	return
 }
 
@@ -224,16 +284,6 @@ func (s *Server) CreateNewPermission(ctx *gin.Context, params api.CreateNewPermi
 	return
 }
 
-func (s *Server) DeletePermissionById(ctx *gin.Context, id api.UuId, params api.DeletePermissionByIdParams) {
-	err := s.permissionService.DeletePermissionById(ctx, id)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-	ctx.Status(http.StatusOK)
-	return
-}
-
 func (s *Server) GetPermissionById(ctx *gin.Context, id api.UuId, params api.GetPermissionByIdParams) {
 	permissionById, err := s.permissionService.GetPermissionById(ctx, id)
 	if err != nil {
@@ -241,6 +291,16 @@ func (s *Server) GetPermissionById(ctx *gin.Context, id api.UuId, params api.Get
 		return
 	}
 	ctx.JSON(http.StatusOK, permissionById)
+	return
+}
+
+func (s *Server) ListAllPermissions(ctx *gin.Context, params api.ListAllPermissionsParams) {
+	permissionList, err := s.permissionService.ListPermissions(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, permissionList)
 	return
 }
 
@@ -264,73 +324,13 @@ func (s *Server) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api.
 	return
 }
 
-func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
-	listRoles, err := s.roleService.ListRoles(ctx)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-	ctx.JSON(http.StatusOK, listRoles)
-	return
-}
-
-func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams) {
-	_, emailPresent := ctx.Get(emailHeader)
-	if !emailPresent {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-	var createRole api.CreateRole
-	if err := ctx.ShouldBindJSON(&createRole); err != nil {
-		ctx.Error(httperror.New(httperror.InvalidRequestBody))
-		return
-	}
-	createNewRole, err := s.roleService.CreateNewRole(ctx, params, createRole)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-	ctx.JSON(http.StatusCreated, createNewRole)
-	return
-}
-
-func (s *Server) DeleteRoleById(ctx *gin.Context, id api.UuId, params api.DeleteRoleByIdParams) {
-	err := s.roleService.DeleteRoleById(ctx, id)
+func (s *Server) DeletePermissionById(ctx *gin.Context, id api.UuId, params api.DeletePermissionByIdParams) {
+	err := s.permissionService.DeletePermissionById(ctx, id)
 	if err != nil {
 		ctx.Error(err)
 		return
 	}
 	ctx.Status(http.StatusOK)
-	return
-}
-
-func (s *Server) GetRoleById(ctx *gin.Context, id api.UuId, params api.GetRoleByIdParams) {
-	roleById, err := s.roleService.GetRoleById(ctx, id)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-	ctx.JSON(http.StatusOK, roleById)
-	return
-}
-
-func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
-	_, emailPresent := ctx.Get(emailHeader)
-	if !emailPresent {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-	var req api.UpdateRole
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.Error(httperror.New(httperror.InvalidRequestBody))
-		return
-	}
-	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, params, req)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-	ctx.JSON(http.StatusOK, updatedRole)
 	return
 }
 
