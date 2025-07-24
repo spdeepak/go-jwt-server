@@ -90,7 +90,7 @@ func TestService_CreateNewRole(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 	})
@@ -103,7 +103,7 @@ func TestService_CreateNewRole(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.Error(t, err)
 		assert.Empty(t, createdRole)
 	})
@@ -120,7 +120,7 @@ func TestService_DeleteRole(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		err = roleService.DeleteRoleById(ctx, createdRole.Id)
@@ -146,7 +146,7 @@ func TestService_ListRoles(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		roles, err := roleService.ListRoles(ctx)
@@ -177,7 +177,7 @@ func TestService_GetRoleById(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		role, err := roleService.GetRoleById(ctx, createdRole.Id)
@@ -208,7 +208,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		updatedRoleDescription := "changed role description"
@@ -246,7 +246,7 @@ func TestService_AssignPermissionToRole(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		permissionsService := permissions.NewService(permissionStorage)
@@ -270,7 +270,7 @@ func TestService_UnassignPermissionToRole(t *testing.T) {
 			Name:        "role_name",
 		}
 		roleService := NewService(roleStorage)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		permissionsService := permissions.NewService(permissionStorage)
@@ -300,7 +300,7 @@ func TestService_ListRolesAndItsPermissions(t *testing.T) {
 
 		for num := range 10 {
 			request.Name = fmt.Sprintf("%s_%d", request.Name, num)
-			createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+			createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "first.last@example.com", request)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, createdRole)
 			for pn := range 5 {

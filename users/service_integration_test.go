@@ -413,7 +413,7 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	permissionIds := make([]uuid.UUID, 50)
 	for num := range 10 {
 		request.Name = fmt.Sprintf("%s_%d", request.Name, num)
-		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+		createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "", request)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, createdRole)
 		roleIds[num] = createdRole.Id
@@ -492,7 +492,7 @@ func TestService_AssignRolesToUser(t *testing.T) {
 		Name:        "role_name",
 	}
 	roleService := roles.NewService(roleStorage)
-	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "", request)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, createdRole)
 
@@ -546,7 +546,7 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 		Name:        "role_name",
 	}
 	roleService := roles.NewService(roleStorage)
-	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, request)
+	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "", request)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, createdRole)
 

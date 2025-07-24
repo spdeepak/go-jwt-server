@@ -195,7 +195,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 }
 
 func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams) {
-	_, emailPresent := ctx.Get(emailHeader)
+	email, emailPresent := ctx.Get(emailHeader)
 	if !emailPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -205,7 +205,7 @@ func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams)
 		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
-	createNewRole, err := s.roleService.CreateNewRole(ctx, params, createRole)
+	createNewRole, err := s.roleService.CreateNewRole(ctx, params, email.(string), createRole)
 	if err != nil {
 		ctx.Error(err)
 		return
