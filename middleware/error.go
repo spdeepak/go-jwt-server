@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -48,22 +47,22 @@ func ErrorMiddleware(c *gin.Context) {
 }
 
 func logError(c *gin.Context, err *gin.Error) {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(c.Request.Body)
-	log.Ctx(c).Error().Any("error", err).Any("requestBody", buf.String()).Str("path", c.Request.URL.Path).
+	log.Ctx(c).Error().
+		Any("error", err).
+		Str("path", c.Request.URL.Path).
 		Send()
 }
 
 func logWarning(c *gin.Context, err *gin.Error) {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(c.Request.Body)
-	log.Ctx(c).Warn().Any("error", err).Any("requestBody", buf.String()).Str("path", c.Request.URL.Path).
+	log.Ctx(c).Warn().
+		Any("error", err).
+		Str("path", c.Request.URL.Path).
 		Send()
 }
 
 func logDebug(c *gin.Context, err *gin.Error) {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(c.Request.Body)
-	log.Ctx(c).Debug().Any("error", err).Any("requestBody", buf.String()).Str("path", c.Request.URL.Path).
+	log.Ctx(c).Debug().
+		Any("error", err).
+		Str("path", c.Request.URL.Path).
 		Send()
 }

@@ -502,6 +502,56 @@ func TestServer_CreateNewRole_OK(t *testing.T) {
 	createRole(t, res)
 }
 
+func TestServer_GetRoleById_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	roleRes := createRole(t, loginRes)
+	//Get Role By Id
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+
+	var roleResponse api.RoleResponse
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
+	assert.Equal(t, roleRes.Name, roleResponse.Name)
+	assert.Equal(t, roleRes.Description, roleResponse.Description)
+	assert.Equal(t, roleRes.CreatedAt, roleResponse.CreatedAt)
+	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
+	assert.Equal(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
+	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
+}
+
+func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+
+	//Get Role By Id
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+uuid.New().String(), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
 func signup2FADisabled(t *testing.T) {
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
