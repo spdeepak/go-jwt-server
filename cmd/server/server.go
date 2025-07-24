@@ -80,19 +80,21 @@ func (s *Server) Login(ctx *gin.Context, params api.LoginParams) {
 		return
 	} else {
 		ctx.JSON(http.StatusOK, response)
+		return
 	}
 }
 
 func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 	var refresh api.Refresh
 	if err := ctx.ShouldBindJSON(&refresh); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
 		ctx.Error(err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	if response, err := s.userService.RefreshToken(ctx, params, refresh); err != nil {
 		ctx.Error(err)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
 		return
 	} else {
 		ctx.JSON(http.StatusOK, response)
@@ -110,6 +112,7 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 		return
 	}
 	ctx.Status(http.StatusOK)
+	return
 }
 
 func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
