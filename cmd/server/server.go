@@ -26,12 +26,13 @@ type Server struct {
 	twoFAService      twoFA.Service
 }
 
-func NewServer(userService users.Service, roleService roles.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
+func NewServer(userService users.Service, roleService roles.Service, permissionService permissions.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
 	return &Server{
-		userService:  userService,
-		roleService:  roleService,
-		tokenService: tokenService,
-		twoFAService: otpService,
+		userService:       userService,
+		roleService:       roleService,
+		permissionService: permissionService,
+		tokenService:      tokenService,
+		twoFAService:      otpService,
 	}
 }
 
