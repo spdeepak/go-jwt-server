@@ -26,12 +26,13 @@ type Server struct {
 	twoFAService      twoFA.Service
 }
 
-func NewServer(userService users.Service, roleService roles.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
+func NewServer(userService users.Service, roleService roles.Service, permissionService permissions.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
 	return &Server{
-		userService:  userService,
-		roleService:  roleService,
-		tokenService: tokenService,
-		twoFAService: otpService,
+		userService:       userService,
+		roleService:       roleService,
+		permissionService: permissionService,
+		tokenService:      tokenService,
+		twoFAService:      otpService,
 	}
 }
 
@@ -46,7 +47,7 @@ func (s *Server) GetReady(ctx *gin.Context) {
 func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 	var signup api.UserSignup
 	if err := ctx.ShouldBindJSON(&signup); err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, httperror.NewWithDescription(err.Error(), http.StatusBadRequest))
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	if !util.PasswordValidator(signup.Password) {
@@ -54,13 +55,13 @@ func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 		return
 	}
 	if res, err := s.userService.Signup(ctx, signup); err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err)
+		ctx.AbortWithError(err.(httperror.HttpError).StatusCode, err)
 		return
 	} else if res.QrImage != "" || res.Secret != "" {
 		ctx.JSON(http.StatusCreated, res)
 		return
 	}
-	ctx.Status(http.StatusNoContent)
+	ctx.Status(http.StatusCreated)
 }
 
 func (s *Server) ChangePassword(ctx *gin.Context, params api.ChangePasswordParams) {
@@ -70,7 +71,7 @@ func (s *Server) ChangePassword(ctx *gin.Context, params api.ChangePasswordParam
 func (s *Server) Login(ctx *gin.Context, params api.LoginParams) {
 	var login api.UserLogin
 	if err := ctx.ShouldBindJSON(&login); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 
@@ -79,29 +80,29 @@ func (s *Server) Login(ctx *gin.Context, params api.LoginParams) {
 		return
 	} else {
 		ctx.JSON(http.StatusOK, response)
+		return
 	}
 }
 
 func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 	var refresh api.Refresh
 	if err := ctx.ShouldBindJSON(&refresh); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		ctx.Error(err)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
-
-	if response, err := s.userService.RefreshToken(ctx, params, refresh); err != nil {
+	response, err := s.userService.RefreshToken(ctx, params, refresh)
+	if err != nil {
 		ctx.Error(err)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
 		return
-	} else {
-		ctx.JSON(http.StatusOK, response)
 	}
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams) {
 	var revokeRefresh api.RevokeCurrentSession
 	if err := ctx.ShouldBindJSON(&revokeRefresh); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	if err := s.tokenService.RevokeRefreshToken(ctx, params, revokeRefresh); err != nil {
@@ -109,6 +110,7 @@ func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTo
 		return
 	}
 	ctx.Status(http.StatusOK)
+	return
 }
 
 func (s *Server) RevokeAllTokens(ctx *gin.Context, params api.RevokeAllTokensParams) {
@@ -159,12 +161,13 @@ func (s *Server) Login2FA(ctx *gin.Context, params api.Login2FAParams) {
 	}
 	var verify2FARequest api.Login2FARequest
 	if err := ctx.ShouldBindJSON(&verify2FARequest); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	response, err := s.userService.Login2FA(ctx, params, userId.(uuid.UUID), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
+		ctx.AbortWithStatus(err.(httperror.HttpError).StatusCode)
 		return
 	}
 	ctx.JSON(http.StatusOK, response)
@@ -179,7 +182,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 	}
 	var verify2FARequest api.Remove2FARequest
 	if err := ctx.ShouldBindJSON(&verify2FARequest); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	err := s.twoFAService.Remove2FA(ctx, userId.(uuid.UUID), verify2FARequest.TwoFACode)
@@ -209,7 +212,7 @@ func (s *Server) CreateNewPermission(ctx *gin.Context, params api.CreateNewPermi
 	}
 	var createPermission api.CreatePermission
 	if err := ctx.ShouldBindJSON(&createPermission); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	createNewPermission, err := s.permissionService.CreateNewPermission(ctx, params, createPermission)
@@ -249,7 +252,7 @@ func (s *Server) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api.
 	}
 	var req api.UpdatePermission
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.Status(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	updatedPermission, err := s.permissionService.UpdatePermissionById(ctx, id, params, req)
@@ -279,7 +282,7 @@ func (s *Server) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams)
 	}
 	var createRole api.CreateRole
 	if err := ctx.ShouldBindJSON(&createRole); err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	createNewRole, err := s.roleService.CreateNewRole(ctx, params, createRole)
@@ -319,7 +322,7 @@ func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Update
 	}
 	var req api.UpdateRole
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.Status(http.StatusBadRequest)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, params, req)
@@ -339,7 +342,7 @@ func (s *Server) AssignPermissionToRole(ctx *gin.Context, id api.UuId, params ap
 	}
 	var req api.AssignPermission
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.Error(err)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	if err := s.roleService.AssignPermissionToRole(ctx, id, params, req, email.(string)); err != nil {
@@ -387,7 +390,7 @@ func (s *Server) AssignRolesToUser(ctx *gin.Context, id api.UuId, params api.Ass
 	}
 	var req api.AssignRoleToUser
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.Error(err)
+		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
 	if err := s.userService.AssignRolesToUser(ctx, id, params, req, email.(string)); err != nil {
