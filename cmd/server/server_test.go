@@ -74,6 +74,7 @@ func TestMain(m *testing.M) {
 
 	// Optional: Clean up (e.g., drop DB or close connection)
 	_ = dbConnection.DB.Close()
+	_ = dba.DB.Close()
 	os.Exit(code)
 }
 
@@ -124,6 +125,7 @@ func TestServer_Signup_OK(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 	assert.Empty(t, rec.Body.String())
+
 	truncateTables(t, dba.DB)
 }
 
@@ -149,6 +151,7 @@ func TestServer_Signup_OK_2FA(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
 	assert.NotEmpty(t, res.Secret)
 	assert.NotEmpty(t, res.QrImage)
+
 	truncateTables(t, dba.DB)
 }
 
@@ -217,6 +220,7 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	router.ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusConflict, rec2.Code)
 	assert.Empty(t, rec2.Body.String())
+
 	truncateTables(t, dba.DB)
 }
 
@@ -256,6 +260,7 @@ func TestServer_Login_OK_No2FA(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
 	assert.NotEmpty(t, res.RefreshToken)
 	assert.NotEmpty(t, res.AccessToken)
+
 	truncateTables(t, dba.DB)
 }
 
@@ -301,6 +306,7 @@ func TestServer_Login_OK_2FA(t *testing.T) {
 	assert.NotEmpty(t, res.TempToken)
 	assert.NotEmpty(t, res.Type)
 	assert.Equal(t, api.N2fa, res.Type)
+
 	truncateTables(t, dba.DB)
 }
 
