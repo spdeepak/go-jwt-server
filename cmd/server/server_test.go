@@ -99,6 +99,7 @@ func truncateTables(t *testing.T, db *sql.DB) {
 }
 
 func TestServer_GetReady(t *testing.T) {
+	truncateTables(t, dba.DB)
 	req, _ := http.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -106,6 +107,7 @@ func TestServer_GetReady(t *testing.T) {
 }
 
 func TestServer_GetLive(t *testing.T) {
+	truncateTables(t, dba.DB)
 	req, _ := http.NewRequest(http.MethodGet, "/live", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -113,6 +115,7 @@ func TestServer_GetLive(t *testing.T) {
 }
 
 func TestServer_Signup_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
 	signup := api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
@@ -131,11 +134,10 @@ func TestServer_Signup_OK(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 	assert.Empty(t, rec.Body.String())
-
-	truncateTables(t, dba.DB)
 }
 
 func TestServer_Signup_OK_2FA(t *testing.T) {
+	truncateTables(t, dba.DB)
 	signup := api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
@@ -159,11 +161,10 @@ func TestServer_Signup_OK_2FA(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
 	assert.NotEmpty(t, res.Secret)
 	assert.NotEmpty(t, res.QrImage)
-
-	truncateTables(t, dba.DB)
 }
 
 func TestServer_Signup_NOK_Password(t *testing.T) {
+	truncateTables(t, dba.DB)
 	signup := api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
@@ -185,6 +186,7 @@ func TestServer_Signup_NOK_Password(t *testing.T) {
 }
 
 func TestServer_Signup_NOK_BadRequestBody(t *testing.T) {
+	truncateTables(t, dba.DB)
 	signupBytes, err := json.Marshal(`{"email":"first.last","firstName":"First","lastName":"Last"}`)
 	assert.NoError(t, err)
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
@@ -199,6 +201,7 @@ func TestServer_Signup_NOK_BadRequestBody(t *testing.T) {
 }
 
 func TestServer_Signup_NOK_Duplicate(t *testing.T) {
+	truncateTables(t, dba.DB)
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
@@ -232,11 +235,10 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	router.ServeHTTP(rec2, req2)
 	assert.Equal(t, http.StatusConflict, rec2.Code)
 	assert.Empty(t, rec2.Body.String())
-
-	truncateTables(t, dba.DB)
 }
 
 func TestServer_Login_OK_No2FA(t *testing.T) {
+	truncateTables(t, dba.DB)
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
@@ -272,11 +274,10 @@ func TestServer_Login_OK_No2FA(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
 	assert.NotEmpty(t, res.RefreshToken)
 	assert.NotEmpty(t, res.AccessToken)
-
-	truncateTables(t, dba.DB)
 }
 
 func TestServer_Login_OK_2FA(t *testing.T) {
+	truncateTables(t, dba.DB)
 	//Signup
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
@@ -342,11 +343,10 @@ func TestServer_Login_OK_2FA(t *testing.T) {
 	assert.NotEmpty(t, twoFaLoginResp)
 	assert.NotEmpty(t, twoFaLoginResp.RefreshToken)
 	assert.NotEmpty(t, twoFaLoginResp.AccessToken)
-
-	truncateTables(t, dba.DB)
 }
 
 func TestServer_Login_NOK_RequestBody(t *testing.T) {
+	truncateTables(t, dba.DB)
 	loginBytes, err := json.Marshal(`{
 		"email":    "first.last@example.com",
 	}`)
@@ -363,6 +363,7 @@ func TestServer_Login_NOK_RequestBody(t *testing.T) {
 }
 
 func TestServer_Refresh_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
 	//Signup
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
@@ -427,11 +428,10 @@ func TestServer_Refresh_OK(t *testing.T) {
 	assert.NotEmpty(t, refreshResp)
 	assert.NotEmpty(t, refreshResp.RefreshToken)
 	assert.NotEmpty(t, refreshResp.AccessToken)
-
-	truncateTables(t, dba.DB)
 }
 
 func TestServer_Refresh_NOK(t *testing.T) {
+	truncateTables(t, dba.DB)
 	//Signup
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
@@ -483,6 +483,4 @@ func TestServer_Refresh_NOK(t *testing.T) {
 	router.ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusBadRequest, rec3.Code)
 	assert.Empty(t, rec3.Body.String())
-
-	truncateTables(t, dba.DB)
 }
