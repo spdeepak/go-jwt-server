@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -380,7 +379,6 @@ func TestServer_Refresh_OK(t *testing.T) {
 	router.ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusOK, rec3.Code)
 	respBody := rec3.Body.Bytes()
-	fmt.Printf("--%s--\n", string(respBody))
 	assert.NotEmpty(t, respBody)
 	var refreshResp api.LoginSuccessWithJWT
 	assert.NoError(t, json.Unmarshal(rec3.Body.Bytes(), &refreshResp))
