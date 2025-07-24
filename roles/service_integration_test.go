@@ -47,6 +47,17 @@ func TestMain(m *testing.M) {
 	permissionQuery := permissionsRepo.New(dbConnection.DB)
 	permissionStorage = permissions.NewStorage(permissionQuery)
 	// Run all tests
+	_, err = dba.DB.Exec(`
+        TRUNCATE TABLE
+            users_2fa,
+            users_password,
+            users,
+            tokens,
+            roles,
+            permissions,
+            role_permissions
+        RESTART IDENTITY CASCADE
+    `)
 	code := m.Run()
 
 	// Optional: Clean up (e.g., drop DB or close connection)

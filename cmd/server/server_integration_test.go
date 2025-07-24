@@ -77,6 +77,15 @@ func TestMain(m *testing.M) {
 	api.RegisterHandlers(router, server)
 
 	// Run all tests
+	_, err = dba.DB.Exec(`
+        TRUNCATE TABLE
+            users_2fa,
+            users_password,
+            users,
+            tokens,
+            permissions
+        RESTART IDENTITY CASCADE
+    `)
 	code := m.Run()
 
 	// Optional: Clean up (e.g., drop DB or close connection)
@@ -624,6 +633,119 @@ func TestServer_Refresh_NOK(t *testing.T) {
 	assert.NotNil(t, req3)
 	req3.Header.Set("User-Agent", "api-test")
 	req3.Header.Set("x-login-source", "api-test")
+	req3.Header.Set("Authorization", "Bearer "+res.AccessToken)
+	rec3 := httptest.NewRecorder()
+	router.ServeHTTP(rec3, req3)
+	assert.Equal(t, http.StatusBadRequest, rec3.Code)
+	assert.NotEmpty(t, rec3.Body.String())
+	var resErr httperror.HttpError
+	assert.NoError(t, json.Unmarshal(rec3.Body.Bytes(), &resErr))
+	assert.Equal(t, httperror.InvalidRequestBody, resErr.ErrorCode)
+}
+
+func TestServer_RevokeRefreshToken_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signupBytes, err := json.Marshal(api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	})
+	assert.NoError(t, err)
+	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req1)
+	assert.NoError(t, err)
+	req1.Header.Set("User-Agent", "api-test")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusCreated, rec1.Code)
+	assert.Empty(t, rec1.Body.String())
+
+	//Login
+	loginBytes, err := json.Marshal(api.UserLogin{
+		Email:    "first.last@example.com",
+		Password: "$trong_P@$$w0rd",
+	})
+	assert.NoError(t, err)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	req2.Header.Set("x-login-source", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusOK, rec2.Code)
+	assert.NotEmpty(t, rec2.Body.String())
+	var res api.LoginSuccessWithJWT
+	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
+	assert.NotEmpty(t, res.RefreshToken)
+	assert.NotEmpty(t, res.AccessToken)
+
+	//Revoke refresh token
+	revokeBytes, err := json.Marshal(api.RevokeCurrentSession{
+		RefreshToken: res.RefreshToken,
+	})
+	assert.NoError(t, err)
+	req3, err := http.NewRequest(http.MethodDelete, "/api/v1/auth/sessions/current", bytes.NewReader(revokeBytes))
+	assert.NotNil(t, req3)
+	assert.NoError(t, err)
+	req3.Header.Set("User-Agent", "api-test")
+	req3.Header.Set("Authorization", "Bearer "+res.AccessToken)
+	rec3 := httptest.NewRecorder()
+	router.ServeHTTP(rec3, req3)
+	assert.Equal(t, http.StatusOK, rec3.Code)
+	assert.Empty(t, rec3.Body.String())
+}
+
+func TestServer_RevokeRefreshToken_NOK_InvalidRequestBody(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signupBytes, err := json.Marshal(api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	})
+	assert.NoError(t, err)
+	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req1)
+	assert.NoError(t, err)
+	req1.Header.Set("User-Agent", "api-test")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusCreated, rec1.Code)
+	assert.Empty(t, rec1.Body.String())
+
+	//Login
+	loginBytes, err := json.Marshal(api.UserLogin{
+		Email:    "first.last@example.com",
+		Password: "$trong_P@$$w0rd",
+	})
+	assert.NoError(t, err)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	req2.Header.Set("x-login-source", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusOK, rec2.Code)
+	assert.NotEmpty(t, rec2.Body.String())
+	var res api.LoginSuccessWithJWT
+	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
+	assert.NotEmpty(t, res.RefreshToken)
+	assert.NotEmpty(t, res.AccessToken)
+
+	//Revoke refresh token
+	revokeBytes, err := json.Marshal(``)
+	assert.NoError(t, err)
+	req3, err := http.NewRequest(http.MethodDelete, "/api/v1/auth/sessions/current", bytes.NewReader(revokeBytes))
+	assert.NotNil(t, req3)
+	assert.NoError(t, err)
+	req3.Header.Set("User-Agent", "api-test")
 	req3.Header.Set("Authorization", "Bearer "+res.AccessToken)
 	rec3 := httptest.NewRecorder()
 	router.ServeHTTP(rec3, req3)
