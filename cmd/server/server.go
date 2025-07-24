@@ -91,14 +91,13 @@ func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-
-	if response, err := s.userService.RefreshToken(ctx, params, refresh); err != nil {
+	response, err := s.userService.RefreshToken(ctx, params, refresh)
+	if err != nil {
 		ctx.Error(err)
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		return
-	} else {
-		ctx.JSON(http.StatusOK, response)
 	}
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (s *Server) RevokeRefreshToken(ctx *gin.Context, params api.RevokeRefreshTokenParams) {
