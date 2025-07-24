@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -416,12 +415,7 @@ func TestServer_Refresh_OK(t *testing.T) {
 	rec3 := httptest.NewRecorder()
 	router.ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusOK, rec3.Code)
-	respBody := rec3.Body.Bytes()
-	//This test fails if I remove the below line because Gin’s ctx.JSON(...) writes to the underlying http.ResponseWriter.
-	//In test mode (httptest.NewRecorder()), the response is buffered until router.ServeHTTP(...) completes.
-	//Fixing the issue by accessing the object, which triggers Gin or Go’s internal logic to fully marshal and write it.
-	fmt.Printf("--%s--\n", string(respBody))
-	assert.NotEmpty(t, respBody)
+	assert.NotEmpty(t, rec3.Body.String())
 	var refreshResp api.LoginSuccessWithJWT
 	assert.NoError(t, json.Unmarshal(rec3.Body.Bytes(), &refreshResp))
 	assert.NotEmpty(t, refreshResp)
