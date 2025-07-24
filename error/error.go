@@ -42,6 +42,7 @@ const (
 	PermissionAlreadyExists  = "JWT0022"
 	PermissionCreationFailed = "JWT0023"
 	PermissionDoesntExist    = "JWT0024"
+	InvalidRequestBody       = "JWT0025"
 )
 
 var httpErrors = map[string]HttpError{
@@ -144,6 +145,10 @@ var httpErrors = map[string]HttpError{
 	PermissionDoesntExist: {
 		StatusCode:  http.StatusNotFound,
 		Description: "Permission doesn't exist",
+	},
+	InvalidRequestBody: {
+		StatusCode:  http.StatusBadRequest,
+		Description: "invalid request body",
 	},
 }
 
