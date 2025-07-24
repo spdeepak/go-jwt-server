@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -95,6 +96,7 @@ func (s *Server) Refresh(ctx *gin.Context, params api.RefreshParams) {
 		ctx.Error(err)
 		return
 	} else {
+		fmt.Printf("%s\n", response)
 		ctx.JSON(http.StatusOK, response)
 	}
 }
