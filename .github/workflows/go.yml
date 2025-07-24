@@ -37,6 +37,11 @@ jobs:
       - name: Test
         run: go test ./... -coverprofile=coverage.out
 
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.out
+
       - name: Shut down stack
         if: always()
         run: docker compose down -v
