@@ -379,8 +379,8 @@ func TestServer_Refresh_OK(t *testing.T) {
 	rec3 := httptest.NewRecorder()
 	router.ServeHTTP(rec3, req3)
 	assert.Equal(t, http.StatusOK, rec3.Code)
+	fmt.Printf("--%s--\n", rec3.Body.String())
 	assert.NotEmpty(t, rec3.Body.String())
-	fmt.Println(rec3.Body.String())
 	var refreshResp api.LoginSuccessWithJWT
 	assert.NoError(t, json.Unmarshal(rec3.Body.Bytes(), &refreshResp))
 	assert.NotEmpty(t, refreshResp)
