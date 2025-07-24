@@ -148,3 +148,41 @@ func TestServer_Signup_NOK_Password(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
+
+func TestServer_Signup_NOK_BadRequestBody(t *testing.T) {
+	signupBytes, err := json.Marshal(`{"email":"first.last","firstName":"First","lastName":"Last"}`)
+	assert.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	req.Header.Set("User-Agent", "api-test")
+	assert.NoError(t, err)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestServer_Signup_NOK_Duplicate(t *testing.T) {
+	signup := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	}
+	signupBytes, err := json.Marshal(signup)
+	assert.NoError(t, err)
+	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req1)
+	assert.NoError(t, err)
+	req1.Header.Set("User-Agent", "api-test")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusCreated, rec1.Code)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusConflict, rec2.Code)
+	truncateTables(t, dba.DB)
+}

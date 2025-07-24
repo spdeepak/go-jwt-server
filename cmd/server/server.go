@@ -55,7 +55,7 @@ func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 		return
 	}
 	if res, err := s.userService.Signup(ctx, signup); err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err)
+		ctx.AbortWithError(err.(httperror.HttpError).StatusCode, err)
 		return
 	} else if res.QrImage != "" || res.Secret != "" {
 		ctx.JSON(http.StatusCreated, res)
