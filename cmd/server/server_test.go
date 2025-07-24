@@ -32,11 +32,6 @@ import (
 	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
-var twoFaService twoFA.Service
-var tokenService tokens.Service
-var userService users.Service
-var rolesService roles.Service
-var permissionService permissions.Service
 var router *gin.Engine
 var dba *db.Database
 
@@ -58,19 +53,19 @@ func TestMain(m *testing.M) {
 	db.RunMigrationQueries(dbConnection, "../../migrations")
 	twoFAQuery := twoFARepo.New(dbConnection.DB)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService = twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	tokenQuery := tokenRepo.New(dbConnection.DB)
 	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService = tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
 	userQuery := repository.New(dbConnection.DB)
 	userStorage := users.NewStorage(userQuery)
-	userService = users.NewService(userStorage, twoFaService, tokenService)
+	userService := users.NewService(userStorage, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection.DB)
 	roleStorage := roles.NewStorage(roleQuery)
-	rolesService = roles.NewService(roleStorage)
+	rolesService := roles.NewService(roleStorage)
 	permissionQuery := permissionsRepo.New(dbConnection.DB)
 	permissionStorage := permissions.NewStorage(permissionQuery)
-	permissionService = permissions.NewService(permissionStorage)
+	permissionService := permissions.NewService(permissionStorage)
 	//Setup router
 	swagger, _ := api.GetSwagger()
 	swagger.Servers = nil
@@ -86,14 +81,6 @@ func TestMain(m *testing.M) {
 	_ = dbConnection.DB.Close()
 	_ = dba.DB.Close()
 	os.Exit(code)
-}
-
-func setUpRouter() *gin.Engine {
-	router = gin.New()
-	router.Use(middleware.JWTAuthMiddleware([]byte("JWT_$€Cr€t"), nil))
-	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService)
-	api.RegisterHandlers(router, server)
-	return router
 }
 
 func truncateTables(t *testing.T, db *sql.DB) {
