@@ -319,3 +319,79 @@ func TestServer_Login_NOK_RequestBody(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec2.Code)
 	assert.Empty(t, rec2.Body.String())
 }
+
+func TestServer_Refresh_OK(t *testing.T) {
+	//Signup
+	signupBytes, err := json.Marshal(api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	})
+	assert.NoError(t, err)
+	req1, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	assert.NotNil(t, req1)
+	assert.NoError(t, err)
+	req1.Header.Set("User-Agent", "api-test")
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusCreated, rec1.Code)
+	assert.Empty(t, rec1.Body.String())
+
+	//Login
+	loginBytes, err := json.Marshal(api.UserLogin{
+		Email:    "first.last@example.com",
+		Password: "$trong_P@$$w0rd",
+	})
+	assert.NoError(t, err)
+	req2, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req2)
+	assert.NoError(t, err)
+	req2.Header.Set("User-Agent", "api-test")
+	req2.Header.Set("x-login-source", "api-test")
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusOK, rec2.Code)
+	assert.NotEmpty(t, rec2.Body.String())
+	var res api.LoginSuccessWithJWT
+	assert.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &res))
+	assert.NotEmpty(t, res.RefreshToken)
+	assert.NotEmpty(t, res.AccessToken)
+
+	//Refresh
+	refreshBytes, err := json.Marshal(api.Refresh{
+		RefreshToken: res.RefreshToken,
+	})
+	assert.NoError(t, err)
+	req3, err := http.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(refreshBytes))
+	assert.NoError(t, err)
+	assert.NotNil(t, req3)
+	req3.Header.Set("User-Agent", "api-test")
+	req3.Header.Set("x-login-source", "api-test")
+	rec3 := httptest.NewRecorder()
+	router.ServeHTTP(rec3, req3)
+	assert.Equal(t, http.StatusOK, rec3.Code)
+	assert.NotEmpty(t, rec3.Body.String())
+	var refreshResp api.LoginSuccessWithJWT
+	assert.NoError(t, json.Unmarshal(rec3.Body.Bytes(), &refreshResp))
+	assert.NotEmpty(t, refreshResp)
+	assert.NotEmpty(t, refreshResp.RefreshToken)
+	assert.NotEmpty(t, refreshResp.AccessToken)
+
+	truncateTables(t, dba.DB)
+}
+
+func TestServer_Refresh_NOK(t *testing.T) {
+	refreshBytes, err := json.Marshal(``)
+	assert.NoError(t, err)
+	req3, err := http.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(refreshBytes))
+	assert.NoError(t, err)
+	assert.NotNil(t, req3)
+	req3.Header.Set("User-Agent", "api-test")
+	req3.Header.Set("x-login-source", "api-test")
+	rec3 := httptest.NewRecorder()
+	router.ServeHTTP(rec3, req3)
+	assert.Equal(t, http.StatusBadRequest, rec3.Code)
+	assert.Empty(t, rec3.Body.String())
+}
