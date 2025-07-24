@@ -61,7 +61,7 @@ func (s *Server) Signup(ctx *gin.Context, params api.SignupParams) {
 		ctx.JSON(http.StatusCreated, res)
 		return
 	}
-	ctx.Status(http.StatusNoContent)
+	ctx.Status(http.StatusCreated)
 }
 
 func (s *Server) ChangePassword(ctx *gin.Context, params api.ChangePasswordParams) {

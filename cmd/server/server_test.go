@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +35,7 @@ var userService users.Service
 var rolesService roles.Service
 var permissionService permissions.Service
 var router *gin.Engine
+var dba *db.Database
 
 func TestMain(m *testing.M) {
 	dbConnection, err := db.Connect(config.PostgresConfig{
@@ -47,7 +51,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to connect to DB: %v", err)
 	}
-	//dba := dbConnection
+	dba = dbConnection
 	db.RunMigrationQueries(dbConnection, "../../migrations")
 	twoFAQuery := twoFARepo.New(dbConnection.DB)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
@@ -78,9 +82,69 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestReadyEndpoint(t *testing.T) {
+func truncateTables(t *testing.T, db *sql.DB) {
+	_, err := db.Exec(`
+        TRUNCATE TABLE
+            users_2fa,
+            users_password,
+            users,
+            tokens,
+            roles,
+            permissions,
+            role_permissions,
+            user_permissions
+        RESTART IDENTITY CASCADE
+    `)
+	assert.NoError(t, err)
+}
+
+func TestServer_GetReady(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestServer_GetLive(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "/live", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestServer_Signup_OK(t *testing.T) {
+	signup := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "$trong_P@$$w0rd",
+		TwoFAEnabled: false,
+	}
+	signupBytes, err := json.Marshal(signup)
+	assert.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	req.Header.Set("User-Agent", "api-test")
+	assert.NoError(t, err)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	truncateTables(t, dba.DB)
+}
+
+func TestServer_Signup_NOK_Password(t *testing.T) {
+	signup := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First",
+		LastName:     "Last",
+		Password:     "stringpassword",
+		TwoFAEnabled: false,
+	}
+	signupBytes, err := json.Marshal(signup)
+	assert.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
+	req.Header.Set("User-Agent", "api-test")
+	assert.NoError(t, err)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
