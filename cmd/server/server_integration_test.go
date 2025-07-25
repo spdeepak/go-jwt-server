@@ -90,15 +90,6 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Optional: Clean up (e.g., drop DB or close connection)
-	_, err = dba.DB.Exec(`
-        TRUNCATE TABLE
-            users_2fa,
-            users_password,
-            users,
-            tokens,
-            permissions
-        RESTART IDENTITY CASCADE
-    `)
 	_ = dbConnection.DB.Close()
 	_ = dba.DB.Close()
 	os.Exit(code)
@@ -526,25 +517,8 @@ func TestServer_GetRoleById_OK(t *testing.T) {
 		Name:        "admin_role",
 	})
 	//Get Role By Id
-	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
-	assert.NotNil(t, request)
-	assert.NoError(t, err)
-	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	getRoleById(t, loginRes, roleRes)
 
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.NotEmpty(t, recorder.Body.String())
-
-	var roleResponse api.RoleResponse
-	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
-	assert.Equal(t, roleRes.Name, roleResponse.Name)
-	assert.Equal(t, roleRes.Description, roleResponse.Description)
-	assert.Equal(t, roleRes.CreatedAt, roleResponse.CreatedAt)
-	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
-	assert.Equal(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
-	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
 }
 
 func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
@@ -629,6 +603,37 @@ func TestServer_UpdateRoleById_OK(t *testing.T) {
 	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
 }
 
+func TestServer_UpdateRoleById_NOK_RoleNotFound(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	roleRes := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role_1",
+	})
+	//Delete Role by Id
+	deleteRoleById(t, loginRes, roleRes.Id.String())
+
+	//Update role by ID
+	updatedRoleDescription := "role description Updated"
+	updateRole, err := json.Marshal(api.UpdateRole{
+		Description: &updatedRoleDescription,
+	})
+	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/roles/"+roleRes.Id.String(), bytes.NewReader(updateRole))
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
 func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
 	truncateTables(t, dba.DB)
 	//Signup
@@ -641,16 +646,7 @@ func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
 		Name:        "admin_role_1",
 	})
 	//Delete Role by Id
-	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
-	assert.NotNil(t, request)
-	assert.NoError(t, err)
-	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
-
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Empty(t, recorder.Body.String())
+	deleteRoleById(t, loginRes, roleRes.Id.String())
 
 	//Get Role By ID
 	getRoleByIdNotFound(t, loginRes, roleRes.Id.String())
@@ -681,25 +677,7 @@ func TestServer_GetPermissionById_OK(t *testing.T) {
 		Name:        "admin_permission",
 	})
 	//Get Permission By Id
-	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), nil)
-	assert.NotNil(t, request)
-	assert.NoError(t, err)
-	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
-
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.NotEmpty(t, recorder.Body.String())
-
-	var permissionResponse api.PermissionResponse
-	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &permissionResponse))
-	assert.Equal(t, permissionRes.Name, permissionResponse.Name)
-	assert.Equal(t, permissionRes.Description, permissionResponse.Description)
-	assert.Equal(t, permissionRes.CreatedAt, permissionResponse.CreatedAt)
-	assert.Equal(t, permissionRes.CreatedBy, permissionResponse.CreatedBy)
-	assert.Equal(t, permissionRes.UpdatedAt, permissionResponse.UpdatedAt)
-	assert.Equal(t, permissionRes.UpdatedBy, permissionResponse.UpdatedBy)
+	getPermissionById(t, loginRes, permissionRes)
 }
 
 func TestServer_GetPermissionById_NOK_NotFound(t *testing.T) {
@@ -784,6 +762,37 @@ func TestServer_UpdatePermissionById_OK(t *testing.T) {
 	assert.Equal(t, permissionRes.UpdatedBy, permissionResponse.UpdatedBy)
 }
 
+func TestServer_UpdatePermissionById_NOK_PermissionNotFound(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission_1",
+	})
+	//Delete Permission by Id
+	deletePermissionByIdOK(t, loginRes, permissionRes.Id.String())
+
+	//Update permission by ID
+	updatedPermissionDescription := "permission description Updated"
+	updatePermission, err := json.Marshal(api.UpdatePermission{
+		Description: &updatedPermissionDescription,
+	})
+	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), bytes.NewReader(updatePermission))
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
 func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
 	truncateTables(t, dba.DB)
 	//Signup
@@ -796,16 +805,7 @@ func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
 		Name:        "admin_permission_1",
 	})
 	//Delete Permission by Id
-	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), nil)
-	assert.NotNil(t, request)
-	assert.NoError(t, err)
-	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
-
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Empty(t, recorder.Body.String())
+	deletePermissionByIdOK(t, loginRes, permissionRes.Id.String())
 
 	//Get Permission By ID
 	getPermissionByIdNotFound(t, loginRes, permissionRes.Id.String())
@@ -965,7 +965,7 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateRole) a
 }
 
 func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.RoleResponse) {
-	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+uuid.New().String(), nil)
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -973,7 +973,7 @@ func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.Rol
 
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
 
 	var roleResponse api.RoleResponse
@@ -1026,7 +1026,7 @@ func createPermission(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateP
 }
 
 func getPermissionById(t *testing.T, loginRes api.LoginSuccessWithJWT, permissionRes api.PermissionResponse) {
-	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions/"+uuid.New().String(), nil)
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), nil)
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1034,7 +1034,7 @@ func getPermissionById(t *testing.T, loginRes api.LoginSuccessWithJWT, permissio
 
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
 
 	var permissionResponse api.PermissionResponse
@@ -1058,4 +1058,30 @@ func getPermissionByIdNotFound(t *testing.T, loginRes api.LoginSuccessWithJWT, i
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
+}
+
+func deleteRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
+	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/roles/"+id, nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+}
+
+func deletePermissionByIdOK(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
+	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/permissions/"+id, nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
 }
