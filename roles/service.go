@@ -93,6 +93,7 @@ func (s *service) ListRoles(ctx *gin.Context) ([]api.RoleResponse, error) {
 			CreatedAt:   role.CreatedAt,
 			CreatedBy:   role.CreatedBy,
 			Description: role.Description,
+			Id:          role.ID,
 			Name:        role.Name,
 			UpdatedAt:   role.UpdatedAt,
 			UpdatedBy:   role.UpdatedBy,

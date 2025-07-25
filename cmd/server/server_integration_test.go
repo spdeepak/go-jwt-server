@@ -90,6 +90,15 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Optional: Clean up (e.g., drop DB or close connection)
+	_, err = dba.DB.Exec(`
+        TRUNCATE TABLE
+            users_2fa,
+            users_password,
+            users,
+            tokens,
+            permissions
+        RESTART IDENTITY CASCADE
+    `)
 	_ = dbConnection.DB.Close()
 	_ = dba.DB.Close()
 	os.Exit(code)
@@ -499,7 +508,10 @@ func TestServer_CreateNewRole_OK(t *testing.T) {
 	//Login
 	res := login2FADisabled(t)
 	//Create a new Role
-	createRole(t, res)
+	createRole(t, res, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
 }
 
 func TestServer_GetRoleById_OK(t *testing.T) {
@@ -509,7 +521,10 @@ func TestServer_GetRoleById_OK(t *testing.T) {
 	//Login
 	loginRes := login2FADisabled(t)
 	//Create a new Role
-	roleRes := createRole(t, loginRes)
+	roleRes := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
 	//Get Role By Id
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
 	assert.NotNil(t, request)
@@ -540,7 +555,26 @@ func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
 	loginRes := login2FADisabled(t)
 
 	//Get Role By Id
-	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+uuid.New().String(), nil)
+	getRoleByIdNotFound(t, loginRes, uuid.New().String())
+}
+
+func TestServer_ListAllRoles_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	roleRes1 := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role_1",
+	})
+	roleRes2 := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role_2",
+	})
+	//List All roles
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles", nil)
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -548,8 +582,78 @@ func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
-	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
+
+	var roleResponse []api.RoleResponse
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
+	assert.Len(t, roleResponse, 2)
+	assert.Contains(t, roleResponse, roleRes1)
+	assert.Contains(t, roleResponse, roleRes2)
+}
+
+func TestServer_UpdateRoleById_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	roleRes := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role_1",
+	})
+	//Update role by ID
+	updatedRoleDescription := "role description Updated"
+	updateRole, err := json.Marshal(api.UpdateRole{
+		Description: &updatedRoleDescription,
+	})
+	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/roles/"+roleRes.Id.String(), bytes.NewReader(updateRole))
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+
+	var roleResponse api.RoleResponse
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
+	assert.Equal(t, roleRes.Name, roleResponse.Name)
+	assert.Equal(t, updatedRoleDescription, roleResponse.Description)
+	assert.Equal(t, roleRes.CreatedAt, roleResponse.CreatedAt)
+	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
+	assert.NotEqual(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
+	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
+}
+
+func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	roleRes := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role_1",
+	})
+	//Delete Role by Id
+	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+
+	//Get Role By ID
+	getRoleByIdNotFound(t, loginRes, roleRes.Id.String())
 }
 
 func signup2FADisabled(t *testing.T) {
@@ -679,14 +783,11 @@ func loginWithTempToken2FACode(t *testing.T, generateCode string, res api.LoginR
 	return twoFaLoginResp
 }
 
-func createRole(t *testing.T, res api.LoginSuccessWithJWT) api.RoleResponse {
-	createRole, err := json.Marshal(api.CreateRole{
-		Description: "role description",
-		Name:        "admin_role",
-	})
+func createRole(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateRole) api.RoleResponse {
+	createRoleRequest, err := json.Marshal(req)
 	assert.NoError(t, err)
 
-	request, err := http.NewRequest(http.MethodPost, "/api/v1/access-control/roles", bytes.NewReader(createRole))
+	request, err := http.NewRequest(http.MethodPost, "/api/v1/access-control/roles", bytes.NewReader(createRoleRequest))
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -699,11 +800,46 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT) api.RoleResponse {
 
 	var roleResponse api.RoleResponse
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
-	assert.Equal(t, "role description", roleResponse.Description)
-	assert.Equal(t, "admin_role", roleResponse.Name)
+	assert.Equal(t, req.Description, roleResponse.Description)
+	assert.Equal(t, req.Name, roleResponse.Name)
 	assert.IsType(t, uuid.UUID{}, roleResponse.Id)
 	assert.Equal(t, "first.last@example.com", roleResponse.CreatedBy)
 	assert.NotNil(t, roleResponse.CreatedAt)
 
 	return roleResponse
+}
+
+func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.RoleResponse) {
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+uuid.New().String(), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+
+	var roleResponse api.RoleResponse
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
+	assert.Equal(t, roleRes.Name, roleResponse.Name)
+	assert.Equal(t, roleRes.Description, roleResponse.Description)
+	assert.Equal(t, roleRes.CreatedAt, roleResponse.CreatedAt)
+	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
+	assert.Equal(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
+	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
+}
+
+func getRoleByIdNotFound(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+id, nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
 }
