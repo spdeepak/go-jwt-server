@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -35,6 +36,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/users/repository"
 )
 
+var userStorage users.Storage
 var router *gin.Engine
 var dba *db.Database
 
@@ -61,7 +63,7 @@ func TestMain(m *testing.M) {
 	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
 	userQuery := repository.New(dbConnection.DB)
-	userStorage := users.NewStorage(userQuery)
+	userStorage = users.NewStorage(userQuery)
 	userService := users.NewService(userStorage, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection.DB)
 	roleStorage := roles.NewStorage(roleQuery)
@@ -915,6 +917,134 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 	assert.Contains(t, rolesAndPermissions[0].Roles.Permissions, permissionRes2)
 }
 
+func TestServer_AssignRolesToUser_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes, role, loginRes)
+	//Assign Roles to User
+	assignRolesToUser(t, role, loginRes)
+}
+
+func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes, role, loginRes)
+	//Assign Roles to User
+	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.Empty(t, user.RoleNames)
+	assert.Empty(t, user.PermissionNames)
+	assignPermission, err := json.Marshal(api.AssignRoleToUser{
+		Roles: []openapi_types.UUID{uuid.New()},
+	})
+	assert.NoError(t, err)
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), bytes.NewReader(assignPermission))
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
+func TestServer_RemoveRolesForUser_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes, role, loginRes)
+	//Assign Roles to User
+	assignRolesToUser(t, role, loginRes)
+	//Remove Roles to User
+	removeRolesFromUser(t, role, loginRes)
+}
+
+func TestServer_GetRolesOfUser_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes, role, loginRes)
+	//Assign Roles to User
+	assignRolesToUser(t, role, loginRes)
+	//Get Roles of User
+	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.NotEmpty(t, user.RoleNames)
+	assert.Empty(t, user.PermissionNames)
+	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+	var userWithRoles api.UserWithRoles
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &userWithRoles))
+	assert.NotEmpty(t, userWithRoles)
+	assert.NotEmpty(t, userWithRoles.Roles)
+	assert.Empty(t, userWithRoles.Permissions)
+	assert.Equal(t, user.UserID, userWithRoles.Id)
+}
+
 func signup2FADisabled(t *testing.T) {
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
@@ -1218,4 +1348,53 @@ func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
+}
+
+func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
+	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.Empty(t, user.RoleNames)
+	assert.Empty(t, user.PermissionNames)
+	assignPermission, err := json.Marshal(api.AssignRoleToUser{
+		Roles: []openapi_types.UUID{role.Id},
+	})
+	assert.NoError(t, err)
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), bytes.NewReader(assignPermission))
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+	user, err = userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.NotEmpty(t, user.RoleNames)
+	assert.Empty(t, user.PermissionNames)
+}
+
+func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
+	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.NotEmpty(t, user.RoleNames)
+	assert.Empty(t, user.PermissionNames)
+	assert.NoError(t, err)
+	request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/users/%s/roles/%s", user.UserID.String(), role.Id.String()), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+	user, err = userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.Empty(t, user.RoleNames)
+	assert.Empty(t, user.PermissionNames)
 }
