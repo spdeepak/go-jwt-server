@@ -90,6 +90,7 @@ func (s *service) ListPermissions(ctx *gin.Context) ([]api.PermissionResponse, e
 			CreatedAt:   permission.CreatedAt,
 			CreatedBy:   permission.CreatedBy,
 			Description: permission.Description,
+			Id:          permission.ID,
 			Name:        permission.Name,
 			UpdatedAt:   permission.UpdatedAt,
 			UpdatedBy:   permission.UpdatedBy,
