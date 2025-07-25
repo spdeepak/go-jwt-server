@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 
@@ -90,6 +92,15 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Optional: Clean up (e.g., drop DB or close connection)
+	_, err = dba.DB.Exec(`
+        TRUNCATE TABLE
+            users_2fa,
+            users_password,
+            users,
+            tokens,
+            permissions
+        RESTART IDENTITY CASCADE
+    `)
 	_ = dbConnection.DB.Close()
 	_ = dba.DB.Close()
 	os.Exit(code)
@@ -811,6 +822,99 @@ func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
 	getPermissionByIdNotFound(t, loginRes, permissionRes.Id.String())
 }
 
+func TestServer_AssignPermissionToRole_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission_1",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes, role, loginRes)
+}
+
+func TestServer_UnassignPermissionFromRole_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission_1",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes, role, loginRes)
+	//Unassign Permission to Role
+	unassignPermissionToRole(t, permissionRes, role, loginRes)
+}
+
+func TestServer_RolesAndPermissions_OK(t *testing.T) {
+	truncateTables(t, dba.DB)
+	//Signup
+	signup2FADisabled(t)
+	//Login
+	loginRes := login2FADisabled(t)
+	//Create a new Role
+	role := createRole(t, loginRes, api.CreateRole{
+		Description: "role description",
+		Name:        "admin_role",
+	})
+	//Create a new Permission
+	permissionRes1 := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission_1",
+	})
+	permissionRes2 := createPermission(t, loginRes, api.CreatePermission{
+		Description: "permission description",
+		Name:        "admin_permission_2",
+	})
+	//Assign Permission to Role
+	assignPermissionToRole(t, permissionRes1, role, loginRes)
+	assignPermissionToRole(t, permissionRes2, role, loginRes)
+	//List Roles and Permissions
+	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/permissions", nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+
+	var rolesAndPermissions []api.RolesAndPermissionResponse
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &rolesAndPermissions))
+	assert.NotEmpty(t, rolesAndPermissions)
+	assert.Len(t, rolesAndPermissions, 1)
+	assert.NotEmpty(t, rolesAndPermissions[0].Roles)
+	assert.Len(t, rolesAndPermissions[0].Roles.Permissions, 2)
+	assert.Equal(t, role.Name, rolesAndPermissions[0].Roles.Name)
+	assert.Equal(t, role.Description, rolesAndPermissions[0].Roles.Description)
+	assert.Equal(t, role.CreatedAt, rolesAndPermissions[0].Roles.CreatedAt)
+	assert.Equal(t, role.CreatedBy, rolesAndPermissions[0].Roles.CreatedBy)
+	assert.Equal(t, role.UpdatedAt, rolesAndPermissions[0].Roles.UpdatedAt)
+	assert.Equal(t, role.UpdatedBy, rolesAndPermissions[0].Roles.UpdatedBy)
+
+	assert.Contains(t, rolesAndPermissions[0].Roles.Permissions, permissionRes1)
+	assert.Contains(t, rolesAndPermissions[0].Roles.Permissions, permissionRes2)
+}
+
 func signup2FADisabled(t *testing.T) {
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
@@ -964,7 +1068,7 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateRole) a
 	return roleResponse
 }
 
-func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.RoleResponse) {
+func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.RoleResponse) api.RoleResponse {
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
@@ -984,6 +1088,8 @@ func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.Rol
 	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
 	assert.Equal(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
 	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
+
+	return roleResponse
 }
 
 func getRoleByIdNotFound(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
@@ -1080,6 +1186,34 @@ func deletePermissionByIdOK(t *testing.T, loginRes api.LoginSuccessWithJWT, id s
 	request.Header.Set("User-Agent", "api-test")
 	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
 
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+}
+
+func assignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
+	assignPermission, err := json.Marshal(api.AssignPermission{
+		Ids: []openapi_types.UUID{permissionRes.Id},
+	})
+	assert.NoError(t, err)
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/access-control/roles/%s/permissions", role.Id.String()), bytes.NewReader(assignPermission))
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+}
+
+func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
+	request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/access-control/roles/%s/permissions/%s", role.Id.String(), permissionRes.Id.String()), nil)
+	assert.NotNil(t, request)
+	assert.NoError(t, err)
+	request.Header.Set("User-Agent", "api-test")
+	request.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusOK, recorder.Code)

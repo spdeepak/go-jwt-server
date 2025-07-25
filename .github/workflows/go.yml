@@ -47,6 +47,14 @@ jobs:
         if: always()
         run: docker compose down -v
 
+      - name: Delete previous successful workflow runs
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "🔍 Deleting previous workflow runs..."
+          gh run list --limit 100 --workflow "${{ github.workflow }}" --json databaseId,status -q '.[] | select(.status=="completed") | .databaseId' | tail -n +2 | xargs -n1 gh run delete --yes --repo ${{ github.repository }}
+
   docker-build-test:
     permissions:
       contents: read
