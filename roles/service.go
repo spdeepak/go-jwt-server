@@ -20,7 +20,7 @@ type service struct {
 }
 
 type Service interface {
-	CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, request api.CreateRole) (api.RoleResponse, error)
+	CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, email string, request api.CreateRole) (api.RoleResponse, error)
 	DeleteRoleById(ctx *gin.Context, id uuid.UUID) error
 	GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error)
 	ListRoles(ctx *gin.Context) ([]api.RoleResponse, error)
@@ -36,12 +36,11 @@ func NewService(storage Storage) Service {
 	}
 }
 
-func (s *service) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, request api.CreateRole) (api.RoleResponse, error) {
-	email, _ := ctx.Get(emailHeader)
+func (s *service) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, email string, request api.CreateRole) (api.RoleResponse, error) {
 	createNewRole := repository.CreateNewRoleParams{
 		Name:        request.Name,
 		Description: request.Description,
-		CreatedBy:   email.(string),
+		CreatedBy:   email,
 	}
 	createdNewRole, err := s.storage.CreateNewRole(ctx, createNewRole)
 	if err != nil {
@@ -94,6 +93,7 @@ func (s *service) ListRoles(ctx *gin.Context) ([]api.RoleResponse, error) {
 			CreatedAt:   role.CreatedAt,
 			CreatedBy:   role.CreatedBy,
 			Description: role.Description,
+			Id:          role.ID,
 			Name:        role.Name,
 			UpdatedAt:   role.UpdatedAt,
 			UpdatedBy:   role.UpdatedBy,

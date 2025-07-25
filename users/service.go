@@ -2,7 +2,6 @@ package users
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,6 +15,7 @@ import (
 	token "github.com/spdeepak/go-jwt-server/tokens/repository"
 	"github.com/spdeepak/go-jwt-server/twoFA"
 	"github.com/spdeepak/go-jwt-server/users/repository"
+	"github.com/spdeepak/go-jwt-server/util"
 )
 
 type service struct {
@@ -188,11 +188,12 @@ func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, para
 		return api.UserWithRoles{}, err
 	}
 	return api.UserWithRoles{
+		Id:          userRolesAndPermissions.UserID,
 		Email:       openapi_types.Email(userRolesAndPermissions.Email),
 		FirstName:   userRolesAndPermissions.FirstName,
 		LastName:    userRolesAndPermissions.LastName,
-		Permissions: strings.Split(userRolesAndPermissions.PermissionNames.(string), ", "),
-		Roles:       strings.Split(userRolesAndPermissions.RoleNames.(string), ", "),
+		Permissions: util.SliceSplit(userRolesAndPermissions.PermissionNames.(string), ", "),
+		Roles:       util.SliceSplit(userRolesAndPermissions.RoleNames.(string), ", "),
 	}, nil
 }
 
