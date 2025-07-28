@@ -110,40 +110,6 @@ func TestIntegrationService_Signup_No2FA(t *testing.T) {
 	truncateTables(t, dba.DB)
 }
 
-func signup_No2fa_OK(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:     "first.last@example.com",
-		FirstName: "First name",
-		LastName:  "Last name",
-		Password:  "Som€_$trong_P@$$word",
-	}
-	userService := NewService(userStorage, nil, nil)
-
-	res, err := userService.Signup(ctx, user)
-	assert.NoError(t, err)
-	assert.Empty(t, res)
-}
-
-func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:     "first.last@example.com",
-		FirstName: "First name",
-		LastName:  "Last name",
-		Password:  "Som€_$trong_P@$$word",
-	}
-
-	userService := NewService(userStorage, nil, nil)
-
-	res, err := userService.Signup(ctx, user)
-	assert.Error(t, err)
-	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
-	assert.Empty(t, res)
-}
-
 func TestIntegrationService_Signup_2FA(t *testing.T) {
 	t.Run("Create New User with 2FA", func(t *testing.T) {
 		signup_2FA_OK(t)
@@ -152,47 +118,6 @@ func TestIntegrationService_Signup_2FA(t *testing.T) {
 		signup_2FA_NOK_UserAlreadyExists(t)
 	})
 	truncateTables(t, dba.DB)
-}
-
-func signup_2FA_OK(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:        "first.last@example.com",
-		FirstName:    "First name",
-		LastName:     "Last name",
-		Password:     "Som€_$trong_P@$$word",
-		TwoFAEnabled: true,
-	}
-
-	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userService := NewService(userStorage, twoFaService, nil)
-
-	res, err := userService.Signup(ctx, user)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, res)
-	assert.NotEmpty(t, res.Secret)
-	assert.NotEmpty(t, res.QrImage)
-}
-
-func signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:        "first.last@example.com",
-		FirstName:    "First name",
-		LastName:     "Last name",
-		Password:     "Som€_$trong_P@$$word",
-		TwoFAEnabled: true,
-	}
-
-	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userService := NewService(userStorage, twoFaService, nil)
-
-	res, err := userService.Signup(ctx, user)
-	assert.Error(t, err)
-	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
-	assert.Empty(t, res)
 }
 
 func TestIntegrationService_Login_OK(t *testing.T) {
@@ -209,77 +134,6 @@ func TestIntegrationService_Login_OK(t *testing.T) {
 	})
 }
 
-func login_OK(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Header("x-login-source", "test")
-	ctx.Header("User-Agent", "test")
-	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
-	ctx.Request = req
-
-	email := "first.last@example.com"
-	userLogin := api.UserLogin{
-		Email:    email,
-		Password: "Som€_$trong_P@$$word",
-	}
-
-	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
-	userService := NewService(userStorage, nil, tokenService)
-	loginParams := api.LoginParams{
-		XLoginSource: api.LoginParamsXLoginSourceApi,
-		UserAgent:    "test",
-	}
-	res, err := userService.Login(ctx, loginParams, userLogin)
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).AccessToken)
-	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
-}
-
-func login_NOK_WrongPassword(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	email := "first.last@example.com"
-	userLogin := api.UserLogin{
-		Email:    email,
-		Password: "Som€_P@$$word",
-	}
-
-	userService := NewService(userStorage, nil, nil)
-
-	loginParams := api.LoginParams{
-		XLoginSource: api.LoginParamsXLoginSourceApi,
-		UserAgent:    "test",
-	}
-	res, err := userService.Login(ctx, loginParams, userLogin)
-	assert.Error(t, err)
-	assert.NotNil(t, res)
-	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
-	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
-}
-
-func login_NOK(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	email := "first.last@example.com"
-	userLogin := api.UserLogin{
-		Email:    email,
-		Password: "Som€_$trong_P@$$word",
-	}
-
-	userService := NewService(userStorage, nil, nil)
-	loginParams := api.LoginParams{
-		XLoginSource: api.LoginParamsXLoginSourceApi,
-		UserAgent:    "test",
-	}
-	res, err := userService.Login(ctx, loginParams, userLogin)
-	assert.Error(t, err)
-	assert.NotNil(t, res)
-	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
-	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
-}
-
 func TestIntegrationService_Login2FA(t *testing.T) {
 	t.Run("Login with 2FA", func(t *testing.T) {
 		login2FA_OK(t)
@@ -292,105 +146,6 @@ func TestIntegrationService_Login2FA(t *testing.T) {
 	t.Run("Login with expired 2FA", func(t *testing.T) {
 		login2FA_NOK_UserNotExist(t)
 	})
-}
-
-func login2FA_OK(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:        "first.last@example.com",
-		FirstName:    "First name",
-		LastName:     "Last name",
-		Password:     "Som€_$trong_P@$$word",
-		TwoFAEnabled: true,
-	}
-
-	secret := "JWT_$€CR€T"
-	tokenService := tokens.NewService(tokenStorage, []byte(secret))
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
-	userService := NewService(userStorage, twoFaService, tokenService)
-
-	res, err := userService.Signup(ctx, user)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, res)
-	assert.NotEmpty(t, res.Secret)
-	assert.NotEmpty(t, res.QrImage)
-
-	ctx.Header("x-login-source", "test")
-	ctx.Header("user-agent", "test")
-	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
-	ctx.Request = req
-
-	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
-	assert.NoError(t, err)
-
-	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-20*time.Second))
-	assert.NoError(t, err)
-
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.UserID, passcode)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, login2FA)
-	assert.NotEmpty(t, login2FA.AccessToken)
-	assert.NotEmpty(t, login2FA.RefreshToken)
-}
-
-func login2FA_NOK_Old2FACode(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	user := api.UserSignup{
-		Email:        "first.last@example.com",
-		FirstName:    "First name",
-		LastName:     "Last name",
-		Password:     "Som€_$trong_P@$$word",
-		TwoFAEnabled: true,
-	}
-
-	secret := "JWT_$€CR€T"
-	tokenService := tokens.NewService(tokenStorage, []byte(secret))
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
-	userService := NewService(userStorage, twoFaService, tokenService)
-
-	res, err := userService.Signup(ctx, user)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, res)
-	assert.NotEmpty(t, res.Secret)
-	assert.NotEmpty(t, res.QrImage)
-
-	ctx.Header("x-login-source", "test")
-	ctx.Header("user-agent", "test")
-	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
-	ctx.Request = req
-
-	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
-	assert.NoError(t, err)
-
-	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-60*time.Second))
-	assert.NoError(t, err)
-
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.UserID, passcode)
-	assert.Error(t, err)
-	assert.Empty(t, login2FA)
-}
-
-func login2FA_NOK_UserNotExist(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Header("x-login-source", "test")
-	ctx.Header("user-agent", "test")
-	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
-	ctx.Request = req
-
-	secret := "JWT_$€CR€T"
-	tokenService := tokens.NewService(tokenStorage, []byte(secret))
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
-	userService := NewService(userStorage, twoFaService, tokenService)
-
-	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, uuid.New(), "123456")
-	assert.Error(t, err)
-	assert.Empty(t, login2FA)
 }
 
 func TestService_GetUserRolesAndPermissions(t *testing.T) {
@@ -597,4 +352,249 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	assert.Empty(t, userByEmail.RoleNames)
 
 	truncateTables(t, dba.DB)
+}
+
+func signup_No2fa_OK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+	userService := NewService(userStorage, nil, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.Empty(t, res)
+}
+
+func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:     "first.last@example.com",
+		FirstName: "First name",
+		LastName:  "Last name",
+		Password:  "Som€_$trong_P@$$word",
+	}
+
+	userService := NewService(userStorage, nil, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.Error(t, err)
+	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	assert.Empty(t, res)
+}
+
+func signup_2FA_OK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	userService := NewService(userStorage, twoFaService, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res)
+	assert.NotEmpty(t, res.Secret)
+	assert.NotEmpty(t, res.QrImage)
+}
+
+func signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	userService := NewService(userStorage, twoFaService, nil)
+
+	res, err := userService.Signup(ctx, user)
+	assert.Error(t, err)
+	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	assert.Empty(t, res)
+}
+
+func login_OK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Header("User-Agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	email := "first.last@example.com"
+	userLogin := api.UserLogin{
+		Email:    email,
+		Password: "Som€_$trong_P@$$word",
+	}
+
+	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	userService := NewService(userStorage, nil, tokenService)
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.NotEmpty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
+}
+
+func login_NOK_WrongPassword(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	email := "first.last@example.com"
+	userLogin := api.UserLogin{
+		Email:    email,
+		Password: "Som€_P@$$word",
+	}
+
+	userService := NewService(userStorage, nil, nil)
+
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
+	assert.Error(t, err)
+	assert.NotNil(t, res)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
+}
+
+func login_NOK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	email := "first.last@example.com"
+	userLogin := api.UserLogin{
+		Email:    email,
+		Password: "Som€_$trong_P@$$word",
+	}
+
+	userService := NewService(userStorage, nil, nil)
+	loginParams := api.LoginParams{
+		XLoginSource: api.LoginParamsXLoginSourceApi,
+		UserAgent:    "test",
+	}
+	res, err := userService.Login(ctx, loginParams, userLogin)
+	assert.Error(t, err)
+	assert.NotNil(t, res)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).AccessToken)
+	assert.Empty(t, res.(api.LoginSuccessWithJWT).RefreshToken)
+}
+
+func login2FA_OK(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	secret := "JWT_$€CR€T"
+	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userService := NewService(userStorage, twoFaService, tokenService)
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res)
+	assert.NotEmpty(t, res.Secret)
+	assert.NotEmpty(t, res.QrImage)
+
+	ctx.Header("x-login-source", "test")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+
+	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-20*time.Second))
+	assert.NoError(t, err)
+
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.UserID, passcode)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, login2FA)
+	assert.NotEmpty(t, login2FA.AccessToken)
+	assert.NotEmpty(t, login2FA.RefreshToken)
+}
+
+func login2FA_NOK_Old2FACode(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	user := api.UserSignup{
+		Email:        "first.last@example.com",
+		FirstName:    "First name",
+		LastName:     "Last name",
+		Password:     "Som€_$trong_P@$$word",
+		TwoFAEnabled: true,
+	}
+
+	secret := "JWT_$€CR€T"
+	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userService := NewService(userStorage, twoFaService, tokenService)
+
+	res, err := userService.Signup(ctx, user)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res)
+	assert.NotEmpty(t, res.Secret)
+	assert.NotEmpty(t, res.QrImage)
+
+	ctx.Header("x-login-source", "test")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+
+	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-60*time.Second))
+	assert.NoError(t, err)
+
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userByEmail.UserID, passcode)
+	assert.Error(t, err)
+	assert.Empty(t, login2FA)
+}
+
+func login2FA_NOK_UserNotExist(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Header("x-login-source", "test")
+	ctx.Header("user-agent", "test")
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	ctx.Request = req
+
+	secret := "JWT_$€CR€T"
+	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userService := NewService(userStorage, twoFaService, tokenService)
+
+	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, uuid.New(), "123456")
+	assert.Error(t, err)
+	assert.Empty(t, login2FA)
 }

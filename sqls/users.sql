@@ -119,3 +119,42 @@ DELETE
 FROM user_permissions
 where user_id = sqlc.arg('user_id')
   and permission_id = sqlc.arg('permission_id');
+
+-- name: SearchAndGetUserDetails :one
+WITH user_base AS (SELECT *
+                   FROM users
+                   WHERE (sqlc.narg('email') IS NULL OR users.email = sqlc.narg('email'))
+                      OR (sqlc.narg('first_name') IS NULL OR
+                          users.first_name ILIKE '%' || sqlc.narg('first_name') || '%')
+                      OR (sqlc.narg('last_name') IS NOT NULL AND sqlc.narg('last_name') <> '' AND
+                          users.last_name ILIKE '%' || sqlc.narg('last_name') || '%')),
+     user_roles_joined AS (SELECT r.id          AS id,
+                                  r.name        AS name,
+                                  r.description AS description,
+                                  ur.user_id    AS user_id,
+                                  ur.created_at AS since
+                           FROM user_base u
+                                    LEFT JOIN user_roles ur ON ur.user_id = u.id
+                                    LEFT JOIN roles r ON ur.role_id = r.id),
+     user_permissions_joined AS (SELECT p.name         AS permission_name,
+                                        up.description AS description,
+                                        up.user_id     AS user_id,
+                                        up.created_at  AS since
+                                 FROM user_base u
+                                          LEFT JOIN user_permissions up ON up.user_id = u.id
+                                          LEFT JOIN permissions p ON up.permission_id = p.id)
+
+SELECT u.id                                                                                 AS user_id,
+       u.email,
+       u.first_name,
+       u.last_name,
+       u.locked,
+       u.two_fa_enabled,
+       u.created_at                                                                         AS user_created_at,
+       COALESCE(jsonb_agg(DISTINCT to_jsonb(r)) FILTER (WHERE r.user_id IS NOT NULL), '[]') AS roles,
+       COALESCE(jsonb_agg(DISTINCT to_jsonb(p)) FILTER (WHERE p.user_id IS NOT NULL), '[]') AS permissions
+FROM user_base u
+         LEFT JOIN user_roles_joined AS r ON r.user_id = u.id
+         LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id
+GROUP BY u.id, u.email, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at
+LIMIT sqlc.arg('size') OFFSET sqlc.arg('page');

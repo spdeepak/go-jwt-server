@@ -409,3 +409,8 @@ func (s *Server) RemoveRolesForUser(ctx *gin.Context, userId api.UuId, roleId ap
 	ctx.Status(http.StatusOK)
 	return
 }
+
+func (s *Server) GetListOfUsers(ctx *gin.Context, params api.GetListOfUsersParams) {
+	//TODO implement me
+	panic("implement me")
+}
