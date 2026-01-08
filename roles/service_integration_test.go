@@ -213,7 +213,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 		assert.NotEmpty(t, createdRole)
 		updatedRoleDescription := "changed role description"
 		updatedName := "updated_role_name"
-		role, err := roleService.UpdateRoleById(ctx, createdRole.Id, api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
+		role, err := roleService.UpdateRoleById(ctx, createdRole.Id, "first.last@example.com", api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
 		assert.NoError(t, err)
 		assert.NotEmpty(t, role)
 		assert.Equal(t, updatedRoleDescription, role.Description)
@@ -230,7 +230,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 
 		updatedRoleDescription := "changed role description"
 		updatedName := "updated_role_name"
-		role, err := roleService.UpdateRoleById(ctx, uuid.New(), api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
+		role, err := roleService.UpdateRoleById(ctx, uuid.New(), "first.last@example.com", api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
 		assert.Error(t, err)
 		assert.Empty(t, role)
 	})

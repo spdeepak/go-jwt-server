@@ -20,13 +20,13 @@ type service struct {
 }
 
 type Service interface {
-	CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, email string, request api.CreateRole) (api.RoleResponse, error)
-	DeleteRoleById(ctx *gin.Context, id uuid.UUID) error
-	GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error)
-	ListRoles(ctx *gin.Context) ([]api.RoleResponse, error)
-	UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error)
-	AssignPermissionToRole(ctx *gin.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error
-	UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) error
+	CreateNewRole(ctx context.Context, params api.CreateNewRoleParams, email string, request api.CreateRole) (api.RoleResponse, error)
+	DeleteRoleById(ctx context.Context, id uuid.UUID) error
+	GetRoleById(ctx context.Context, id uuid.UUID) (api.RoleResponse, error)
+	ListRoles(ctx context.Context) ([]api.RoleResponse, error)
+	UpdateRoleById(ctx context.Context, id api.UuId, email string, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error)
+	AssignPermissionToRole(ctx context.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error
+	UnassignPermissionFromRole(ctx context.Context, roleId api.RoleId, permissionId api.PermissionId) error
 	ListRolesAndItsPermissions(ctx context.Context) ([]api.RolesAndPermissionResponse, error)
 }
 
@@ -36,7 +36,7 @@ func NewService(storage Storage) Service {
 	}
 }
 
-func (s *service) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams, email string, request api.CreateRole) (api.RoleResponse, error) {
+func (s *service) CreateNewRole(ctx context.Context, params api.CreateNewRoleParams, email string, request api.CreateRole) (api.RoleResponse, error) {
 	createNewRole := repository.CreateNewRoleParams{
 		Name:        request.Name,
 		Description: request.Description,
@@ -60,11 +60,11 @@ func (s *service) CreateNewRole(ctx *gin.Context, params api.CreateNewRoleParams
 	}, nil
 }
 
-func (s *service) DeleteRoleById(ctx *gin.Context, id uuid.UUID) error {
+func (s *service) DeleteRoleById(ctx context.Context, id uuid.UUID) error {
 	return s.storage.DeleteRoleById(ctx, id)
 }
 
-func (s *service) GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error) {
+func (s *service) GetRoleById(ctx context.Context, id uuid.UUID) (api.RoleResponse, error) {
 	getRoleById, err := s.storage.GetRoleById(ctx, id)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
@@ -82,7 +82,7 @@ func (s *service) GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse,
 	}, nil
 }
 
-func (s *service) ListRoles(ctx *gin.Context) ([]api.RoleResponse, error) {
+func (s *service) ListRoles(ctx context.Context) ([]api.RoleResponse, error) {
 	listRoles, err := s.storage.ListRoles(ctx)
 	if err != nil {
 		return nil, err
@@ -102,11 +102,10 @@ func (s *service) ListRoles(ctx *gin.Context) ([]api.RoleResponse, error) {
 	return roles, nil
 }
 
-func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error) {
-	email, _ := ctx.Get(emailHeader)
+func (s *service) UpdateRoleById(ctx context.Context, id api.UuId, email string, params api.UpdateRoleByIdParams, req api.UpdateRole) (api.RoleResponse, error) {
 	updateRoleById := repository.UpdateRoleByIdParams{
 		ID:        id,
-		UpdatedBy: email.(string),
+		UpdatedBy: email,
 	}
 	if req.Description != nil && *req.Description != "" {
 		updateRoleById.Description = sql.NullString{
@@ -137,7 +136,7 @@ func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Updat
 	}, nil
 }
 
-func (s *service) AssignPermissionToRole(ctx *gin.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error {
+func (s *service) AssignPermissionToRole(ctx context.Context, roleId api.UuId, params api.AssignPermissionToRoleParams, assignPermission api.AssignPermission, email string) error {
 	assignPermissionsToRole := repository.AssignPermissionsParams{
 		RoleID:       roleId,
 		PermissionID: assignPermission.Ids,
@@ -149,7 +148,7 @@ func (s *service) AssignPermissionToRole(ctx *gin.Context, roleId api.UuId, para
 	return nil
 }
 
-func (s *service) UnassignPermissionFromRole(ctx *gin.Context, roleId api.RoleId, permissionId api.PermissionId) error {
+func (s *service) UnassignPermissionFromRole(ctx context.Context, roleId api.RoleId, permissionId api.PermissionId) error {
 	UnassignPermissionFromRole := repository.UnAssignPermissionParams{
 		RoleID:       roleId,
 		PermissionID: permissionId,
