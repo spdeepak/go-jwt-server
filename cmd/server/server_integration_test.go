@@ -32,11 +32,11 @@ import (
 	"github.com/spdeepak/go-jwt-server/internal/twoFA"
 	twoFARepo "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
 	"github.com/spdeepak/go-jwt-server/internal/users"
-	"github.com/spdeepak/go-jwt-server/internal/users/repository"
+	usersRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
 )
 
-var userStorage users.Storage
+var userStorage usersRepo.Querier
 var router *gin.Engine
 var dba *pgxpool.Pool
 
@@ -61,9 +61,8 @@ func TestMain(m *testing.M) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
-	userQuery := repository.New(dbConnection)
-	userStorage = users.NewStorage(userQuery)
-	userService := users.NewService(userStorage, twoFaService, tokenService)
+	userQuery := usersRepo.New(dbConnection)
+	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
 	permissionQuery := permissionsRepo.New(dbConnection)
@@ -957,7 +956,7 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	//Assign Permission to Role
 	assignPermissionToRole(t, permissionRes, role, loginRes)
 	//Assign Roles to User
-	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
@@ -1022,7 +1021,7 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	//Assign Roles to User
 	assignRolesToUser(t, role, loginRes)
 	//Get Roles of User
-	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1350,7 +1349,7 @@ func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse
 }
 
 func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
-	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
@@ -1368,7 +1367,7 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
-	user, err = userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	user, err = userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1376,7 +1375,7 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 }
 
 func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
-	user, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1391,7 +1390,7 @@ func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.Login
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
-	user, err = userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	user, err = userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
