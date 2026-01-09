@@ -137,7 +137,7 @@ WITH user_base AS (SELECT *
                                     LEFT JOIN user_roles ur ON ur.user_id = u.id
                                     LEFT JOIN roles r ON ur.role_id = r.id),
      user_permissions_joined AS (SELECT p.name         AS permission_name,
-                                        up.description AS description,
+                                        p.description AS description,
                                         up.user_id     AS user_id,
                                         up.created_at  AS since
                                  FROM user_base u
