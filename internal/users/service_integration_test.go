@@ -30,10 +30,10 @@ import (
 	tokenRepo "github.com/spdeepak/go-jwt-server/internal/tokens/repository"
 	"github.com/spdeepak/go-jwt-server/internal/twoFA"
 	twoFARepo "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
-	"github.com/spdeepak/go-jwt-server/internal/users/repository"
+	usersRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 )
 
-var userStorage Storage
+var userStorage usersRepo.Querier
 var roleStorage roleRepo.Querier
 var permissionStorage permissionsRepo.Querier
 var tokenStorage tokens.Storage
@@ -43,20 +43,26 @@ var dba *pgxpool.Pool
 func TestMain(m *testing.M) {
 	t := &testing.T{}
 	dbConfig := config.PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		DBName:   "jwt_server",
-		UserName: "admin",
-		Password: "admin",
-		SSLMode:  "disable",
-		Timeout:  5 * time.Second,
-		MaxRetry: 5,
+		Host:              "localhost",
+		Port:              "5432",
+		DBName:            "jwt_server",
+		UserName:          "admin",
+		Password:          "admin",
+		SSLMode:           "disable",
+		Timeout:           5 * time.Second,
+		MaxRetry:          5,
+		ConnectTimeout:    10 * time.Second,
+		StatementTimeout:  15 * time.Second,
+		MaxOpenConns:      1,
+		MaxIdleConns:      1,
+		ConnMaxLifetime:   10 * time.Minute,
+		ConnMaxIdleTime:   2 * time.Minute,
+		HealthCheckPeriod: 1 * time.Minute,
 	}
 	require.NoError(t, db.RunMigrations(dbConfig))
 	dbConnection := db.Connect(dbConfig)
 	dba = dbConnection
-	query := repository.New(dbConnection)
-	userStorage = NewStorage(query)
+	userStorage = usersRepo.New(dbConnection)
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenStorage = tokens.NewStorage(tokenQuery)
 	twoFAQuery := twoFARepo.New(dbConnection)
@@ -322,7 +328,7 @@ func login2FA_OK(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	userByEmail, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 
 	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-20*time.Second))
@@ -363,7 +369,7 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	userByEmail, err := userStorage.GetUserByEmailForAuth(context.Background(), "first.last@example.com")
+	userByEmail, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 
 	passcode, err := totp.GenerateCode(res.Secret, time.Now().Add(-60*time.Second))
@@ -451,17 +457,17 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, res)
 
-	userByEmail, err := userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	userByEmail, err := userStorage.GetEntireUserByEmail(ctx, "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userByEmail)
 
-	err = userStorage.AssignRolesToUser(ctx, repository.AssignRolesToUserParams{
+	err = userStorage.AssignRolesToUser(ctx, usersRepo.AssignRolesToUserParams{
 		UserID:    userByEmail.UserID,
 		RoleID:    []pgtype.UUID{{Bytes: roleIds[0], Valid: true}, {Bytes: roleIds[1], Valid: true}, {Bytes: roleIds[2], Valid: true}},
 		CreatedBy: "first.last@example.com",
 	})
 	assert.NoError(t, err)
-	err = userStorage.AssignPermissionToUser(ctx, repository.AssignPermissionToUserParams{
+	err = userStorage.AssignPermissionToUser(ctx, usersRepo.AssignPermissionToUserParams{
 		UserID:       userByEmail.UserID,
 		PermissionID: []pgtype.UUID{{Bytes: permissionIds[10], Valid: true}, {Bytes: permissionIds[11], Valid: true}, {Bytes: permissionIds[12], Valid: true}, {Bytes: permissionIds[13], Valid: true}},
 		CreatedBy:    "first.last@example.com",
@@ -521,7 +527,7 @@ func TestService_AssignRolesToUser(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, res)
 
-	userByEmail, err := userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	userByEmail, err := userStorage.GetEntireUserByEmail(ctx, "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userByEmail)
 
@@ -575,7 +581,7 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, res)
 
-	userByEmail, err := userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	userByEmail, err := userStorage.GetEntireUserByEmail(ctx, "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userByEmail)
 
@@ -591,7 +597,7 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	err = userService.UnassignRolesOfUser(ctx, userByEmail.UserID.Bytes, createdRole.Id, api.RemoveRolesForUserParams{})
 	assert.NoError(t, err)
 
-	userByEmail, err = userStorage.GetUserByEmailForAuth(ctx, "first.last@example.com")
+	userByEmail, err = userStorage.GetEntireUserByEmail(ctx, "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userByEmail)
 	assert.Empty(t, userByEmail.RoleNames)

@@ -66,7 +66,7 @@ func (s *service) DeletePermissionById(ctx *gin.Context, id uuid.UUID) error {
 func (s *service) GetPermissionById(ctx *gin.Context, id uuid.UUID) (api.PermissionResponse, error) {
 	getPermissionById, err := s.storage.GetPermissionById(ctx, util.UUIDToPgtypeUUID(id))
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return api.PermissionResponse{}, httperror.New(httperror.PermissionDoesntExist)
 		}
 		return api.PermissionResponse{}, httperror.NewWithDescription("Couldn't fetch Permission for given ID", http.StatusInternalServerError)
@@ -122,7 +122,7 @@ func (s *service) UpdatePermissionById(ctx *gin.Context, id api.UuId, params api
 	}
 	updatedPermission, err := s.storage.UpdatePermissionById(ctx, updatePermissionById)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return api.PermissionResponse{}, httperror.New(httperror.PermissionDoesntExist)
 		}
 		return api.PermissionResponse{}, httperror.NewWithDescription("Couldn't fetch Permission for given ID", http.StatusInternalServerError)

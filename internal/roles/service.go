@@ -69,7 +69,7 @@ func (s *service) DeleteRoleById(ctx *gin.Context, id uuid.UUID) error {
 func (s *service) GetRoleById(ctx *gin.Context, id uuid.UUID) (api.RoleResponse, error) {
 	getRoleById, err := s.storage.GetRoleById(ctx, util.UUIDToPgtypeUUID(id))
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return api.RoleResponse{}, httperror.New(httperror.RoleDoesntExist)
 		}
 		return api.RoleResponse{}, httperror.NewWithDescription("Couldn't fetch Role for given ID", http.StatusInternalServerError)
@@ -125,7 +125,7 @@ func (s *service) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Updat
 	}
 	updatedRole, err := s.storage.UpdateRoleById(ctx, updateRoleById)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return api.RoleResponse{}, httperror.New(httperror.RoleDoesntExist)
 		}
 		return api.RoleResponse{}, httperror.NewWithDescription("Couldn't fetch Role for given ID", http.StatusInternalServerError)

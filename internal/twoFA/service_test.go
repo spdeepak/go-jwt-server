@@ -8,11 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/spdeepak/go-jwt-server/api"
-	repository2 "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
+	"github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
 )
 
 func TestService_GenerateSecret_OK(t *testing.T) {
@@ -38,10 +39,10 @@ func TestService_Verify2FALogin_OK(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	userId := uuid.New()
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 	//2FA
-	twoFAQuery := repository2.NewMockQuerier(t)
-	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	twoFAQuery := repository.NewMockQuerier(t)
+	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	twoFAStorage := NewStorage(twoFAQuery)
 	otpService := NewService("go-jwt-server", twoFAStorage)
 
@@ -55,9 +56,9 @@ func TestService_Verify2FALogin_OK(t *testing.T) {
 func TestService_Verify2FALogin_NOK_MinuteOldPasscode(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	userId := uuid.New()
-	query := repository2.NewMockQuerier(t)
-	query.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	query := repository.NewMockQuerier(t)
+	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	optStorage := NewStorage(query)
 	otpService := NewService("go-jwt-server", optStorage)
 
@@ -71,9 +72,9 @@ func TestService_Verify2FALogin_NOK_MinuteOldPasscode(t *testing.T) {
 func TestService_Verify2FALogin_NOK_NotFoundInDB(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	userId := uuid.New()
-	query := repository2.NewMockQuerier(t)
-	query.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{}, errors.New("error"))
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	query := repository.NewMockQuerier(t)
+	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{}, errors.New("error"))
 	optStorage := NewStorage(query)
 	otpService := NewService("go-jwt-server", optStorage)
 
@@ -87,10 +88,10 @@ func TestService_Verify2FALogin_NOK_NotFoundInDB(t *testing.T) {
 func TestService_Remove2FA_OK(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	userId := uuid.New()
-	query := repository2.NewMockQuerier(t)
-	query.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	query.On("Delete2FA", ctx, repository2.Delete2FAParams{UserID: userId, Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(nil)
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	query := repository.NewMockQuerier(t)
+	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	query.On("Delete2FA", ctx, repository.Delete2FAParams{UserID: userId, Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(nil)
 	optStorage := NewStorage(query)
 	otpService := NewService("go-jwt-server", optStorage)
 
@@ -103,9 +104,9 @@ func TestService_Remove2FA_OK(t *testing.T) {
 func TestService_Remove2FA_NOK_MinuteOldPasscode(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	userId := uuid.New()
-	query := repository2.NewMockQuerier(t)
-	query.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	query := repository.NewMockQuerier(t)
+	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	optStorage := NewStorage(query)
 	otpService := NewService("go-jwt-server", optStorage)
 
@@ -118,9 +119,9 @@ func TestService_Remove2FA_NOK_MinuteOldPasscode(t *testing.T) {
 func TestService_Remove2FA_NOK_NotFoundInDB(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	userId := uuid.New()
-	query := repository2.NewMockQuerier(t)
-	query.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{}, errors.New("error"))
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	query := repository.NewMockQuerier(t)
+	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{}, errors.New("error"))
 	optStorage := NewStorage(query)
 	otpService := NewService("go-jwt-server", optStorage)
 
@@ -133,10 +134,10 @@ func TestService_Remove2FA_NOK_NotFoundInDB(t *testing.T) {
 func TestService_Remove2FA_NOK_DeleteInDB(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	userId := uuid.New()
-	query := repository2.NewMockQuerier(t)
-	query.On("Get2FADetails", ctx, userId).Return(repository2.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	query.On("Delete2FA", ctx, repository2.Delete2FAParams{UserID: userId, Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(errors.New("error"))
+	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	query := repository.NewMockQuerier(t)
+	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	query.On("Delete2FA", ctx, repository.Delete2FAParams{UserID: userId, Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(errors.New("error"))
 	optStorage := NewStorage(query)
 	otpService := NewService("go-jwt-server", optStorage)
 

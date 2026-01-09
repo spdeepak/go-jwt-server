@@ -96,7 +96,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
 	user, err := s.storage.GetEntireUserByEmail(ctx, login.Email)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 		}
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.UndefinedErrorCode, err.Error())
@@ -132,7 +132,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 
 	user, err := s.storage.GetUserById(ctx, util.UUIDToPgtypeUUID(userId))
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
 		}
 		return api.LoginSuccessWithJWT{}, httperror.NewWithStatus(httperror.UndefinedErrorCode, err.Error(), http.StatusBadRequest)

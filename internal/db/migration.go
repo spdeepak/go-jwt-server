@@ -9,6 +9,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+
 	"github.com/spdeepak/go-jwt-server/config"
 )
 
@@ -25,7 +26,7 @@ func RunMigrations(cfg config.PostgresConfig) error {
 
 	// Get current directory for migrations path
 	wd, _ := os.Getwd()
-	migrationsPath := "file://migrations"
+	migrationsPath := "file://../../migrations"
 	slog.Info("Setting up migrations",
 		"working_directory", wd,
 		"migrations_path", migrationsPath,
