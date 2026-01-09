@@ -88,6 +88,7 @@ func resetPublicSchema(pool *pgxpool.Pool) error {
 }
 
 func TestService_CreateNewRole(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("Create New Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -114,10 +115,10 @@ func TestService_CreateNewRole(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, createdRole)
 	})
-	truncateTables(t, dba)
 }
 
 func TestService_DeleteRole(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("Delete Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -144,6 +145,7 @@ func TestService_DeleteRole(t *testing.T) {
 }
 
 func TestService_ListRoles(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("List Roles OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -175,6 +177,7 @@ func TestService_ListRoles(t *testing.T) {
 }
 
 func TestService_GetRoleById(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("Get Role by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -206,6 +209,7 @@ func TestService_GetRoleById(t *testing.T) {
 }
 
 func TestService_UpdateRoleById(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("Get Role by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -244,6 +248,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 }
 
 func TestService_AssignPermissionToRole(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("Assign Permission to Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -264,10 +269,10 @@ func TestService_AssignPermissionToRole(t *testing.T) {
 		err = roleService.AssignPermissionToRole(ctx, createdRole.Id, api.AssignPermissionToRoleParams{}, api.AssignPermission{Ids: []openapi_types.UUID{permission.Id}}, "first.last@example.com")
 		assert.NoError(t, err)
 	})
-	truncateTables(t, dba)
 }
 
 func TestService_UnassignPermissionToRole(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("Assign Permission to Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -290,10 +295,10 @@ func TestService_UnassignPermissionToRole(t *testing.T) {
 		err = roleService.UnassignPermissionFromRole(ctx, createdRole.Id, permission.Id)
 		assert.NoError(t, err)
 	})
-	truncateTables(t, dba)
 }
 
 func TestService_ListRolesAndItsPermissions(t *testing.T) {
+	truncateTables(t, dba)
 	t.Run("List Roles And Its Permissions OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -327,5 +332,4 @@ func TestService_ListRolesAndItsPermissions(t *testing.T) {
 			assert.Len(t, rolesAndPermission.Roles.Permissions, 5)
 		}
 	})
-	truncateTables(t, dba)
 }
