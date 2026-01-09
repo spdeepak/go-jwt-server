@@ -44,7 +44,7 @@ func NewService(storage repository.Querier, twoFAService twoFA.Service, tokenSer
 }
 
 func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error) {
-	hashPassword, err := hashPassword(user.Password)
+	hashedPassword, err := hashPassword(user.Password)
 	if err != nil {
 		log.Err(err).Msgf("Failed to encrypt password")
 		return api.SignUpWith2FAResponse{}, err
@@ -55,7 +55,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 			Email:        email,
 			FirstName:    user.FirstName,
 			LastName:     user.LastName,
-			Password:     hashPassword,
+			Password:     hashedPassword,
 			TwoFaEnabled: user.TwoFAEnabled,
 		}
 		if err = s.storage.Signup(ctx, userSignup); err != nil {
@@ -77,7 +77,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 		Email:        email,
 		FirstName:    user.FirstName,
 		LastName:     user.LastName,
-		Password:     hashPassword,
+		Password:     hashedPassword,
 		TwoFaEnabled: user.TwoFAEnabled,
 	}
 	err = s.storage.SignupWith2FA(ctx, userSignupWith2FA)
