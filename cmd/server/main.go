@@ -53,8 +53,7 @@ func main() {
 	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	//Users
 	userRepository := userRepo.New(dbConnection)
-	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, twoFAService, tokenService)
+	userService := users.NewService(userRepository, twoFAService, tokenService)
 	//Roles
 	roleQuery := roleRepo.New(dbConnection)
 	roleService := roles.NewService(roleQuery)

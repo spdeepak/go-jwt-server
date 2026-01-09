@@ -20,7 +20,7 @@ import (
 )
 
 type service struct {
-	storage      Storage
+	storage      repository.Querier
 	tokenService tokens.Service
 	twoFAService twoFA.Service
 }
@@ -35,7 +35,7 @@ type Service interface {
 	UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error
 }
 
-func NewService(storage Storage, twoFAService twoFA.Service, tokenService tokens.Service) Service {
+func NewService(storage repository.Querier, twoFAService twoFA.Service, tokenService tokens.Service) Service {
 	return &service{
 		storage:      storage,
 		twoFAService: twoFAService,
@@ -58,7 +58,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 			Password:     hashPassword,
 			TwoFaEnabled: user.TwoFAEnabled,
 		}
-		if err = s.storage.UserSignup(ctx, userSignup); err != nil {
+		if err = s.storage.Signup(ctx, userSignup); err != nil {
 			if err.Error() == "ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)" {
 				return api.SignUpWith2FAResponse{}, httperror.New(httperror.UserAlreadyExists)
 			}
@@ -80,7 +80,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 		Password:     hashPassword,
 		TwoFaEnabled: user.TwoFAEnabled,
 	}
-	err = s.storage.UserSignupWith2FA(ctx, userSignupWith2FA)
+	err = s.storage.SignupWith2FA(ctx, userSignupWith2FA)
 	if err != nil {
 		if err.Error() == "ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)" {
 			return api.SignUpWith2FAResponse{}, httperror.New(httperror.UserAlreadyExists)
@@ -94,7 +94,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 }
 
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
-	user, err := s.storage.GetUserByEmailForAuth(ctx, login.Email)
+	user, err := s.storage.GetEntireUserByEmail(ctx, login.Email)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -130,7 +130,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 
-	user, err := s.storage.GetUserById(ctx, userId)
+	user, err := s.storage.GetUserById(ctx, util.UUIDToPgtypeUUID(userId))
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -165,7 +165,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 
-	user, err := s.storage.GetUserByEmailForAuth(ctx, email)
+	user, err := s.storage.GetEntireUserByEmail(ctx, email)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
@@ -184,7 +184,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 }
 
 func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error) {
-	userRolesAndPermissions, err := s.storage.GetUserRolesAndPermissionsFromID(ctx, id)
+	userRolesAndPermissions, err := s.storage.GetUserRolesAndPermissionsFromID(ctx, util.UUIDToPgtypeUUID(id))
 	if err != nil {
 		return api.UserWithRoles{}, err
 	}
