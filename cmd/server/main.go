@@ -14,55 +14,53 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
-	"github.com/spdeepak/go-jwt-server/db"
-	"github.com/spdeepak/go-jwt-server/jwt_secret"
-	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/internal/db"
+	"github.com/spdeepak/go-jwt-server/internal/jwt_secret"
+	jwt_secretRepo "github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/internal/permissions"
+	permissionsRepo "github.com/spdeepak/go-jwt-server/internal/permissions/repository"
+	"github.com/spdeepak/go-jwt-server/internal/roles"
+	roleRepo "github.com/spdeepak/go-jwt-server/internal/roles/repository"
+	"github.com/spdeepak/go-jwt-server/internal/tokens"
+	tokenRepo "github.com/spdeepak/go-jwt-server/internal/tokens/repository"
+	"github.com/spdeepak/go-jwt-server/internal/twoFA"
+	twoFARepo "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
+	"github.com/spdeepak/go-jwt-server/internal/users"
+	userRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
-	"github.com/spdeepak/go-jwt-server/permissions"
-	permission "github.com/spdeepak/go-jwt-server/permissions/repository"
-	"github.com/spdeepak/go-jwt-server/roles"
-	role "github.com/spdeepak/go-jwt-server/roles/repository"
-	"github.com/spdeepak/go-jwt-server/tokens"
-	token "github.com/spdeepak/go-jwt-server/tokens/repository"
-	"github.com/spdeepak/go-jwt-server/twoFA"
-	otp "github.com/spdeepak/go-jwt-server/twoFA/repository"
-	"github.com/spdeepak/go-jwt-server/users"
-	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
 
 func main() {
 
 	cfg := config.NewConfiguration()
 
-	dbConnection, err := db.Connect(cfg.Postgres)
+	err := db.RunMigrations(cfg.Postgres)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to connect to database")
+		log.Fatal().Err(err)
 	}
-	db.RunMigrationQueries(dbConnection, "migrations")
+	dbConnection := db.Connect(cfg.Postgres)
 
 	//JWT SecretKey
-	jwtSecretRepository := secret.New(dbConnection.DB)
+	jwtSecretRepository := jwt_secretRepo.New(dbConnection)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
 	//JWT Token
-	tokenRepository := token.New(dbConnection.DB)
+	tokenRepository := tokenRepo.New(dbConnection)
 	tokenStorage := tokens.NewStorage(tokenRepository)
 	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
 	//2FA
-	twoFAQuery := otp.New(dbConnection.DB)
+	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	//Users
-	userRepository := user.New(dbConnection.DB)
+	userRepository := userRepo.New(dbConnection)
 	userStorage := users.NewStorage(userRepository)
 	userService := users.NewService(userStorage, twoFAService, tokenService)
 	//Roles
-	roleQuery := role.New(dbConnection.DB)
-	roleStorage := roles.NewStorage(roleQuery)
-	roleService := roles.NewService(roleStorage)
+	roleQuery := roleRepo.New(dbConnection)
+	roleService := roles.NewService(roleQuery)
 	//Permissions
-	permissionQuery := permission.New(dbConnection.DB)
-	permissionStorage := permissions.NewStorage(permissionQuery)
-	permissionsService := permissions.NewService(permissionStorage)
+	permissionQuery := permissionsRepo.New(dbConnection)
+	permissionsService := permissions.NewService(permissionQuery)
 
 	//oapi-codegen implementation handler
 	server := NewServer(userService, roleService, permissionsService, tokenService, twoFAService)

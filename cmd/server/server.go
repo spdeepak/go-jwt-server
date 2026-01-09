@@ -5,14 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/spdeepak/go-jwt-server/api"
-	httperror "github.com/spdeepak/go-jwt-server/error"
-	"github.com/spdeepak/go-jwt-server/permissions"
-	"github.com/spdeepak/go-jwt-server/roles"
-	"github.com/spdeepak/go-jwt-server/tokens"
-	"github.com/spdeepak/go-jwt-server/twoFA"
-	"github.com/spdeepak/go-jwt-server/users"
+	"github.com/spdeepak/go-jwt-server/internal/error"
+	"github.com/spdeepak/go-jwt-server/internal/permissions"
+	"github.com/spdeepak/go-jwt-server/internal/roles"
+	"github.com/spdeepak/go-jwt-server/internal/tokens"
+	"github.com/spdeepak/go-jwt-server/internal/twoFA"
+	"github.com/spdeepak/go-jwt-server/internal/users"
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
@@ -185,7 +186,7 @@ func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
-	err := s.twoFAService.Remove2FA(ctx, userId.(uuid.UUID), verify2FARequest.TwoFACode)
+	err := s.twoFAService.Remove2FA(ctx, userId.(pgtype.UUID), verify2FARequest.TwoFACode)
 	if err != nil {
 		ctx.Error(err)
 		return

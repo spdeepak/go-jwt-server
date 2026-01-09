@@ -1,0 +1,31 @@
+all: false
+dir: '{{.InterfaceDir}}'
+filename: "{{.InterfaceName | lower}}_mock.gen.go"
+force-file-write: true
+formatter: goimports
+include-auto-generated: true
+log-level: warn
+structname: "Mock{{.InterfaceName}}"
+pkgname: "{{.SrcPackageName}}"
+recursive: false
+require-template-schema-exists: false #This has to be set to false since we need interface of sqlc generated code
+template: testify
+packages:
+  github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository:
+    interfaces:
+      Querier:
+  github.com/spdeepak/go-jwt-server/internal/tokens/repository:
+    interfaces:
+      Querier:
+  github.com/spdeepak/go-jwt-server/internal/permissions/repository:
+    interfaces:
+      Querier:
+  github.com/spdeepak/go-jwt-server/internal/roles/repository:
+    interfaces:
+      Querier:
+  github.com/spdeepak/go-jwt-server/internal/users/repository:
+    interfaces:
+      Querier:
+  github.com/spdeepak/go-jwt-server/internal/twoFA/repository:
+    interfaces:
+      Querier:
