@@ -7,7 +7,7 @@ sql:
     gen:
       go:
         package: "repository"
-        out: ".internal/users/repository"
+        out: "./internal/users/repository"
         output_files_suffix: ".gen.go"
         output_db_file_name: "db.gen.go"
         output_models_file_name: "models.gen.go"
@@ -27,7 +27,7 @@ sql:
     gen:
       go:
         package: "repository"
-        out: ".internal/jwt_secret/repository"
+        out: "./internal/jwt_secret/repository"
         output_files_suffix: ".gen.go"
         output_db_file_name: "db.gen.go"
         output_models_file_name: "models.gen.go"
@@ -47,7 +47,7 @@ sql:
     gen:
       go:
         package: "repository"
-        out: ".internal/tokens/repository"
+        out: "./internal/tokens/repository"
         output_files_suffix: ".gen.go"
         output_db_file_name: "db.gen.go"
         output_models_file_name: "models.gen.go"
@@ -67,7 +67,7 @@ sql:
     gen:
       go:
         package: "repository"
-        out: ".internal/twoFA/repository"
+        out: "./internal/twoFA/repository"
         output_files_suffix: ".gen.go"
         output_db_file_name: "db.gen.go"
         output_models_file_name: "models.gen.go"
@@ -87,7 +87,7 @@ sql:
     gen:
       go:
         package: "repository"
-        out: ".internal/roles/repository"
+        out: "./internal/roles/repository"
         output_files_suffix: ".gen.go"
         output_db_file_name: "db.gen.go"
         output_models_file_name: "models.gen.go"
@@ -107,7 +107,7 @@ sql:
     gen:
       go:
         package: "repository"
-        out: ".internal/permissions/repository"
+        out: "./internal/permissions/repository"
         output_files_suffix: ".gen.go"
         output_db_file_name: "db.gen.go"
         output_models_file_name: "models.gen.go"
