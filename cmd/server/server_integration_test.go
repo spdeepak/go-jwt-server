@@ -34,9 +34,10 @@ import (
 	"github.com/spdeepak/go-jwt-server/internal/users"
 	usersRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
+	"github.com/spdeepak/go-jwt-server/util"
 )
 
-var userStorage usersRepo.Querier
+var userQuery usersRepo.Querier
 var router *gin.Engine
 var dba *pgxpool.Pool
 
@@ -68,7 +69,7 @@ func TestMain(m *testing.M) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
-	userQuery := usersRepo.New(dbConnection)
+	userQuery = usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
@@ -963,7 +964,7 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	//Assign Permission to Role
 	assignPermissionToRole(t, permissionRes, role, loginRes)
 	//Assign Roles to User
-	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
@@ -1028,7 +1029,7 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	//Assign Roles to User
 	assignRolesToUser(t, role, loginRes)
 	//Get Roles of User
-	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1047,7 +1048,9 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	assert.NotEmpty(t, userWithRoles)
 	assert.NotEmpty(t, userWithRoles.Roles)
 	assert.Empty(t, userWithRoles.Permissions)
-	assert.Equal(t, user.UserID, userWithRoles.Id)
+	id, err := util.PgtypeUUIDToUUID(user.UserID)
+	require.NoError(t, err)
+	assert.Equal(t, id, userWithRoles.Id)
 }
 
 func signup2FADisabled(t *testing.T) {
@@ -1356,7 +1359,7 @@ func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse
 }
 
 func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
-	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
@@ -1374,7 +1377,7 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
-	user, err = userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1382,7 +1385,7 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 }
 
 func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
-	user, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1397,7 +1400,7 @@ func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.Login
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
-	user, err = userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
