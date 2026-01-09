@@ -17,7 +17,7 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
-	db2 "github.com/spdeepak/go-jwt-server/internal/db"
+	"github.com/spdeepak/go-jwt-server/internal/db"
 	"github.com/spdeepak/go-jwt-server/internal/permissions"
 	permissionsRepo "github.com/spdeepak/go-jwt-server/internal/permissions/repository"
 	roleRepo "github.com/spdeepak/go-jwt-server/internal/roles/repository"
@@ -46,45 +46,45 @@ func TestMain(m *testing.M) {
 		ConnMaxIdleTime:   2 * time.Minute,
 		HealthCheckPeriod: 1 * time.Minute,
 	}
-	err := db2.RunMigrations(dbConfig)
-	require.NoError(t, err)
-	dbConnection := db2.Connect(dbConfig)
-
+	dbConnection := db.Connect(dbConfig)
 	dba = dbConnection
+	require.NoError(t, resetPublicSchema(dba))
+	require.NoError(t, db.RunMigrations(dbConfig))
 	roleStorage = roleRepo.New(dbConnection)
 	permissionStorage = permissionsRepo.New(dbConnection)
 	// Run all tests
-	_, err = dba.Exec(context.Background(), `
-        TRUNCATE TABLE
-            users_2fa,
-            users_password,
-            users,
-            tokens,
-            roles,
-            permissions,
-            role_permissions
-        RESTART IDENTITY CASCADE
-    `)
+	truncateTables(t, dba)
 	code := m.Run()
-
 	// Optional: Clean up (e.g., drop DB or close connection)
+	require.NoError(t, resetPublicSchema(dba))
 	dbConnection.Close()
 	os.Exit(code)
 }
 
 func truncateTables(t *testing.T, db *pgxpool.Pool) {
 	_, err := db.Exec(context.Background(), `
-        TRUNCATE TABLE
-            users_2fa,
-            users_password,
-            users,
-            tokens,
-            roles,
-            permissions,
-            role_permissions
-        RESTART IDENTITY CASCADE
+        DO $$
+			DECLARE
+				r RECORD;
+			BEGIN
+				FOR r IN
+					SELECT tablename
+					FROM pg_tables
+					WHERE schemaname = 'public'
+				LOOP
+					EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
+				END LOOP;
+		END $$;
     `)
 	assert.NoError(t, err)
+}
+
+func resetPublicSchema(pool *pgxpool.Pool) error {
+	_, err := pool.Exec(context.Background(), `
+        DROP SCHEMA IF EXISTS public CASCADE;
+        CREATE SCHEMA public;
+    `)
+	return err
 }
 
 func TestService_CreateNewRole(t *testing.T) {
