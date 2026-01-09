@@ -33,54 +33,43 @@ import (
 	usersRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 )
 
-var userStorage usersRepo.Querier
-var roleStorage roleRepo.Querier
-var permissionStorage permissionsRepo.Querier
-var tokenStorage tokens.Storage
-var twoFAStorage twoFA.Storage
-var dba *pgxpool.Pool
+var dbConfig = config.PostgresConfig{
+	Host:              "localhost",
+	Port:              "5432",
+	DBName:            "jwt_server",
+	UserName:          "admin",
+	Password:          "admin",
+	SSLMode:           "disable",
+	Timeout:           5 * time.Second,
+	MaxRetry:          5,
+	ConnectTimeout:    10 * time.Second,
+	StatementTimeout:  15 * time.Second,
+	MaxOpenConns:      5,
+	MaxIdleConns:      5,
+	ConnMaxLifetime:   10 * time.Minute,
+	ConnMaxIdleTime:   2 * time.Minute,
+	HealthCheckPeriod: 1 * time.Minute,
+}
 
 func TestMain(m *testing.M) {
 	t := &testing.T{}
-	dbConfig := config.PostgresConfig{
-		Host:              "localhost",
-		Port:              "5432",
-		DBName:            "jwt_server",
-		UserName:          "admin",
-		Password:          "admin",
-		SSLMode:           "disable",
-		Timeout:           5 * time.Second,
-		MaxRetry:          5,
-		ConnectTimeout:    10 * time.Second,
-		StatementTimeout:  15 * time.Second,
-		MaxOpenConns:      1,
-		MaxIdleConns:      1,
-		ConnMaxLifetime:   10 * time.Minute,
-		ConnMaxIdleTime:   2 * time.Minute,
-		HealthCheckPeriod: 1 * time.Minute,
-	}
 	dbConnection := db.Connect(dbConfig)
-	dba = dbConnection
-	require.NoError(t, resetPublicSchema(dba))
+	require.NoError(t, resetPublicSchema(dbConnection))
 	require.NoError(t, db.RunMigrations(dbConfig))
-	userStorage = usersRepo.New(dbConnection)
-	tokenQuery := tokenRepo.New(dbConnection)
-	tokenStorage = tokens.NewStorage(tokenQuery)
-	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage = twoFA.NewStorage(twoFAQuery)
-	roleStorage = roleRepo.New(dbConnection)
-	permissionStorage = permissionsRepo.New(dbConnection)
 	// Run all tests
-	truncateTables(t, dba)
+	truncateTables()
 	code := m.Run()
 	// Optional: Clean up (e.g., drop DB or close connection)
-	require.NoError(t, resetPublicSchema(dba))
+	require.NoError(t, resetPublicSchema(dbConnection))
 	dbConnection.Close()
 	os.Exit(code)
 }
 
-func truncateTables(t *testing.T, db *pgxpool.Pool) {
-	_, err := db.Exec(context.Background(), `
+func truncateTables() {
+	t := &testing.T{}
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	_, err := dbConnection.Exec(context.Background(), `
         DO $$
 			DECLARE
 				r RECORD;
@@ -94,7 +83,7 @@ func truncateTables(t *testing.T, db *pgxpool.Pool) {
 				END LOOP;
 		END $$;
     `)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func resetPublicSchema(pool *pgxpool.Pool) error {
@@ -106,13 +95,13 @@ func resetPublicSchema(pool *pgxpool.Pool) error {
 }
 
 func TestIntegrationService_Signup_No2FA(t *testing.T) {
+	truncateTables()
 	t.Run("Create New User without 2FA", func(t *testing.T) {
 		signup_No2fa_OK(t)
 	})
 	t.Run("Create User already exists without 2FA", func(t *testing.T) {
 		signup_No2FA_NOK_UserAlreadyExists(t)
 	})
-	truncateTables(t, dba)
 }
 
 func signup_No2fa_OK(t *testing.T) {
@@ -124,6 +113,9 @@ func signup_No2fa_OK(t *testing.T) {
 		LastName:  "Last name",
 		Password:  "Som€_$trong_P@$$word",
 	}
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
@@ -141,6 +133,9 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
@@ -150,13 +145,13 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 }
 
 func TestIntegrationService_Signup_2FA(t *testing.T) {
+	truncateTables()
 	t.Run("Create New User with 2FA", func(t *testing.T) {
 		signup_2FA_OK(t)
 	})
 	t.Run("Create User already exists with 2FA", func(t *testing.T) {
 		signup_2FA_NOK_UserAlreadyExists(t)
 	})
-	truncateTables(t, dba)
 }
 
 func signup_2FA_OK(t *testing.T) {
@@ -171,6 +166,9 @@ func signup_2FA_OK(t *testing.T) {
 	}
 
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
@@ -192,6 +190,9 @@ func signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 	}
 
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
@@ -201,6 +202,7 @@ func signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 }
 
 func TestIntegrationService_Login_OK(t *testing.T) {
+	truncateTables()
 	t.Run("Login without 2FA", func(t *testing.T) {
 		signup_No2fa_OK(t)
 		login_OK(t)
@@ -208,7 +210,7 @@ func TestIntegrationService_Login_OK(t *testing.T) {
 	t.Run("Login with 2FA invalid password", func(t *testing.T) {
 		login_NOK_WrongPassword(t)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Login with 2FA invalid user", func(t *testing.T) {
 		login_NOK(t)
 	})
@@ -229,7 +231,12 @@ func login_OK(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, nil, tokenService)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -251,6 +258,9 @@ func login_NOK_WrongPassword(t *testing.T) {
 		Password: "Som€_P@$$word",
 	}
 
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, nil, nil)
 
 	loginParams := api.LoginParams{
@@ -273,6 +283,9 @@ func login_NOK(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, nil, nil)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -286,14 +299,15 @@ func login_NOK(t *testing.T) {
 }
 
 func TestIntegrationService_Login2FA(t *testing.T) {
+	truncateTables()
 	t.Run("Login with 2FA", func(t *testing.T) {
 		login2FA_OK(t)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Login with expired 2FA", func(t *testing.T) {
 		login2FA_NOK_Old2FACode(t)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Login with expired 2FA", func(t *testing.T) {
 		login2FA_NOK_UserNotExist(t)
 	})
@@ -311,8 +325,15 @@ func login2FA_OK(t *testing.T) {
 	}
 
 	secret := "JWT_$€CR€T"
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
 	res, err := userService.Signup(ctx, user)
@@ -352,8 +373,15 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	}
 
 	secret := "JWT_$€CR€T"
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
 	res, err := userService.Signup(ctx, user)
@@ -389,8 +417,15 @@ func login2FA_NOK_UserNotExist(t *testing.T) {
 	ctx.Request = req
 
 	secret := "JWT_$€CR€T"
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, uuid.New(), "123456")
@@ -412,7 +447,11 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 		Description: "role description",
 		Name:        "role_name",
 	}
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	roleStorage := roleRepo.New(dbConnection)
 	roleService := roles.NewService(roleStorage)
+	permissionStorage := permissionsRepo.New(dbConnection)
 	permissionsService := permissions.NewService(permissionStorage)
 	roleIds := make([]uuid.UUID, 10)
 	permissionIds := make([]uuid.UUID, 50)
@@ -441,8 +480,13 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	}
 
 	secret := "JWT_$€CR€T"
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
 	user := api.UserSignup{
@@ -479,7 +523,7 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	assert.Len(t, userRolesAndPermissions.Roles, 3)
 	assert.Len(t, userRolesAndPermissions.Permissions, 4)
 
-	truncateTables(t, dba)
+	truncateTables()
 }
 
 func TestService_AssignRolesToUser(t *testing.T) {
@@ -496,6 +540,9 @@ func TestService_AssignRolesToUser(t *testing.T) {
 		Description: "role description",
 		Name:        "role_name",
 	}
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	roleStorage := roleRepo.New(dbConnection)
 	roleService := roles.NewService(roleStorage)
 	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "", request)
 	assert.NoError(t, err)
@@ -511,8 +558,13 @@ func TestService_AssignRolesToUser(t *testing.T) {
 	}
 
 	secret := "JWT_$€CR€T"
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
 	user := api.UserSignup{
@@ -533,7 +585,7 @@ func TestService_AssignRolesToUser(t *testing.T) {
 	err = userService.AssignRolesToUser(ctx, userByEmail.UserID.Bytes, api.AssignRolesToUserParams{}, api.AssignRoleToUser{Roles: []uuid.UUID{createdRole.Id}}, "first.last@example.com")
 	assert.NoError(t, err)
 
-	truncateTables(t, dba)
+	truncateTables()
 }
 
 func TestService_UnassignRolesToUser(t *testing.T) {
@@ -550,6 +602,9 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 		Description: "role description",
 		Name:        "role_name",
 	}
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	roleStorage := roleRepo.New(dbConnection)
 	roleService := roles.NewService(roleStorage)
 	createdRole, err := roleService.CreateNewRole(ctx, api.CreateNewRoleParams{}, "", request)
 	assert.NoError(t, err)
@@ -565,8 +620,13 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	}
 
 	secret := "JWT_$€CR€T"
+	tokenQuery := tokenRepo.New(dbConnection)
+	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
 	user := api.UserSignup{
@@ -601,5 +661,5 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	assert.NotEmpty(t, userByEmail)
 	assert.Empty(t, userByEmail.RoleNames)
 
-	truncateTables(t, dba)
+	truncateTables()
 }

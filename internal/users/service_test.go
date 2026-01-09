@@ -15,11 +15,11 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/internal/error"
-	tokens2 "github.com/spdeepak/go-jwt-server/internal/tokens"
-	repository2 "github.com/spdeepak/go-jwt-server/internal/tokens/repository"
-	twoFA2 "github.com/spdeepak/go-jwt-server/internal/twoFA"
-	repository3 "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
-	repository4 "github.com/spdeepak/go-jwt-server/internal/users/repository"
+	"github.com/spdeepak/go-jwt-server/internal/tokens"
+	tokenRepo "github.com/spdeepak/go-jwt-server/internal/tokens/repository"
+	"github.com/spdeepak/go-jwt-server/internal/twoFA"
+	twoFARepo "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
+	userRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 )
 
 func TestService_Signup_No2FA_OK(t *testing.T) {
@@ -32,11 +32,11 @@ func TestService_Signup_No2FA_OK(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("Signup", ctx, mock.MatchedBy(func(params repository4.SignupParams) bool {
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("Signup", ctx, mock.MatchedBy(func(params userRepo.SignupParams) bool {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(nil)
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userQuery, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -53,12 +53,12 @@ func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("Signup", ctx, mock.MatchedBy(func(params repository4.SignupParams) bool {
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("Signup", ctx, mock.MatchedBy(func(params userRepo.SignupParams) bool {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
 
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userQuery, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -76,11 +76,11 @@ func TestService_Signup_No2FA_NOK_DBError(t *testing.T) {
 		Password:  "Som€_$trong_P@$$word",
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("Signup", ctx, mock.MatchedBy(func(params repository4.SignupParams) bool {
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("Signup", ctx, mock.MatchedBy(func(params userRepo.SignupParams) bool {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(errors.New("error"))
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userQuery, nil, nil)
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -99,8 +99,8 @@ func TestService_Signup_2FA_OK(t *testing.T) {
 		TwoFAEnabled: true,
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository4.SignupWith2FAParams) bool {
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("SignupWith2FA", ctx, mock.MatchedBy(func(params userRepo.SignupWith2FAParams) bool {
 		return string(user.Email) == params.Email &&
 			user.FirstName == params.FirstName &&
 			user.LastName == params.LastName &&
@@ -108,8 +108,8 @@ func TestService_Signup_2FA_OK(t *testing.T) {
 			params.Secret != "" && params.Url != "" &&
 			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
 	})).Return(nil)
-	twoFaService := twoFA2.NewService("go-jwt-server", nil)
-	userService := NewService(userStorage, twoFaService, nil)
+	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	userService := NewService(userQuery, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -129,8 +129,8 @@ func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 		TwoFAEnabled: true,
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository4.SignupWith2FAParams) bool {
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("SignupWith2FA", ctx, mock.MatchedBy(func(params userRepo.SignupWith2FAParams) bool {
 		return string(user.Email) == params.Email &&
 			user.FirstName == params.FirstName &&
 			user.LastName == params.LastName &&
@@ -138,8 +138,8 @@ func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 			params.Secret != "" && params.Url != "" &&
 			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
 	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
-	twoFaService := twoFA2.NewService("go-jwt-server", nil)
-	userService := NewService(userStorage, twoFaService, nil)
+	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	userService := NewService(userQuery, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -158,8 +158,8 @@ func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
 		TwoFAEnabled: true,
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("SignupWith2FA", ctx, mock.MatchedBy(func(params repository4.SignupWith2FAParams) bool {
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("SignupWith2FA", ctx, mock.MatchedBy(func(params userRepo.SignupWith2FAParams) bool {
 		return string(user.Email) == params.Email &&
 			user.FirstName == params.FirstName &&
 			user.LastName == params.LastName &&
@@ -167,8 +167,8 @@ func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
 			params.Secret != "" && params.Url != "" &&
 			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
 	})).Return(errors.New("ERROR"))
-	twoFaService := twoFA2.NewService("go-jwt-server", nil)
-	userService := NewService(userStorage, twoFaService, nil)
+	twoFaService := twoFA.NewService("go-jwt-server", nil)
+	userService := NewService(userQuery, twoFaService, nil)
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -191,23 +191,23 @@ func TestService_Login_OK(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
-	userQuery := repository4.NewMockQuerier(t)
+	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetEntireUserByEmail", ctx, email).
-		Return(repository4.GetEntireUserByEmailRow{
+		Return(userRepo.GetEntireUserByEmailRow{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
 			nil)
 
-	tokenQuery := repository2.NewMockQuerier(t)
-	tokenStorage := tokens2.NewStorage(tokenQuery)
-	tokenQuery.On("SaveToken", ctx, mock.MatchedBy(func(token repository2.SaveTokenParams) bool {
+	tokenQuery := tokenRepo.NewMockQuerier(t)
+	tokenStorage := tokens.NewStorage(tokenQuery)
+	tokenQuery.On("SaveToken", ctx, mock.MatchedBy(func(token tokenRepo.SaveTokenParams) bool {
 		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == "192.168.1.100" &&
 			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)
-	tokenService := tokens2.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
-	userService := NewService(userStorage, nil, tokenService)
+	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	userService := NewService(userQuery, nil, tokenService)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -228,16 +228,16 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 		Password: "Som€_P@$$word",
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetEntireUserByEmail", ctx, email).
-		Return(repository4.GetEntireUserByEmailRow{
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetEntireUserByEmail", ctx, email).
+		Return(userRepo.GetEntireUserByEmailRow{
 			Email:     "first.last@example.com",
 			FirstName: "First name",
 			LastName:  "Last name",
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
 			nil)
 
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userQuery, nil, nil)
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -259,10 +259,10 @@ func TestService_Login_NOK_DB(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetEntireUserByEmail", ctx, email).Return(repository4.GetEntireUserByEmailRow{}, errors.New("sql: no rows in result set"))
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetEntireUserByEmail", ctx, email).Return(userRepo.GetEntireUserByEmailRow{}, errors.New("sql: no rows in result set"))
 
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userQuery, nil, nil)
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -284,10 +284,10 @@ func TestService_Login_NOK(t *testing.T) {
 		Password: "Som€_$trong_P@$$word",
 	}
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetEntireUserByEmail", ctx, email).Return(repository4.GetEntireUserByEmailRow{}, errors.New("error"))
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetEntireUserByEmail", ctx, email).Return(userRepo.GetEntireUserByEmailRow{}, errors.New("error"))
 
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userQuery, nil, nil)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -311,24 +311,24 @@ func TestService_Login2FA_OK(t *testing.T) {
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 
 	//2FA
-	twoFAQuery := repository3.NewMockQuerier(t)
-	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository3.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA2.NewStorage(twoFAQuery)
-	twoFAService := twoFA2.NewService("go-jwt-server", twoFAStorage)
+	twoFAQuery := twoFARepo.NewMockQuerier(t)
+	twoFAQuery.On("Get2FADetails", ctx, userId).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
 
 	secret := "JWT_$€CR€T"
-	tokenQuery := repository2.NewMockQuerier(t)
+	tokenQuery := tokenRepo.NewMockQuerier(t)
 	tokenQuery.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	tokenStorage := tokens2.NewStorage(tokenQuery)
-	tokenService := tokens2.NewService(tokenStorage, []byte(secret))
+	tokenStorage := tokens.NewStorage(tokenQuery)
+	tokenService := tokens.NewService(tokenStorage, []byte(secret))
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetUserById", ctx, userId).Return(repository4.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last"}, nil)
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetUserById", ctx, userId).Return(userRepo.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last"}, nil)
 
-	userService := NewService(userStorage, twoFAService, tokenService)
+	userService := NewService(userQuery, twoFAService, tokenService)
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.Bytes, passcode)
 	assert.NoError(t, err)
@@ -349,18 +349,18 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 
 	//2FA
-	twoFAQuery := repository3.NewMockQuerier(t)
-	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository3.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA2.NewStorage(twoFAQuery)
-	twoFAService := twoFA2.NewService("go-jwt-server", twoFAStorage)
+	twoFAQuery := twoFARepo.NewMockQuerier(t)
+	twoFAQuery.On("Get2FADetails", ctx, userId).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetUserById", ctx, userId).Return(repository4.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last", Locked: true}, nil)
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetUserById", ctx, userId).Return(userRepo.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last", Locked: true}, nil)
 
-	userService := NewService(userStorage, twoFAService, nil)
+	userService := NewService(userQuery, twoFAService, nil)
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.Bytes, passcode)
 	assert.Error(t, err)
@@ -380,18 +380,22 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	userId := uuid.New()
 
 	//2FA
-	twoFAQuery := repository3.NewMockQuerier(t)
-	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository3.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA2.NewStorage(twoFAQuery)
-	twoFAService := twoFA2.NewService("go-jwt-server", twoFAStorage)
+	twoFAQuery := twoFARepo.NewMockQuerier(t)
+	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
+		return id.Valid
+	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetUserById", ctx, userId).Return(repository4.User{}, errors.New("sql: no rows in result set"))
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetUserById", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
+		return id.Valid
+	})).Return(userRepo.User{}, errors.New("no rows in result set"))
 
-	userService := NewService(userStorage, twoFAService, nil)
+	userService := NewService(userQuery, twoFAService, nil)
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
@@ -411,18 +415,22 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	userId := uuid.New()
 
 	//2FA
-	twoFAQuery := repository3.NewMockQuerier(t)
-	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository3.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA2.NewStorage(twoFAQuery)
-	twoFAService := twoFA2.NewService("go-jwt-server", twoFAStorage)
+	twoFAQuery := twoFARepo.NewMockQuerier(t)
+	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
+		return id.Valid
+	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
 
-	query := repository4.NewMockQuerier(t)
-	query.On("GetUserById", ctx, userId).Return(repository4.User{}, errors.New("error"))
+	userQuery := userRepo.NewMockQuerier(t)
+	userQuery.On("GetUserById", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
+		return id.Valid
+	})).Return(userRepo.User{}, errors.New("error"))
 
-	userService := NewService(userStorage, twoFAService, nil)
+	userService := NewService(userQuery, twoFAService, nil)
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
@@ -442,10 +450,12 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 	userId := uuid.New()
 
 	//2FA
-	twoFAQuery := repository3.NewMockQuerier(t)
-	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository3.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA2.NewStorage(twoFAQuery)
-	twoFAService := twoFA2.NewService("go-jwt-server", twoFAStorage)
+	twoFAQuery := twoFARepo.NewMockQuerier(t)
+	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
+		return id.Valid
+	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
+	twoFAStorage := twoFA.NewStorage(twoFAQuery)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)

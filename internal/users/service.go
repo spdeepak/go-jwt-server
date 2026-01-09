@@ -122,7 +122,8 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 }
 
 func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error) {
-	isValid, err := s.twoFAService.Verify2FALogin(ctx, params, util.UUIDToPgtypeUUID(userId), passcode)
+	pgtypeUUID := util.UUIDToPgtypeUUID(userId)
+	isValid, err := s.twoFAService.Verify2FALogin(ctx, params, pgtypeUUID, passcode)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidTwoFA, err.Error())
 	}
@@ -130,7 +131,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 
-	user, err := s.storage.GetUserById(ctx, util.UUIDToPgtypeUUID(userId))
+	user, err := s.storage.GetUserById(ctx, pgtypeUUID)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)

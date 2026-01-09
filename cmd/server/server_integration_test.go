@@ -37,32 +37,29 @@ import (
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
-var userQuery usersRepo.Querier
 var router *gin.Engine
-var dba *pgxpool.Pool
+var dbConfig = config.PostgresConfig{
+	Host:              "localhost",
+	Port:              "5432",
+	DBName:            "jwt_server",
+	UserName:          "admin",
+	Password:          "admin",
+	SSLMode:           "disable",
+	Timeout:           5 * time.Second,
+	MaxRetry:          5,
+	ConnectTimeout:    10 * time.Second,
+	StatementTimeout:  15 * time.Second,
+	MaxOpenConns:      1,
+	MaxIdleConns:      1,
+	ConnMaxLifetime:   10 * time.Minute,
+	ConnMaxIdleTime:   2 * time.Minute,
+	HealthCheckPeriod: 1 * time.Minute,
+}
 
 func TestMain(m *testing.M) {
 	t := &testing.T{}
-	dbConfig := config.PostgresConfig{
-		Host:              "localhost",
-		Port:              "5432",
-		DBName:            "jwt_server",
-		UserName:          "admin",
-		Password:          "admin",
-		SSLMode:           "disable",
-		Timeout:           5 * time.Second,
-		MaxRetry:          5,
-		ConnectTimeout:    10 * time.Second,
-		StatementTimeout:  15 * time.Second,
-		MaxOpenConns:      1,
-		MaxIdleConns:      1,
-		ConnMaxLifetime:   10 * time.Minute,
-		ConnMaxIdleTime:   2 * time.Minute,
-		HealthCheckPeriod: 1 * time.Minute,
-	}
 	dbConnection := db.Connect(dbConfig)
-	dba = dbConnection
-	require.NoError(t, resetPublicSchema(dba))
+	require.NoError(t, resetPublicSchema(dbConnection))
 	require.NoError(t, db.RunMigrations(dbConfig))
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
@@ -70,7 +67,7 @@ func TestMain(m *testing.M) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
-	userQuery = usersRepo.New(dbConnection)
+	userQuery := usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
@@ -87,17 +84,19 @@ func TestMain(m *testing.M) {
 	api.RegisterHandlers(router, server)
 
 	// Run all tests
-	truncateTables(t, dba)
+	truncateTables()
 	code := m.Run()
 	// Optional: Clean up (e.g., drop DB or close connection)
-	require.NoError(t, resetPublicSchema(dba))
+	require.NoError(t, resetPublicSchema(dbConnection))
 	dbConnection.Close()
-	dba.Close()
 	os.Exit(code)
 }
 
-func truncateTables(t *testing.T, db *pgxpool.Pool) {
-	_, err := db.Exec(context.Background(), `
+func truncateTables() {
+	t := &testing.T{}
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	_, err := dbConnection.Exec(context.Background(), `
         DO $$
 			DECLARE
 				r RECORD;
@@ -123,7 +122,7 @@ func resetPublicSchema(pool *pgxpool.Pool) error {
 }
 
 func TestServer_GetReady(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	req, _ := http.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -131,7 +130,7 @@ func TestServer_GetReady(t *testing.T) {
 }
 
 func TestServer_GetLive(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	req, _ := http.NewRequest(http.MethodGet, "/live", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -139,17 +138,17 @@ func TestServer_GetLive(t *testing.T) {
 }
 
 func TestServer_Signup_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	signup2FADisabled(t)
 }
 
 func TestServer_Signup_OK_2FA(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	signup2FAEnabled(t)
 }
 
 func TestServer_Signup_NOK_InvalidPassword(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	signup := api.UserSignup{
 		Email:        "first.last@example.com",
 		FirstName:    "First",
@@ -174,7 +173,7 @@ func TestServer_Signup_NOK_InvalidPassword(t *testing.T) {
 }
 
 func TestServer_Signup_NOK_InvalidRequestBody(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	signupBytes, err := json.Marshal(`{"email":"first.last","firstName":"First","lastName":"Last"}`)
 	assert.NoError(t, err)
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
@@ -192,7 +191,7 @@ func TestServer_Signup_NOK_InvalidRequestBody(t *testing.T) {
 }
 
 func TestServer_Signup_NOK_Duplicate(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	signup2FADisabled(t)
 
 	signupBytes, err := json.Marshal(api.UserSignup{
@@ -217,7 +216,7 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 }
 
 func TestServer_Login_OK_No2FA(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -225,7 +224,7 @@ func TestServer_Login_OK_No2FA(t *testing.T) {
 }
 
 func TestServer_Login_2FA_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signupRes := signup2FAEnabled(t)
 
@@ -239,7 +238,7 @@ func TestServer_Login_2FA_OK(t *testing.T) {
 }
 
 func TestServer_Login_2FA_NOK_Expired2FA(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signupRes := signup2FAEnabled(t)
 
@@ -268,7 +267,7 @@ func TestServer_Login_2FA_NOK_Expired2FA(t *testing.T) {
 }
 
 func TestServer_Login_2FA_NOK_InvalidRequestBody(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FAEnabled(t)
 
@@ -293,7 +292,7 @@ func TestServer_Login_2FA_NOK_InvalidRequestBody(t *testing.T) {
 }
 
 func TestServer_Login_NOK_RequestBody(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	loginBytes, err := json.Marshal(`{
 		"email":    "first.last@example.com",
 	}`)
@@ -313,7 +312,7 @@ func TestServer_Login_NOK_RequestBody(t *testing.T) {
 }
 
 func TestServer_Refresh_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 
@@ -349,7 +348,7 @@ func TestServer_Refresh_OK(t *testing.T) {
 }
 
 func TestServer_Refresh_NOK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 
@@ -375,7 +374,7 @@ func TestServer_Refresh_NOK(t *testing.T) {
 }
 
 func TestServer_RevokeRefreshToken_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 
@@ -399,7 +398,7 @@ func TestServer_RevokeRefreshToken_OK(t *testing.T) {
 }
 
 func TestServer_RevokeRefreshToken_NOK_InvalidRequestBody(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 
@@ -424,7 +423,7 @@ func TestServer_RevokeRefreshToken_NOK_InvalidRequestBody(t *testing.T) {
 }
 
 func TestServer_Create2FA_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 
@@ -450,7 +449,7 @@ func TestServer_Create2FA_OK(t *testing.T) {
 }
 
 func TestServer_Remove2FA_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signupRes := signup2FAEnabled(t)
 
@@ -482,9 +481,9 @@ func TestServer_Remove2FA_OK(t *testing.T) {
 }
 
 func TestServer_RevokeAllTokens_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
-	truncateTables(t, dba)
+	truncateTables()
 	signup2FADisabled(t)
 
 	//Login
@@ -504,7 +503,7 @@ func TestServer_RevokeAllTokens_OK(t *testing.T) {
 }
 
 func TestServer_CreateNewRole_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -517,7 +516,7 @@ func TestServer_CreateNewRole_OK(t *testing.T) {
 }
 
 func TestServer_GetRoleById_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -533,7 +532,7 @@ func TestServer_GetRoleById_OK(t *testing.T) {
 }
 
 func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -544,7 +543,7 @@ func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
 }
 
 func TestServer_ListAllRoles_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -578,7 +577,7 @@ func TestServer_ListAllRoles_OK(t *testing.T) {
 }
 
 func TestServer_UpdateRoleById_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -615,7 +614,7 @@ func TestServer_UpdateRoleById_OK(t *testing.T) {
 }
 
 func TestServer_UpdateRoleById_NOK_RoleNotFound(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -646,7 +645,7 @@ func TestServer_UpdateRoleById_NOK_RoleNotFound(t *testing.T) {
 }
 
 func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -664,7 +663,7 @@ func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
 }
 
 func TestServer_CreateNewPermission_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -677,7 +676,7 @@ func TestServer_CreateNewPermission_OK(t *testing.T) {
 }
 
 func TestServer_GetPermissionById_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -692,7 +691,7 @@ func TestServer_GetPermissionById_OK(t *testing.T) {
 }
 
 func TestServer_GetPermissionById_NOK_NotFound(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -703,7 +702,7 @@ func TestServer_GetPermissionById_NOK_NotFound(t *testing.T) {
 }
 
 func TestServer_ListAllPermissions_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -737,7 +736,7 @@ func TestServer_ListAllPermissions_OK(t *testing.T) {
 }
 
 func TestServer_UpdatePermissionById_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -774,7 +773,7 @@ func TestServer_UpdatePermissionById_OK(t *testing.T) {
 }
 
 func TestServer_UpdatePermissionById_NOK_PermissionNotFound(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -805,7 +804,7 @@ func TestServer_UpdatePermissionById_NOK_PermissionNotFound(t *testing.T) {
 }
 
 func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -823,7 +822,7 @@ func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
 }
 
 func TestServer_AssignPermissionToRole_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -843,7 +842,7 @@ func TestServer_AssignPermissionToRole_OK(t *testing.T) {
 }
 
 func TestServer_UnassignPermissionFromRole_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -865,7 +864,7 @@ func TestServer_UnassignPermissionFromRole_OK(t *testing.T) {
 }
 
 func TestServer_RolesAndPermissions_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -916,7 +915,7 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 }
 
 func TestServer_AssignRolesToUser_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -938,7 +937,7 @@ func TestServer_AssignRolesToUser_OK(t *testing.T) {
 }
 
 func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -956,7 +955,10 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	//Assign Permission to Role
 	assignPermissionToRole(t, permissionRes, role, loginRes)
 	//Assign Roles to User
+	dbConnection := db.Connect(dbConfig)
+	userQuery := usersRepo.New(dbConnection)
 	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	dbConnection.Close()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)
@@ -977,7 +979,7 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 }
 
 func TestServer_RemoveRolesForUser_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -1001,7 +1003,7 @@ func TestServer_RemoveRolesForUser_OK(t *testing.T) {
 }
 
 func TestServer_GetRolesOfUser_OK(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	//Signup
 	signup2FADisabled(t)
 	//Login
@@ -1021,7 +1023,10 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	//Assign Roles to User
 	assignRolesToUser(t, role, loginRes)
 	//Get Roles of User
+	dbConnection := db.Connect(dbConfig)
+	userQuery := usersRepo.New(dbConnection)
 	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	dbConnection.Close()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1351,6 +1356,8 @@ func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse
 }
 
 func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
+	dbConnection := db.Connect(dbConfig)
+	userQuery := usersRepo.New(dbConnection)
 	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
@@ -1370,6 +1377,7 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
 	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	dbConnection.Close()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
@@ -1377,6 +1385,9 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 }
 
 func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
+	dbConnection := db.Connect(dbConfig)
+	defer dbConnection.Close()
+	userQuery := usersRepo.New(dbConnection)
 	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
