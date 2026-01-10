@@ -27,12 +27,12 @@ func TestService_GetOrCreateSecret_OK_SecretInDB(t *testing.T) {
 		CreatedAt:  time.Now(),
 	}
 	query.On("GetDefaultSecret", mock.Anything).Return(jwtSecret, nil)
-	storage := NewStorage(query)
+	jwtStorage := NewStorage(query)
 	tokenConfig := config.Token{
 		MasterKey: "SldUX01AJFTigqxyX0vigqx5X0kkX+KCrF9i4oKsJFQ=",
 	}
 	plainSecret := "JWT_$€cR€t"
-	plainByteSecret := GetOrCreateSecret(tokenConfig, storage)
+	plainByteSecret := GetOrCreateSecret(tokenConfig, jwtStorage)
 	assert.NotNil(t, plainByteSecret)
 	assert.NotEmpty(t, plainByteSecret)
 	assert.Equal(t, plainSecret, string(plainByteSecret))
@@ -45,11 +45,11 @@ func TestService_GetOrCreateSecret_OK_SecretNotInDBMasterKeyPresent(t *testing.T
 		key, err := base64.StdEncoding.DecodeString(base64EncodedEncryptedSecret)
 		return err == nil && string(key) != ""
 	})).Return(nil)
-	storage := NewStorage(query)
+	jwtStorage := NewStorage(query)
 	tokenConfig := config.Token{
 		MasterKey: "SldUX01AJFTigqxyX0vigqx5X0kkX+KCrF9i4oKsJFQ=", //base 64 of "JWT_M@$T€r_K€y_I$_€_b€$T"
 	}
-	plainByteSecret := GetOrCreateSecret(tokenConfig, storage)
+	plainByteSecret := GetOrCreateSecret(tokenConfig, jwtStorage)
 	assert.NotNil(t, plainByteSecret)
 	assert.NotEmpty(t, plainByteSecret)
 }
@@ -65,9 +65,9 @@ func TestService_GetOrCreateSecret_NOK_SecretInDB_MasterKeyNotSet(t *testing.T) 
 			CreatedAt:  time.Now(),
 		}
 		query.On("GetDefaultSecret", mock.Anything).Return(jwtSecret, nil)
-		storage := NewStorage(query)
+		jwtStorage := NewStorage(query)
 		tokenConfig := config.Token{}
-		GetOrCreateSecret(tokenConfig, storage)
+		GetOrCreateSecret(tokenConfig, jwtStorage)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=TestService_GetOrCreateSecret_NOK_SecretInDB_MasterKeyNotSet")
 	cmd.Env = append(os.Environ(), "FATAL_TEST=1")
@@ -87,11 +87,11 @@ func TestService_GetOrCreateSecret_NOK_SecretInDB_MasterKeyTooLong(t *testing.T)
 			CreatedAt:  time.Now(),
 		}
 		query.On("GetDefaultSecret", mock.Anything).Return(jwtSecret, nil)
-		storage := NewStorage(query)
+		jwtStorage := NewStorage(query)
 		tokenConfig := config.Token{
 			MasterKey: base64.StdEncoding.EncodeToString([]byte("JWT_M@$T€r_K€y_I$_Th€_b€$T")),
 		}
-		GetOrCreateSecret(tokenConfig, storage)
+		GetOrCreateSecret(tokenConfig, jwtStorage)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=TestService_GetOrCreateSecret_NOK_SecretInDB_MasterKeyTooLong")
 	cmd.Env = append(os.Environ(), "FATAL_TEST=1")
@@ -106,8 +106,8 @@ func TestService_GetOrCreateSecret_OK_SecretSetViaEnv(t *testing.T) {
 	}
 	query := repository.NewMockQuerier(t)
 	query.On("GetDefaultSecret", mock.Anything).Return(repository.JwtSecret{}, errors.New("sql: no rows in result set"))
-	storage := NewStorage(query)
-	secretBytes := GetOrCreateSecret(tokenConfig, storage)
+	jwtStorage := NewStorage(query)
+	secretBytes := GetOrCreateSecret(tokenConfig, jwtStorage)
 	assert.Equal(t, "JWT_$€cR€t", string(secretBytes))
 }
 
@@ -118,8 +118,8 @@ func TestService_GetOrCreateSecret_NOK_SecretSetViaEnvCorrupted(t *testing.T) {
 		}
 		query := repository.NewMockQuerier(t)
 		query.On("GetDefaultSecret", mock.Anything).Return(repository.JwtSecret{}, errors.New("sql: no rows in result set"))
-		storage := NewStorage(query)
-		GetOrCreateSecret(tokenConfig, storage)
+		jwtStorage := NewStorage(query)
+		GetOrCreateSecret(tokenConfig, jwtStorage)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=TestService_GetOrCreateSecret_NOK_SecretSetViaEnvCorrupted")
 	cmd.Env = append(os.Environ(), "FATAL_TEST=1")
@@ -133,8 +133,8 @@ func TestService_GetOrCreateSecret_NOK_SecretNotSet(t *testing.T) {
 		tokenConfig := config.Token{}
 		query := repository.NewMockQuerier(t)
 		query.On("GetDefaultSecret", mock.Anything).Return(repository.JwtSecret{}, errors.New("sql: no rows in result set"))
-		storage := NewStorage(query)
-		GetOrCreateSecret(tokenConfig, storage)
+		jwtStorage := NewStorage(query)
+		GetOrCreateSecret(tokenConfig, jwtStorage)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=TestService_GetOrCreateSecret_NOK_SecretNotSet")
 	cmd.Env = append(os.Environ(), "FATAL_TEST=1")
