@@ -9,7 +9,7 @@ COPY Makefile go.mod go.sum ./
 
 RUN go mod download
 COPY . .
-RUN make go-jwt-generate
+RUN make generate
 
 RUN go build -v -o server ./cmd/server
 
