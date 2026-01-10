@@ -2,19 +2,24 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/gin-gonic/gin"
+	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/rs/zerolog/log"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/internal/db"
+	httperror "github.com/spdeepak/go-jwt-server/internal/error"
 	"github.com/spdeepak/go-jwt-server/internal/jwt_secret"
 	jwt_secretRepo "github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
 	"github.com/spdeepak/go-jwt-server/internal/permissions"
@@ -39,6 +44,7 @@ func main() {
 		log.Fatal().Err(err)
 	}
 	dbConnection := db.Connect(cfg.Postgres)
+	defer dbConnection.Close()
 
 	//JWT SecretKey
 	jwtSecretRepository := jwt_secretRepo.New(dbConnection)
@@ -72,17 +78,41 @@ func main() {
 	swagger.Servers = nil
 
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
-
+	validator := ginmiddleware.OapiRequestValidatorWithOptions(swagger,
+		&ginmiddleware.Options{
+			Options: openapi3filter.Options{
+				AuthenticationFunc: NewAuthenticator(v),
+			},
+		})
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
+	router.Use(ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
+		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
+			c.AbortWithStatusJSON(statusCode, httperror.HttpError{
+				Description: message,
+				StatusCode:  statusCode,
+			})
+		},
+	}))
+	router.Use(gin.Recovery())
 	router.Use(middleware.ErrorMiddleware)
 	router.Use(middleware.GinLogger())
 	router.Use(authMiddleware)
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", 8080),
+		Addr:    fmt.Sprintf(":%d", 8081),
 		Handler: router,
 	}
+
+	// Start server in a goroutine
+	go func() {
+		slog.Info(fmt.Sprintf("Starting server on %s", srv.Addr))
+		if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Failed to start server", slog.Any("error", err))
+			os.Exit(1)
+		}
+	}()
 
 	chanErrors := make(chan error)
 	// Initializing the Server in a goroutine so that it won't block the graceful shutdown handling below
@@ -101,7 +131,7 @@ func main() {
 		// The context is used to inform the Server it has 5 seconds to finish the request it is currently handling
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
+		if err = srv.Shutdown(ctx); err != nil {
 			log.Fatal().Err(err).Msgf("Server forced to shutdown")
 		}
 		log.Info().Msgf("Server exiting gracefully")
