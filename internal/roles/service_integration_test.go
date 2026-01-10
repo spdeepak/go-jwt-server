@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
@@ -26,43 +25,41 @@ import (
 var roleStorage roleRepo.Querier
 var permissionStorage permissionsRepo.Querier
 var dba *pgxpool.Pool
+var dbConfig = config.PostgresConfig{
+	Host:              "localhost",
+	Port:              "5432",
+	DBName:            "jwt_server",
+	UserName:          "admin",
+	Password:          "admin",
+	SSLMode:           "disable",
+	Timeout:           5 * time.Second,
+	MaxRetry:          5,
+	ConnectTimeout:    10 * time.Second,
+	StatementTimeout:  15 * time.Second,
+	MaxOpenConns:      1,
+	MaxIdleConns:      1,
+	ConnMaxLifetime:   10 * time.Minute,
+	ConnMaxIdleTime:   2 * time.Minute,
+	HealthCheckPeriod: 1 * time.Minute,
+}
 
 func TestMain(m *testing.M) {
-	t := &testing.T{}
-	dbConfig := config.PostgresConfig{
-		Host:              "localhost",
-		Port:              "5432",
-		DBName:            "jwt_server",
-		UserName:          "admin",
-		Password:          "admin",
-		SSLMode:           "disable",
-		Timeout:           5 * time.Second,
-		MaxRetry:          5,
-		ConnectTimeout:    10 * time.Second,
-		StatementTimeout:  15 * time.Second,
-		MaxOpenConns:      1,
-		MaxIdleConns:      1,
-		ConnMaxLifetime:   10 * time.Minute,
-		ConnMaxIdleTime:   2 * time.Minute,
-		HealthCheckPeriod: 1 * time.Minute,
-	}
 	dbConnection := db.Connect(dbConfig)
-	dba = dbConnection
-	require.NoError(t, resetPublicSchema(dba))
-	require.NoError(t, db.RunMigrations(dbConfig))
 	roleStorage = roleRepo.New(dbConnection)
 	permissionStorage = permissionsRepo.New(dbConnection)
 	// Run all tests
-	truncateTables(t, dba)
+	truncateTables()
 	code := m.Run()
 	// Optional: Clean up (e.g., drop DB or close connection)
-	require.NoError(t, resetPublicSchema(dba))
+	truncateTables()
 	dbConnection.Close()
 	os.Exit(code)
 }
 
-func truncateTables(t *testing.T, db *pgxpool.Pool) {
-	_, err := db.Exec(context.Background(), `
+func truncateTables() {
+	t := &testing.T{}
+	dbConnection := db.Connect(dbConfig)
+	_, err := dbConnection.Exec(context.Background(), `
         DO $$
 			DECLARE
 				r RECORD;
@@ -79,16 +76,8 @@ func truncateTables(t *testing.T, db *pgxpool.Pool) {
 	assert.NoError(t, err)
 }
 
-func resetPublicSchema(pool *pgxpool.Pool) error {
-	_, err := pool.Exec(context.Background(), `
-        DROP SCHEMA IF EXISTS public CASCADE;
-        CREATE SCHEMA public;
-    `)
-	return err
-}
-
 func TestService_CreateNewRole(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Create New Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -118,7 +107,7 @@ func TestService_CreateNewRole(t *testing.T) {
 }
 
 func TestService_DeleteRole(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Delete Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -145,7 +134,7 @@ func TestService_DeleteRole(t *testing.T) {
 }
 
 func TestService_ListRoles(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("List Roles OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -164,7 +153,7 @@ func TestService_ListRoles(t *testing.T) {
 		assert.Equal(t, request.Name, roles[0].Name)
 		assert.Equal(t, request.Description, roles[0].Description)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("List Roles Empty", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -177,7 +166,7 @@ func TestService_ListRoles(t *testing.T) {
 }
 
 func TestService_GetRoleById(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Get Role by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -196,7 +185,7 @@ func TestService_GetRoleById(t *testing.T) {
 		assert.Equal(t, request.Name, role.Name)
 		assert.Equal(t, request.Description, role.Description)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Get Role by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -209,7 +198,7 @@ func TestService_GetRoleById(t *testing.T) {
 }
 
 func TestService_UpdateRoleById(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Get Role by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -232,7 +221,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 		assert.Equal(t, role.CreatedAt, createdRole.CreatedAt)
 		assert.NotEqual(t, role.UpdatedAt, createdRole.UpdatedAt)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Get Role by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -248,7 +237,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 }
 
 func TestService_AssignPermissionToRole(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Assign Permission to Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -272,7 +261,7 @@ func TestService_AssignPermissionToRole(t *testing.T) {
 }
 
 func TestService_UnassignPermissionToRole(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Assign Permission to Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -298,7 +287,7 @@ func TestService_UnassignPermissionToRole(t *testing.T) {
 }
 
 func TestService_ListRolesAndItsPermissions(t *testing.T) {
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("List Roles And Its Permissions OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)

@@ -10,4 +10,6 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: jwt_server
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d
     restart: unless-stopped

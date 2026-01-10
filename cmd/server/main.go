@@ -76,11 +76,13 @@ func main() {
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(middleware.RequestValidator(swagger))
-	router.Use(authMiddleware)
-	router.Use(gin.Recovery())
-	router.Use(middleware.ErrorMiddleware)
-	router.Use(middleware.GinLogger())
+	router.Use(
+		middleware.RequestValidator(swagger),
+		authMiddleware,
+		gin.Recovery(),
+		middleware.ErrorMiddleware,
+		middleware.GinLogger(),
+	)
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
