@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/pquerna/otp/totp"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -143,6 +144,7 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.Is(err, &he))
+	log.Info().Msgf("%s", err.Error())
 	assert.Equal(t, httperror.UserAlreadyExists, he.ErrorCode)
 	assert.Empty(t, res)
 }
