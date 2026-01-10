@@ -23,14 +23,21 @@ type Token struct {
 }
 
 type PostgresConfig struct {
-	Host     string        `required:"true" json:"host" yaml:"host"`
-	Port     string        `json:"port" yaml:"port"`
-	DBName   string        `required:"true" json:"dbName" yaml:"dbName"`
-	UserName string        `required:"true" json:"username" yaml:"username"`
-	Password string        `required:"true" json:"password" yaml:"password"`
-	SSLMode  string        `required:"true" json:"sslMode" yaml:"sslMode"`
-	Timeout  time.Duration `required:"true" json:"timeout" yaml:"timeout"`
-	MaxRetry int           `required:"true" json:"maxRetry" yaml:"maxRetry"`
+	Host              string        `required:"true" json:"host" yaml:"host"`
+	Port              string        `json:"port" yaml:"port"`
+	DBName            string        `required:"true" json:"dbName" yaml:"dbName"`
+	UserName          string        `required:"true" json:"username" yaml:"username"`
+	Password          string        `required:"true" json:"password" yaml:"password"`
+	SSLMode           string        `required:"true" json:"sslMode" yaml:"sslMode"`
+	Timeout           time.Duration `required:"true" json:"timeout" yaml:"timeout"`
+	MaxRetry          int           `required:"true" json:"maxRetry" yaml:"maxRetry"`
+	ConnectTimeout    time.Duration `required:"true" json:"connectTimeout" yaml:"connectTimeout" validate:"required,gt=0"`
+	StatementTimeout  time.Duration `required:"true" json:"statementTimeout" yaml:"statementTimeout" validate:"required,gt=0"`
+	MaxOpenConns      int           `required:"true" json:"maxOpenConns" yaml:"maxOpenConns" validate:"required,gt=0"`
+	MaxIdleConns      int           `required:"true" json:"maxIdleConns" yaml:"maxIdleConns" validate:"required,gt=0"`
+	ConnMaxLifetime   time.Duration `required:"true" json:"connMaxLifetime" yaml:"connMaxLifetime" validate:"required,gt=0"`
+	ConnMaxIdleTime   time.Duration `required:"true" json:"connMaxIdleTime" yaml:"connMaxIdleTime" validate:"required,gt=0"`
+	HealthCheckPeriod time.Duration `required:"true" json:"healthCheckPeriod" yaml:"healthCheckPeriod" validate:"required,gt=0"`
 }
 
 type Auth struct {

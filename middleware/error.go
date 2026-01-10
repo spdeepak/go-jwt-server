@@ -7,8 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-
-	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/spdeepak/go-jwt-server/internal/error"
 )
 
 func ErrorMiddleware(c *gin.Context) {
