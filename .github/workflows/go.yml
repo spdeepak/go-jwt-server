@@ -49,6 +49,7 @@ jobs:
 
       - name: Delete old workflow runs (keep last 2)
         if: success()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
