@@ -24,6 +24,7 @@ import (
 
 var roleStorage roleRepo.Querier
 var permissionStorage permissionsRepo.Querier
+var dba *pgxpool.Pool
 var dbConfig = config.PostgresConfig{
 	Host:              "localhost",
 	Port:              "5432",
@@ -49,7 +50,7 @@ func TestMain(m *testing.M) {
 	// Run all tests
 	truncateTables()
 	code := m.Run()
-	// Clean up (truncate tables)
+	// Optional: Clean up (e.g., drop DB or close connection)
 	truncateTables()
 	dbConnection.Close()
 	os.Exit(code)
@@ -73,14 +74,6 @@ func truncateTables() {
 		END $$;
     `)
 	assert.NoError(t, err)
-}
-
-func resetPublicSchema(pool *pgxpool.Pool) error {
-	_, err := pool.Exec(context.Background(), `
-        DROP SCHEMA IF EXISTS public CASCADE;
-        CREATE SCHEMA public;
-    `)
-	return err
 }
 
 func TestService_CreateNewRole(t *testing.T) {
@@ -220,7 +213,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 		assert.NotEmpty(t, createdRole)
 		updatedRoleDescription := "changed role description"
 		updatedName := "updated_role_name"
-		role, err := roleService.UpdateRoleById(ctx, createdRole.Id, "first.last@example.com", api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
+		role, err := roleService.UpdateRoleById(ctx, createdRole.Id, api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
 		assert.NoError(t, err)
 		assert.NotEmpty(t, role)
 		assert.Equal(t, updatedRoleDescription, role.Description)
@@ -237,7 +230,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 
 		updatedRoleDescription := "changed role description"
 		updatedName := "updated_role_name"
-		role, err := roleService.UpdateRoleById(ctx, uuid.New(), "first.last@example.com", api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
+		role, err := roleService.UpdateRoleById(ctx, uuid.New(), api.UpdateRoleByIdParams{}, api.UpdateRole{Description: &updatedRoleDescription, Name: &updatedName})
 		assert.Error(t, err)
 		assert.Empty(t, role)
 	})

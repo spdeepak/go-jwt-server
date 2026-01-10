@@ -9,9 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
@@ -39,15 +37,12 @@ var dbConfig = config.PostgresConfig{
 }
 
 func TestMain(m *testing.M) {
-	t := &testing.T{}
 	dbConnection := db.Connect(dbConfig)
-	require.NoError(t, resetPublicSchema(dbConnection))
-	require.NoError(t, db.RunMigrations(dbConfig))
 	permissionStorage = repository.New(dbConnection)
 	// Run all tests
 	truncateTables()
 	code := m.Run()
-	// Clean up (truncate tables)
+	// Optional: Clean up (e.g., drop DB or close connection)
 	truncateTables()
 	dbConnection.Close()
 	os.Exit(code)
@@ -71,14 +66,6 @@ func truncateTables() {
 		END $$;
     `)
 	assert.NoError(t, err)
-}
-
-func resetPublicSchema(pool *pgxpool.Pool) error {
-	_, err := pool.Exec(context.Background(), `
-        DROP SCHEMA IF EXISTS public CASCADE;
-        CREATE SCHEMA public;
-    `)
-	return err
 }
 
 func TestService_CreateNewPermission(t *testing.T) {

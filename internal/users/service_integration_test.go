@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
@@ -57,7 +56,7 @@ func TestMain(m *testing.M) {
 	// Run all tests
 	truncateTables()
 	code := m.Run()
-	// Clean up (truncate tables)
+	// Optional: Clean up (e.g., drop DB or close connection)
 	truncateTables()
 	dbConnection.Close()
 	os.Exit(code)
@@ -82,14 +81,6 @@ func truncateTables() {
 		END $$;
     `)
 	require.NoError(t, err)
-}
-
-func resetPublicSchema(pool *pgxpool.Pool) error {
-	_, err := pool.Exec(context.Background(), `
-        DROP SCHEMA IF EXISTS public CASCADE;
-        CREATE SCHEMA public;
-    `)
-	return err
 }
 
 func TestIntegrationService_Signup_No2FA(t *testing.T) {
