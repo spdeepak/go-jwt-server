@@ -9,9 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
@@ -20,43 +18,40 @@ import (
 )
 
 var permissionStorage repository.Querier
-var dba *pgxpool.Pool
+var dbConfig = config.PostgresConfig{
+	Host:              "localhost",
+	Port:              "5432",
+	DBName:            "jwt_server",
+	UserName:          "admin",
+	Password:          "admin",
+	SSLMode:           "disable",
+	Timeout:           5 * time.Second,
+	MaxRetry:          5,
+	ConnectTimeout:    10 * time.Second,
+	StatementTimeout:  15 * time.Second,
+	MaxOpenConns:      1,
+	MaxIdleConns:      1,
+	ConnMaxLifetime:   10 * time.Minute,
+	ConnMaxIdleTime:   2 * time.Minute,
+	HealthCheckPeriod: 1 * time.Minute,
+}
 
 func TestMain(m *testing.M) {
-	t := &testing.T{}
-	dbConfig := config.PostgresConfig{
-		Host:              "localhost",
-		Port:              "5432",
-		DBName:            "jwt_server",
-		UserName:          "admin",
-		Password:          "admin",
-		SSLMode:           "disable",
-		Timeout:           5 * time.Second,
-		MaxRetry:          5,
-		ConnectTimeout:    10 * time.Second,
-		StatementTimeout:  15 * time.Second,
-		MaxOpenConns:      1,
-		MaxIdleConns:      1,
-		ConnMaxLifetime:   10 * time.Minute,
-		ConnMaxIdleTime:   2 * time.Minute,
-		HealthCheckPeriod: 1 * time.Minute,
-	}
 	dbConnection := db.Connect(dbConfig)
-	dba = dbConnection
-	require.NoError(t, resetPublicSchema(dba))
-	require.NoError(t, db.RunMigrations(dbConfig))
 	permissionStorage = repository.New(dbConnection)
 	// Run all tests
-	truncateTables(t, dba)
+	truncateTables()
 	code := m.Run()
 	// Optional: Clean up (e.g., drop DB or close connection)
-	require.NoError(t, resetPublicSchema(dba))
+	truncateTables()
 	dbConnection.Close()
 	os.Exit(code)
 }
 
-func truncateTables(t *testing.T, db *pgxpool.Pool) {
-	_, err := db.Exec(context.Background(), `
+func truncateTables() {
+	t := &testing.T{}
+	dbConnection := db.Connect(dbConfig)
+	_, err := dbConnection.Exec(context.Background(), `
         DO $$
 			DECLARE
 				r RECORD;
@@ -71,14 +66,6 @@ func truncateTables(t *testing.T, db *pgxpool.Pool) {
 		END $$;
     `)
 	assert.NoError(t, err)
-}
-
-func resetPublicSchema(pool *pgxpool.Pool) error {
-	_, err := pool.Exec(context.Background(), `
-        DROP SCHEMA IF EXISTS public CASCADE;
-        CREATE SCHEMA public;
-    `)
-	return err
 }
 
 func TestService_CreateNewPermission(t *testing.T) {
@@ -108,7 +95,7 @@ func TestService_CreateNewPermission(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, createdPermission)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 }
 
 func TestService_DeletePermission(t *testing.T) {
@@ -156,7 +143,7 @@ func TestService_ListPermissions(t *testing.T) {
 		assert.Equal(t, request.Name, permissions[0].Name)
 		assert.Equal(t, request.Description, permissions[0].Description)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("List Permissions Empty", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -187,7 +174,7 @@ func TestService_GetPermissionById(t *testing.T) {
 		assert.Equal(t, request.Name, permission.Name)
 		assert.Equal(t, request.Description, permission.Description)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Get Permission by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
@@ -222,7 +209,7 @@ func TestService_UpdatePermissionById(t *testing.T) {
 		assert.Equal(t, permission.CreatedAt, createdPermission.CreatedAt)
 		assert.NotEqual(t, permission.UpdatedAt, createdPermission.UpdatedAt)
 	})
-	truncateTables(t, dba)
+	truncateTables()
 	t.Run("Get Permission by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)

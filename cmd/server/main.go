@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -39,6 +40,7 @@ func main() {
 		log.Fatal().Err(err)
 	}
 	dbConnection := db.Connect(cfg.Postgres)
+	defer dbConnection.Close()
 
 	//JWT SecretKey
 	jwtSecretRepository := jwt_secretRepo.New(dbConnection)
@@ -72,17 +74,29 @@ func main() {
 	swagger.Servers = nil
 
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
-
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(middleware.ErrorMiddleware)
-	router.Use(middleware.GinLogger())
-	router.Use(authMiddleware)
+	router.Use(
+		middleware.RequestValidator(swagger),
+		authMiddleware,
+		gin.Recovery(),
+		middleware.ErrorMiddleware,
+		middleware.GinLogger(),
+	)
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", 8080),
 		Handler: router,
 	}
+
+	// Start server in a goroutine
+	go func() {
+		log.Info().Msgf("Starting server on %s", srv.Addr)
+		if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Msgf("failed to start server. Error: %s", err)
+		}
+	}()
 
 	chanErrors := make(chan error)
 	// Initializing the Server in a goroutine so that it won't block the graceful shutdown handling below
@@ -101,7 +115,7 @@ func main() {
 		// The context is used to inform the Server it has 5 seconds to finish the request it is currently handling
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
+		if err = srv.Shutdown(ctx); err != nil {
 			log.Fatal().Err(err).Msgf("Server forced to shutdown")
 		}
 		log.Info().Msgf("Server exiting gracefully")

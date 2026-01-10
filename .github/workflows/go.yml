@@ -49,12 +49,20 @@ jobs:
 
       - name: Delete old workflow runs (keep last 2)
         if: success()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔍 Deleting previous workflow runs..."
-          gh run list --limit 100 --workflow "Go JWT Server CI" --json databaseId,status,createdAt -q 'sort_by(.createdAt) | reverse | .[].databaseId' > runs.txt
-          tail -n +3 runs.txt | xargs -n1 -I {} sh -c 'yes | gh run delete {} --repo ${{ github.repository }}'
+          echo "Deleting previous workflow runs..."
+          gh run list \
+            --workflow "Go JWT Server CI" \
+            --limit 100 \
+            --json databaseId,createdAt \
+            -q 'sort_by(.createdAt) | reverse | .[2:] | .[].databaseId' |
+          while read -r run_id; do
+            echo "Deleting run $run_id"
+            gh run delete "$run_id" --repo "${{ github.repository }}" || echo "Skipped $run_id"
+          done
 
   docker-build-test:
     permissions:

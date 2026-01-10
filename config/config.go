@@ -1,10 +1,14 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
@@ -102,11 +106,11 @@ func NewConfiguration() *AppConfig {
 	config.v.OnConfigChange(func(in fsnotify.Event) {
 		config.readAppConfig()
 	})
-	secret := &secret{}
-	secret.readSecret()
-	secret.v.WatchConfig()
-	secret.v.OnConfigChange(func(in fsnotify.Event) {
-		secret.readSecret()
+	secrets := &secret{}
+	secrets.readSecret()
+	secrets.v.WatchConfig()
+	secrets.v.OnConfigChange(func(in fsnotify.Event) {
+		secrets.readSecret()
 	})
 
 	if masterKey, masterKeyPresent := os.LookupEnv("JWT_MASTER_KEY"); masterKeyPresent {
@@ -117,7 +121,11 @@ func NewConfiguration() *AppConfig {
 		log.Fatal().Msg("One of token.secret or token.masterKey is required in config")
 	}
 
-	populatePostgresCredentials(secret, config)
+	populatePostgresCredentials(secrets, config)
+
+	if err := validateConfig(config); err != nil {
+		log.Fatal().Msgf("invalid config: %v", err)
+	}
 
 	return config
 }
@@ -137,4 +145,18 @@ func populatePostgresCredentials(secret *secret, config *AppConfig) {
 	} else {
 		log.Fatal().Msg("POSTGRES_PASSWORD not found")
 	}
+}
+
+func validateConfig(cfg *AppConfig) error {
+	validate := validator.New()
+	if err := validate.Struct(cfg); err != nil {
+		var validationErrors validator.ValidationErrors
+		errors.As(err, &validationErrors)
+		var errorMessages []string
+		for _, e := range validationErrors {
+			errorMessages = append(errorMessages, fmt.Sprintf("%s: %s", e.Field(), e.Tag()))
+		}
+		return fmt.Errorf("validation failed: %s", strings.Join(errorMessages, "; "))
+	}
+	return nil
 }
