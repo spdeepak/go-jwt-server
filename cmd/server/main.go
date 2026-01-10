@@ -90,7 +90,7 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Info().Msgf(fmt.Sprintf("Starting server on %s", srv.Addr))
+		log.Info().Msgf("Starting server on %s", srv.Addr)
 		if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Msgf("failed to start server. Error: %s", err)
 		}
