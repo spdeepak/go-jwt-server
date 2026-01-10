@@ -11,9 +11,5 @@ services:
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: jwt_server
     volumes:
-      - pgdata:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
     restart: unless-stopped
-
-volumes:
-  pgdata:

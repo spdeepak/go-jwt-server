@@ -26,7 +26,7 @@ func RunMigrations(cfg config.PostgresConfig) error {
 
 	// Get current directory for migrations path
 	wd, _ := os.Getwd()
-	migrationsPath := "file://migrations"
+	migrationsPath := "file://../../migrations"
 	slog.Info("Setting up migrations",
 		"working_directory", wd,
 		"migrations_path", migrationsPath,

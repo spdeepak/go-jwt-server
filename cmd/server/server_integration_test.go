@@ -57,10 +57,7 @@ var dbConfig = config.PostgresConfig{
 }
 
 func TestMain(m *testing.M) {
-	//t := &testing.T{}
 	dbConnection := db.Connect(dbConfig)
-	//require.NoError(t, resetPublicSchema(dbConnection))
-	//require.NoError(t, db.RunMigrations(dbConfig))
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
@@ -86,8 +83,8 @@ func TestMain(m *testing.M) {
 	// Run all tests
 	truncateTables()
 	code := m.Run()
-	// Optional: Clean up (e.g., drop DB or close connection)
-	//require.NoError(t, resetPublicSchema(dbConnection))
+	// Clean up (truncate tables)
+	truncateTables()
 	dbConnection.Close()
 	os.Exit(code)
 }
