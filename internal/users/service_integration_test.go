@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -140,7 +141,9 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.Is(err, &he))
+	assert.Equal(t, httperror.UserAlreadyExists, he.ErrorCode)
 	assert.Empty(t, res)
 }
 
