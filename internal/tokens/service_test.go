@@ -171,7 +171,9 @@ func TestService_ValidateRefreshToken_NOK(t *testing.T) {
 
 	claims, err := NewService(storage, []byte(secret+"asd")).ValidateRefreshToken(ctx, api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.Error(t, err)
-	assert.Equal(t, "token signature is invalid: signature is invalid", err.(httperror.HttpError).Metadata)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, "token signature is invalid: signature is invalid", he.Metadata)
 	assert.Nil(t, claims)
 }
 
@@ -199,7 +201,9 @@ func TestService_RevokeAllTokens_NOK(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(w)
 	err := service.RevokeAllTokens(ctx, "first.last@example.com")
 	assert.Error(t, err)
-	assert.Equal(t, httperror.TokenRevokeFailed, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.TokenRevokeFailed, he.ErrorCode)
 }
 
 func TestService_RevokeRefreshToken_OK(t *testing.T) {
@@ -276,7 +280,9 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 
 	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
 	assert.Error(t, err)
-	assert.Equal(t, httperror.InvalidRefreshToken, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.InvalidRefreshToken, he.ErrorCode)
 }
 
 func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
@@ -424,7 +430,9 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 
 	tokenResponse, err := service.RefreshAndInvalidateToken(ctx, TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository2.User{Email: "first.last@example.com"})
 	assert.Error(t, err)
-	assert.Equal(t, httperror.TokenCreationFailed, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.TokenCreationFailed, he.ErrorCode)
 	assert.NotNil(t, tokenResponse)
 	assert.NotEmpty(t, newBearerToken)
 	assert.NotEmpty(t, newRefreshToken)
@@ -470,7 +478,9 @@ func TestService_ListActiveSessions_NOK_DBQueryFail(t *testing.T) {
 
 	response, err := service.ListActiveSessions(ctx, "first.last@example.com")
 	assert.Error(t, err)
-	assert.Equal(t, httperror.ActiveSessionsListFailed, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.ActiveSessionsListFailed, he.ErrorCode)
 	assert.Nil(t, response)
 }
 

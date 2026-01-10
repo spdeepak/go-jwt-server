@@ -62,7 +62,9 @@ func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.UserAlreadyExists, he.ErrorCode)
 	assert.Empty(t, res)
 }
 
@@ -84,7 +86,9 @@ func TestService_Signup_No2FA_NOK_DBError(t *testing.T) {
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UserSignUpFailed, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.UserSignUpFailed, he.ErrorCode)
 	assert.Empty(t, res)
 }
 
@@ -143,7 +147,9 @@ func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UserAlreadyExists, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.UserAlreadyExists, he.ErrorCode)
 	assert.Empty(t, res)
 }
 
@@ -172,7 +178,9 @@ func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UserSignUpWith2FAFailed, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.UserSignUpWith2FAFailed, he.ErrorCode)
 	assert.Empty(t, res)
 }
 
@@ -364,7 +372,9 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.Bytes, passcode)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UserAccountLocked, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.UserAccountLocked, he.ErrorCode)
 	assert.Empty(t, login2FA)
 }
 
@@ -399,7 +409,9 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.InvalidCredentials, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.InvalidCredentials, he.ErrorCode)
 	assert.Empty(t, login2FA)
 }
 
@@ -434,7 +446,9 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.UndefinedErrorCode, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.UndefinedErrorCode, he.ErrorCode)
 	assert.Empty(t, login2FA)
 }
 
@@ -464,6 +478,8 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
-	assert.Equal(t, httperror.InvalidTwoFA, err.(httperror.HttpError).ErrorCode)
+	var he httperror.HttpError
+	assert.True(t, errors.As(err, &he))
+	assert.Equal(t, httperror.InvalidTwoFA, he.ErrorCode)
 	assert.Empty(t, login2FA)
 }
