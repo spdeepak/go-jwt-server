@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -85,16 +84,15 @@ func main() {
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", 8081),
+		Addr:    fmt.Sprintf(":%d", 8080),
 		Handler: router,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		slog.Info(fmt.Sprintf("Starting server on %s", srv.Addr))
+		log.Info().Msgf(fmt.Sprintf("Starting server on %s", srv.Addr))
 		if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Failed to start server", slog.Any("error", err))
-			os.Exit(1)
+			log.Fatal().Msgf("failed to start server. Error: %s", err)
 		}
 	}()
 

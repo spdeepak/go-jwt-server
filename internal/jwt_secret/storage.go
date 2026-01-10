@@ -33,7 +33,7 @@ func (s *storage) saveDefaultSecret(ctx context.Context, secret string) error {
 func (s *storage) getDefaultEncryptedSecret(ctx context.Context) (string, error) {
 	jwtSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err.Error() == "sql: no rows in result set" {
 			return "", nil
 		}
 		return "", err

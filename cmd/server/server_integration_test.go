@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
@@ -78,17 +77,8 @@ func TestMain(m *testing.M) {
 	swagger, _ := api.GetSwagger()
 	swagger.Servers = nil
 	router = gin.New()
-	router.Use(ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
-		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
-			c.AbortWithStatusJSON(statusCode, httperror.HttpError{
-				Description: message,
-				StatusCode:  statusCode,
-			})
-		},
-	}))
-	router.Use(gin.Recovery())
-	router.Use(middleware.GinLogger())
 	router.Use(middleware.ErrorMiddleware)
+	router.Use(middleware.GinLogger())
 	router.Use(middleware.JWTAuthMiddleware([]byte("JWT_$€Cr€t"), nil))
 	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService)
 	api.RegisterHandlers(router, server)
@@ -134,7 +124,6 @@ func resetPublicSchema(pool *pgxpool.Pool) error {
 func TestServer_GetReady(t *testing.T) {
 	truncateTables()
 	req, _ := http.NewRequest(http.MethodGet, "/ready", nil)
-	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -143,7 +132,6 @@ func TestServer_GetReady(t *testing.T) {
 func TestServer_GetLive(t *testing.T) {
 	truncateTables()
 	req, _ := http.NewRequest(http.MethodGet, "/live", nil)
-	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -171,7 +159,6 @@ func TestServer_Signup_NOK_InvalidPassword(t *testing.T) {
 	signupBytes, err := json.Marshal(signup)
 	assert.NoError(t, err)
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
-	req.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, req)
 	assert.NoError(t, err)
 	req.Header.Set("User-Agent", "api-test")
@@ -187,8 +174,9 @@ func TestServer_Signup_NOK_InvalidPassword(t *testing.T) {
 
 func TestServer_Signup_NOK_InvalidRequestBody(t *testing.T) {
 	truncateTables()
-	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader([]byte(`{"email":"first.last","firstName":"First","lastName":"Last"}`)))
-	req.Header.Set("Content-Type", "application/json")
+	signupBytes, err := json.Marshal(`{"email":"first.last","firstName":"First","lastName":"Last"}`)
+	assert.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
 	assert.NotNil(t, req)
 	assert.NoError(t, err)
 	req.Header.Set("User-Agent", "api-test")
@@ -199,7 +187,7 @@ func TestServer_Signup_NOK_InvalidRequestBody(t *testing.T) {
 	assert.NotEmpty(t, rec.Body.String())
 	var resErr httperror.HttpError
 	assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resErr))
-	assert.Equal(t, "error in openapi3filter.RequestError: request body has an error: doesn't match schema #/components/schemas/UserSignup: Error at \"/password\": property \"password\" is missing", resErr.Description)
+	assert.Equal(t, httperror.InvalidRequestBody, resErr.ErrorCode)
 }
 
 func TestServer_Signup_NOK_Duplicate(t *testing.T) {
@@ -215,7 +203,6 @@ func TestServer_Signup_NOK_Duplicate(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -265,12 +252,11 @@ func TestServer_Login_2FA_NOK_Expired2FA(t *testing.T) {
 		TwoFACode: generateCode,
 	})
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/2fa/login", bytes.NewReader(login2faBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", res.TempToken))
+	request.Header.Set("x-login-source", "api-test")
+	request.Header.Set("Authorization", "Bearer "+res.TempToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -291,11 +277,10 @@ func TestServer_Login_2FA_NOK_InvalidRequestBody(t *testing.T) {
 	//Login with temp_token and 2FA code to get Bearer and Refresh token
 	login2faBytes, err := json.Marshal(`{}`)
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/2fa/login", bytes.NewReader(login2faBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+res.TempToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -313,11 +298,10 @@ func TestServer_Login_NOK_RequestBody(t *testing.T) {
 	}`)
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
@@ -341,11 +325,10 @@ func TestServer_Refresh_OK(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(refreshBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+res.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -376,11 +359,10 @@ func TestServer_Refresh_NOK(t *testing.T) {
 	refreshBytes, err := json.Marshal(``)
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(refreshBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NoError(t, err)
 	assert.NotNil(t, request)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+res.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -405,7 +387,6 @@ func TestServer_RevokeRefreshToken_OK(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodDelete, "/api/v1/auth/sessions/current", bytes.NewReader(revokeBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -428,7 +409,6 @@ func TestServer_RevokeRefreshToken_NOK_InvalidRequestBody(t *testing.T) {
 	revokeBytes, err := json.Marshal(``)
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodDelete, "/api/v1/auth/sessions/current", bytes.NewReader(revokeBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -452,11 +432,10 @@ func TestServer_Create2FA_OK(t *testing.T) {
 
 	//Create 2FA
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/2fa/setup", nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+loginResp.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -490,11 +469,10 @@ func TestServer_Remove2FA_OK(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodDelete, "/api/v1/auth/2fa", bytes.NewReader(twoFABytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+twoFaLoginResp.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -513,11 +491,10 @@ func TestServer_RevokeAllTokens_OK(t *testing.T) {
 
 	//Remove 2FA
 	request, err := http.NewRequest(http.MethodDelete, "/api/v1/auth/sessions", nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+res.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -582,7 +559,6 @@ func TestServer_ListAllRoles_OK(t *testing.T) {
 	})
 	//List All roles
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles", nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -617,7 +593,6 @@ func TestServer_UpdateRoleById_OK(t *testing.T) {
 		Description: &updatedRoleDescription,
 	})
 	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/roles/"+roleRes.Id.String(), bytes.NewReader(updateRole))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -658,7 +633,6 @@ func TestServer_UpdateRoleById_NOK_RoleNotFound(t *testing.T) {
 		Description: &updatedRoleDescription,
 	})
 	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/roles/"+roleRes.Id.String(), bytes.NewReader(updateRole))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -744,7 +718,6 @@ func TestServer_ListAllPermissions_OK(t *testing.T) {
 	})
 	//List All permissions
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions", nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -779,7 +752,6 @@ func TestServer_UpdatePermissionById_OK(t *testing.T) {
 		Description: &updatedPermissionDescription,
 	})
 	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), bytes.NewReader(updatePermission))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -820,7 +792,6 @@ func TestServer_UpdatePermissionById_NOK_PermissionNotFound(t *testing.T) {
 		Description: &updatedPermissionDescription,
 	})
 	request, err := http.NewRequest(http.MethodPatch, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), bytes.NewReader(updatePermission))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -917,7 +888,6 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 	assignPermissionToRole(t, permissionRes2, role, loginRes)
 	//List Roles and Permissions
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/permissions", nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -998,7 +968,6 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), bytes.NewReader(assignPermission))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1063,7 +1032,6 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	assert.NotEmpty(t, user.RoleNames)
 	assert.Empty(t, user.PermissionNames)
 	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1092,7 +1060,6 @@ func signup2FADisabled(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1113,7 +1080,6 @@ func signup2FAEnabled(t *testing.T) api.SignUpWith2FAResponse {
 	assert.NoError(t, err)
 
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/signup", bytes.NewReader(signupBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1139,11 +1105,10 @@ func login2FADisabled(t *testing.T) api.LoginSuccessWithJWT {
 	assert.NoError(t, err)
 
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -1166,11 +1131,10 @@ func login2FAEnabledTempToken(t *testing.T) api.LoginRequires2FA {
 	assert.NoError(t, err)
 
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -1193,11 +1157,10 @@ func loginWithTempToken2FACode(t *testing.T, generateCode string, res api.LoginR
 	})
 
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/auth/2fa/login", bytes.NewReader(login2faBytes))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
-	request.Header.Set("x-login-source", "api")
+	request.Header.Set("x-login-source", "api-test")
 	request.Header.Set("Authorization", "Bearer "+res.TempToken)
 
 	recorder := httptest.NewRecorder()
@@ -1219,7 +1182,6 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateRole) a
 	assert.NoError(t, err)
 
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/access-control/roles", bytes.NewReader(createRoleRequest))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1243,7 +1205,6 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateRole) a
 
 func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.RoleResponse) api.RoleResponse {
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+roleRes.Id.String(), nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1268,7 +1229,6 @@ func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.Rol
 
 func getRoleByIdNotFound(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles/"+id, nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1285,7 +1245,6 @@ func createPermission(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateP
 	assert.NoError(t, err)
 
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/access-control/permissions", bytes.NewReader(createPermissionRequest))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1309,7 +1268,6 @@ func createPermission(t *testing.T, res api.LoginSuccessWithJWT, req api.CreateP
 
 func getPermissionById(t *testing.T, loginRes api.LoginSuccessWithJWT, permissionRes api.PermissionResponse) {
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions/"+permissionRes.Id.String(), nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1332,7 +1290,6 @@ func getPermissionById(t *testing.T, loginRes api.LoginSuccessWithJWT, permissio
 
 func getPermissionByIdNotFound(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
 	request, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions/"+id, nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1346,7 +1303,6 @@ func getPermissionByIdNotFound(t *testing.T, loginRes api.LoginSuccessWithJWT, i
 
 func deleteRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
 	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/roles/"+id, nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1360,7 +1316,6 @@ func deleteRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
 
 func deletePermissionByIdOK(t *testing.T, loginRes api.LoginSuccessWithJWT, id string) {
 	request, err := http.NewRequest(http.MethodDelete, "/api/v1/access-control/permissions/"+id, nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1378,7 +1333,6 @@ func assignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse, 
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/access-control/roles/%s/permissions", role.Id.String()), bytes.NewReader(assignPermission))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1391,7 +1345,6 @@ func assignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse, 
 
 func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
 	request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/access-control/roles/%s/permissions/%s", role.Id.String(), permissionRes.Id.String()), nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1415,7 +1368,6 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 	})
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), bytes.NewReader(assignPermission))
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
@@ -1443,7 +1395,6 @@ func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.Login
 	assert.Empty(t, user.PermissionNames)
 	assert.NoError(t, err)
 	request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/users/%s/roles/%s", user.UserID.String(), role.Id.String()), nil)
-	request.Header.Set("Content-Type", "application/json")
 	assert.NotNil(t, request)
 	assert.NoError(t, err)
 	request.Header.Set("User-Agent", "api-test")
