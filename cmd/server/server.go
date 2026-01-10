@@ -236,7 +236,7 @@ func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
 
 func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
 	email := ctx.GetString(emailHeader)
-	if email != "" {
+	if email == "" {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
