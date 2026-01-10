@@ -11,15 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/gin-gonic/gin"
-	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/rs/zerolog/log"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/internal/db"
-	httperror "github.com/spdeepak/go-jwt-server/internal/error"
 	"github.com/spdeepak/go-jwt-server/internal/jwt_secret"
 	jwt_secretRepo "github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
 	"github.com/spdeepak/go-jwt-server/internal/permissions"
@@ -78,26 +75,13 @@ func main() {
 	swagger.Servers = nil
 
 	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
-	validator := ginmiddleware.OapiRequestValidatorWithOptions(swagger,
-		&ginmiddleware.Options{
-			Options: openapi3filter.Options{
-				AuthenticationFunc: NewAuthenticator(v),
-			},
-		})
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
-		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
-			c.AbortWithStatusJSON(statusCode, httperror.HttpError{
-				Description: message,
-				StatusCode:  statusCode,
-			})
-		},
-	}))
+	router.Use(middleware.RequestValidator(swagger))
+	router.Use(authMiddleware)
 	router.Use(gin.Recovery())
 	router.Use(middleware.ErrorMiddleware)
 	router.Use(middleware.GinLogger())
-	router.Use(authMiddleware)
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{

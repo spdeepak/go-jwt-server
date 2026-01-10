@@ -1,11 +1,18 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/gin-gonic/gin"
+	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/rs/zerolog/log"
+
+	httperror "github.com/spdeepak/go-jwt-server/internal/error"
 )
 
 var IgnorePaths = []string{
@@ -41,4 +48,28 @@ func GinLogger() gin.HandlerFunc {
 		}
 		logEvent.Msg("HTTP request")
 	}
+}
+
+func RequestValidator(swagger *openapi3.T) gin.HandlerFunc {
+	authFunc := func(ctx context.Context, input *openapi3filter.AuthenticationInput) error {
+		if input.SecuritySchemeName != "bearerAuth" {
+			return nil
+		}
+		authHeader := input.RequestValidationInput.Request.Header.Get("Authorization")
+		if authHeader == "" {
+			return errors.New("no authorization header")
+		}
+		return nil
+	}
+	return ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
+		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
+			c.AbortWithStatusJSON(statusCode, httperror.HttpError{
+				Description: message,
+				StatusCode:  statusCode,
+			})
+		},
+		Options: openapi3filter.Options{
+			AuthenticationFunc: authFunc,
+		},
+	})
 }
