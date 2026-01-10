@@ -143,7 +143,7 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
 	var he httperror.HttpError
-	assert.True(t, errors.Is(err, &he))
+	assert.True(t, errors.As(err, &he))
 	log.Info().Msgf("%s", err.Error())
 	assert.Equal(t, httperror.UserAlreadyExists, he.ErrorCode)
 	assert.Empty(t, res)
