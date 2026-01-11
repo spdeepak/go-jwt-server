@@ -235,8 +235,8 @@ func (s *Server) ListAllRoles(ctx *gin.Context, params api.ListAllRolesParams) {
 }
 
 func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.UpdateRoleByIdParams) {
-	_, emailPresent := ctx.Get(emailHeader)
-	if !emailPresent {
+	email := ctx.GetString(emailHeader)
+	if email == "" {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
@@ -245,7 +245,7 @@ func (s *Server) UpdateRoleById(ctx *gin.Context, id api.UuId, params api.Update
 		ctx.Error(httperror.New(httperror.InvalidRequestBody))
 		return
 	}
-	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, params, req)
+	updatedRole, err := s.roleService.UpdateRoleById(ctx, id, email, params, req)
 	if err != nil {
 		ctx.Error(err)
 		return

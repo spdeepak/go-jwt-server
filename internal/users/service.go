@@ -108,6 +108,9 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 	if user.TwoFaEnabled {
 		return s.tokenService.GenerateTempToken(ctx, user.UserID.Bytes)
 	}
+	if user.Locked {
+		return api.LoginSuccessWithJWT{}, httperror.New(httperror.UserAccountLocked)
+	}
 	jwtUser := token.User{
 		ID:        user.UserID,
 		Email:     user.Email,
