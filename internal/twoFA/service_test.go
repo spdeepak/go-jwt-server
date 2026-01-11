@@ -36,7 +36,7 @@ func TestService_Verify2FALogin_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}

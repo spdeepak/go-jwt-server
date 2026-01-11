@@ -215,7 +215,7 @@ func login_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("User-Agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	email := "first.last@example.com"
@@ -338,7 +338,7 @@ func login2FA_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	userByEmail, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
@@ -386,7 +386,7 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	userByEmail, err := userStorage.GetEntireUserByEmail(context.Background(), "first.last@example.com")
@@ -406,7 +406,7 @@ func login2FA_NOK_UserNotExist(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	secret := "JWT_$€CR€T"
@@ -433,7 +433,7 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	ctx.Set("User-Email", "first.last@example.com")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	request := api.CreateRole{
@@ -526,7 +526,7 @@ func TestService_AssignRolesToUser(t *testing.T) {
 	ctx.Set("User-Email", "first.last@example.com")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	request := api.CreateRole{
@@ -588,7 +588,7 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	ctx.Set("User-Email", "first.last@example.com")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	request := api.CreateRole{

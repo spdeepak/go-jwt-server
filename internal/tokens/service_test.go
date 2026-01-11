@@ -34,7 +34,7 @@ func TestService_GenerateTokenPair(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -67,7 +67,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -111,7 +111,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -156,7 +156,7 @@ func TestService_ValidateRefreshToken_NOK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -224,7 +224,7 @@ func TestService_RevokeRefreshToken_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -262,7 +262,7 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -303,7 +303,7 @@ func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -341,7 +341,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -397,7 +397,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	tokenParams := TokenParams{
@@ -494,7 +494,7 @@ func TestService_GenerateTempToken_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Forwarded", "192.168.1.100")
+	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
 	response, err := service.GenerateTempToken(ctx, userId)
