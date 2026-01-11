@@ -8,5 +8,5 @@ import (
 
 func TestSliceSplit(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, SliceSplit("a,b", ","))
-	assert.Equal(t, []string{"a", ",", "b"}, SliceSplit("a,b", ""))
+	assert.Equal(t, []string{}, SliceSplit("", ""))
 }
