@@ -33,19 +33,19 @@ func GinLogger() gin.HandlerFunc {
 		latency := endTime.Sub(startTime).Milliseconds()
 		statusCode := c.Writer.Status()
 
-		logEvent := slog.Any("extra", map[string]interface{}{
-			"method":     c.Request.Method,
-			"path":       c.Request.URL.Path,
-			"status":     statusCode,
-			"latency_ms": latency,
-			"client_ip":  c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-		})
+		var logEvents []slog.Attr
+		logEvents = append(logEvents, slog.Any("method", c.Request.Method))
+		logEvents = append(logEvents, slog.Any("path", c.Request.URL.Path))
+		logEvents = append(logEvents, slog.Any("status", statusCode))
+		logEvents = append(logEvents, slog.Any("latency_ms", latency))
+		logEvents = append(logEvents, slog.Any("client_ip", c.ClientIP()))
+		logEvents = append(logEvents, slog.Any("user_agent", c.Request.UserAgent()))
 
 		if len(c.Errors) > 0 {
-			slog.Error("errors", c.Errors.String(), logEvent)
+			slog.ErrorContext(c, "errors", c.Errors.String(), slog.GroupValue(logEvents...))
+		} else {
+			slog.InfoContext(c, "HTTP request", slog.Any("trace", slog.GroupValue(logEvents...)))
 		}
-		slog.Info("HTTP request", logEvent)
 	}
 }
 
