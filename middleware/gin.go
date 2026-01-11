@@ -42,9 +42,10 @@ func GinLogger() gin.HandlerFunc {
 		logEvents = append(logEvents, slog.Any("user_agent", c.Request.UserAgent()))
 
 		if len(c.Errors) > 0 {
-			slog.Error("errors", c.Errors.String(), slog.GroupValue(logEvents...))
+			slog.ErrorContext(c, "errors", c.Errors.String(), slog.GroupValue(logEvents...))
+		} else {
+			slog.InfoContext(c, "HTTP request", slog.Any("trace", slog.GroupValue(logEvents...)))
 		}
-		slog.Info("HTTP request", slog.GroupValue(logEvents...))
 	}
 }
 
