@@ -4,13 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/internal/error"
@@ -64,7 +64,7 @@ func NewService(storage Storage, secret []byte) Service {
 func getOrDefaultExpiry(env string, defaultExpire time.Duration) time.Duration {
 	expireDuration, expireDurationPresent := os.LookupEnv(env)
 	if !expireDurationPresent {
-		log.Warn().Msgf("%s not present, using default %s", env, defaultExpire)
+		slog.Warn(fmt.Sprintf("%s not present, using default %s", env, defaultExpire))
 		return defaultExpire
 	} else if expiryTime, err := time.ParseDuration(expireDuration); err != nil {
 		return expiryTime

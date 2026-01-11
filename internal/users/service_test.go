@@ -190,7 +190,7 @@ func TestService_Login_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("User-Agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set("Forwarded", "192.168.1.100")
 	ctx.Request = req
 
 	email := "first.last@example.com"
@@ -313,7 +313,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set("Forwarded", "192.168.1.100")
 	ctx.Request = req
 
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
@@ -351,7 +351,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set("Forwarded", "192.168.1.100")
 	ctx.Request = req
 
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
@@ -384,7 +384,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set("Forwarded", "192.168.1.100")
 	ctx.Request = req
 
 	userId := uuid.New()
@@ -421,7 +421,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set("Forwarded", "192.168.1.100")
 	ctx.Request = req
 
 	userId := uuid.New()
@@ -458,7 +458,7 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 	ctx.Header("x-login-source", "test")
 	ctx.Header("user-agent", "test")
 	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("X-Forwarded-For", "192.168.1.100")
+	req.Header.Set("Forwarded", "192.168.1.100")
 	ctx.Request = req
 
 	userId := uuid.New()

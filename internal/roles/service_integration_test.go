@@ -81,7 +81,7 @@ func TestService_CreateNewRole(t *testing.T) {
 	t.Run("Create New Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -94,7 +94,7 @@ func TestService_CreateNewRole(t *testing.T) {
 	t.Run("Create New Role NOK duplicate", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -111,7 +111,7 @@ func TestService_DeleteRole(t *testing.T) {
 	t.Run("Delete Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -126,7 +126,7 @@ func TestService_DeleteRole(t *testing.T) {
 	t.Run("Delete Role OK not exists", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		roleService := NewService(roleStorage)
 		err := roleService.DeleteRoleById(ctx, uuid.New())
 		assert.NoError(t, err)
@@ -138,7 +138,7 @@ func TestService_ListRoles(t *testing.T) {
 	t.Run("List Roles OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -157,7 +157,7 @@ func TestService_ListRoles(t *testing.T) {
 	t.Run("List Roles Empty", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		roleService := NewService(roleStorage)
 		createdRole, err := roleService.ListRoles(ctx)
 		assert.NoError(t, err)
@@ -170,7 +170,7 @@ func TestService_GetRoleById(t *testing.T) {
 	t.Run("Get Role by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -189,7 +189,7 @@ func TestService_GetRoleById(t *testing.T) {
 	t.Run("Get Role by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		roleService := NewService(roleStorage)
 		role, err := roleService.GetRoleById(ctx, uuid.New())
 		assert.Error(t, err)
@@ -202,7 +202,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 	t.Run("Get Role by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -225,7 +225,7 @@ func TestService_UpdateRoleById(t *testing.T) {
 	t.Run("Get Role by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		roleService := NewService(roleStorage)
 
 		updatedRoleDescription := "changed role description"
@@ -241,7 +241,7 @@ func TestService_AssignPermissionToRole(t *testing.T) {
 	t.Run("Assign Permission to Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -265,7 +265,7 @@ func TestService_UnassignPermissionToRole(t *testing.T) {
 	t.Run("Assign Permission to Role OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",
@@ -291,7 +291,7 @@ func TestService_ListRolesAndItsPermissions(t *testing.T) {
 	t.Run("List Roles And Its Permissions OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreateRole{
 			Description: "role description",
 			Name:        "role_name",

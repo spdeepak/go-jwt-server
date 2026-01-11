@@ -3,13 +3,13 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator/v10"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -118,13 +118,15 @@ func NewConfiguration() *AppConfig {
 	} else if secretKey, secretKeyPresent := os.LookupEnv("JWT_SECRET_KEY"); secretKeyPresent {
 		config.Token.Secret = secretKey
 	} else {
-		log.Fatal().Msg("One of token.secret or token.masterKey is required in config")
+		slog.Error("One of token.secret or token.masterKey is required in config")
+		os.Exit(1)
 	}
 
 	populatePostgresCredentials(secrets, config)
 
 	if err := validateConfig(config); err != nil {
-		log.Fatal().Msgf("invalid config: %v", err)
+		slog.Error("invalid config", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	return config
@@ -136,14 +138,16 @@ func populatePostgresCredentials(secret *secret, config *AppConfig) {
 	} else if postgresUsername, postgresUsernamePresent := os.LookupEnv("POSTGRES_USER_NAME"); postgresUsernamePresent {
 		config.Postgres.UserName = postgresUsername
 	} else {
-		log.Fatal().Msg("POSTGRES_USER_NAME not found")
+		slog.Error("POSTGRES_USER_NAME not found")
+		os.Exit(1)
 	}
 	if secret.Postgres.Password != "" {
 		config.Postgres.Password = secret.Postgres.Password
 	} else if postgresPassword, postgresPasswordPresent := os.LookupEnv("POSTGRES_PASSWORD"); postgresPasswordPresent {
 		config.Postgres.Password = postgresPassword
 	} else {
-		log.Fatal().Msg("POSTGRES_PASSWORD not found")
+		slog.Error("POSTGRES_PASSWORD not found")
+		os.Exit(1)
 	}
 }
 

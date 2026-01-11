@@ -1,13 +1,13 @@
 package users
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/spdeepak/go-jwt-server/api"
@@ -46,7 +46,7 @@ func NewService(storage repository.Querier, twoFAService twoFA.Service, tokenSer
 func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error) {
 	hashedPassword, err := hashPassword(user.Password)
 	if err != nil {
-		log.Err(err).Msgf("Failed to encrypt password")
+		slog.ErrorContext(ctx, "Failed to encrypt password", slog.Any("error", err))
 		return api.SignUpWith2FAResponse{}, err
 	}
 	email := string(user.Email)
