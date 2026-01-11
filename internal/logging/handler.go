@@ -35,13 +35,13 @@ func NewDefaultHandler() slog.Handler {
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	extra := make(map[string]interface{})
 	r.Attrs(func(a slog.Attr) bool {
-		if a.Key != "!BADKEY" {
-			extra[a.Key] = a.Value.Any()
-		} else if a.Value.Kind() == slog.KindGroup {
+		if a.Key == "!BADKEY" || a.Value.Kind() == slog.KindGroup {
 			attrs := a.Value.Group()
 			for _, at := range attrs {
 				extra[at.Key] = at.Value.String()
 			}
+		} else {
+			extra[a.Key] = a.Value.Any()
 		}
 		return true
 	})

@@ -47,13 +47,28 @@ func ErrorMiddleware(c *gin.Context) {
 }
 
 func logError(c *gin.Context, err *gin.Error) {
-	slog.ErrorContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
+	var httpErr httperror.HttpError
+	if errors.As(err.Err, &httpErr) {
+		slog.ErrorContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Any("statusCode", httpErr.StatusCode))
+	} else {
+		slog.ErrorContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
+	}
 }
 
 func logWarning(c *gin.Context, err *gin.Error) {
-	slog.WarnContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
+	var httpErr httperror.HttpError
+	if errors.As(err.Err, &httpErr) {
+		slog.WarnContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Any("statusCode", httpErr.StatusCode))
+	} else {
+		slog.WarnContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
+	}
 }
 
 func logDebug(c *gin.Context, err *gin.Error) {
-	slog.DebugContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
+	var httpErr httperror.HttpError
+	if errors.As(err.Err, &httpErr) {
+		slog.DebugContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Any("statusCode", httpErr.StatusCode))
+	} else {
+		slog.DebugContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
+	}
 }
