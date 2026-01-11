@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/internal/db"
 	"github.com/spdeepak/go-jwt-server/internal/error"
+	"github.com/spdeepak/go-jwt-server/internal/logging"
 	"github.com/spdeepak/go-jwt-server/internal/permissions"
 	permissionsRepo "github.com/spdeepak/go-jwt-server/internal/permissions/repository"
 	"github.com/spdeepak/go-jwt-server/internal/roles"
@@ -56,6 +58,7 @@ var dbConfig = config.PostgresConfig{
 }
 
 func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(logging.NewDefaultHandler()))
 	dbConnection := db.Connect(dbConfig)
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
