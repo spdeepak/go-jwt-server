@@ -2,13 +2,14 @@ package twoFA
 
 import (
 	"encoding/base64"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/rs/zerolog/log"
 	"github.com/skip2/go-qrcode"
 	_ "github.com/skip2/go-qrcode"
 
@@ -63,7 +64,7 @@ func (s *service) Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
 func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId pgtype.UUID, passcode string) (bool, error) {
 	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
-		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
+		slog.ErrorContext(ctx, fmt.Sprintf("Failed to get 2FA details for user: %s", userId), slog.Any("error", err))
 		return false, httperror.New(httperror.InvalidTwoFA)
 	}
 	return totp.ValidateCustom(passcode, twoFADetails.Secret, time.Now(), totp.ValidateOpts{
@@ -77,7 +78,7 @@ func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, us
 func (s *service) Remove2FA(ctx *gin.Context, userId pgtype.UUID, passcode string) error {
 	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
 	if err != nil {
-		log.Err(err).Msgf("Failed to get 2FA details for user: %s", userId)
+		slog.ErrorContext(ctx, fmt.Sprintf("Failed to get 2FA details for user: %s", userId), slog.Any("error", err))
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	is2FAValid, err := totp.ValidateCustom(passcode, twoFADetails.Secret, time.Now(), totp.ValidateOpts{
@@ -87,15 +88,15 @@ func (s *service) Remove2FA(ctx *gin.Context, userId pgtype.UUID, passcode strin
 		Algorithm: otp.AlgorithmSHA1, // standard
 	})
 	if err != nil {
-		log.Err(err).Msgf("Error during 2FA validation for user: %s", userId)
+		slog.ErrorContext(ctx, fmt.Sprintf("Error during 2FA validation for user: %s", userId), slog.Any("error", err))
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	if !is2FAValid {
-		log.Err(err).Msgf("Invalid 2FA code for user: %s", userId)
+		slog.ErrorContext(ctx, fmt.Sprintf("Invalid 2FA code for user: %s", userId), slog.Any("error", err))
 		return httperror.New(httperror.InvalidTwoFA)
 	}
 	if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userId, Secret: twoFADetails.Secret}); err != nil {
-		log.Err(err).Msgf("Failed to delete 2FA setup for user: %s", userId)
+		slog.ErrorContext(ctx, fmt.Sprintf("Failed to delete 2FA setup for user: %s", userId), slog.Any("error", err))
 		return err
 	}
 	return nil

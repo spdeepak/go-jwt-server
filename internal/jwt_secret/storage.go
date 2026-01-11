@@ -2,8 +2,8 @@ package jwt_secret
 
 import (
 	"context"
-
-	"github.com/rs/zerolog/log"
+	"log/slog"
+	"os"
 
 	"github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
 )
@@ -25,7 +25,8 @@ func NewStorage(jwtSecretRepository repository.Querier) Storage {
 
 func (s *storage) saveDefaultSecret(ctx context.Context, secret string) error {
 	if err := s.jwtSecretRepository.CreateDefaultSecret(ctx, secret); err != nil {
-		log.Fatal().Msg("JWT_TOKEN_SECRET not provided. Could not create default jwt secret.")
+		slog.ErrorContext(ctx, "JWT_TOKEN_SECRET not provided. Could not create default jwt secret.")
+		os.Exit(1)
 	}
 	return nil
 }
@@ -33,7 +34,7 @@ func (s *storage) saveDefaultSecret(ctx context.Context, secret string) error {
 func (s *storage) getDefaultEncryptedSecret(ctx context.Context) (string, error) {
 	jwtSecret, err := s.jwtSecretRepository.GetDefaultSecret(ctx)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == "no rows in result set" {
 			return "", nil
 		}
 		return "", err

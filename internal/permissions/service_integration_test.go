@@ -72,7 +72,7 @@ func TestService_CreateNewPermission(t *testing.T) {
 	t.Run("Create New Permission OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreatePermission{
 			Description: "permission description",
 			Name:        "permission_name",
@@ -85,7 +85,7 @@ func TestService_CreateNewPermission(t *testing.T) {
 	t.Run("Create New Permission NOK duplicate", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreatePermission{
 			Description: "permission description",
 			Name:        "permission_name",
@@ -102,7 +102,7 @@ func TestService_DeletePermission(t *testing.T) {
 	t.Run("Delete Permission OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreatePermission{
 			Description: "permission description",
 			Name:        "permission_name",
@@ -117,7 +117,7 @@ func TestService_DeletePermission(t *testing.T) {
 	t.Run("Delete Permission OK not exists", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		permissionService := NewService(permissionStorage)
 		err := permissionService.DeletePermissionById(ctx, uuid.New())
 		assert.NoError(t, err)
@@ -128,7 +128,7 @@ func TestService_ListPermissions(t *testing.T) {
 	t.Run("List Permissions OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreatePermission{
 			Description: "permission description",
 			Name:        "permission_name",
@@ -147,7 +147,7 @@ func TestService_ListPermissions(t *testing.T) {
 	t.Run("List Permissions Empty", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		permissionService := NewService(permissionStorage)
 		createdPermission, err := permissionService.ListPermissions(ctx)
 		assert.NoError(t, err)
@@ -159,7 +159,7 @@ func TestService_GetPermissionById(t *testing.T) {
 	t.Run("Get Permission by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreatePermission{
 			Description: "permission description",
 			Name:        "permission_name",
@@ -178,7 +178,7 @@ func TestService_GetPermissionById(t *testing.T) {
 	t.Run("Get Permission by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		permissionService := NewService(permissionStorage)
 		permission, err := permissionService.GetPermissionById(ctx, uuid.New())
 		assert.Error(t, err)
@@ -190,7 +190,7 @@ func TestService_UpdatePermissionById(t *testing.T) {
 	t.Run("Get Permission by ID OK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		request := api.CreatePermission{
 			Description: "permission description",
 			Name:        "permission_name",
@@ -213,7 +213,7 @@ func TestService_UpdatePermissionById(t *testing.T) {
 	t.Run("Get Permission by ID NOK", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(w)
-		ctx.Set("X-User-Email", "first.last@example.com")
+		ctx.Set("User-Email", "first.last@example.com")
 		permissionService := NewService(permissionStorage)
 
 		updatedPermissionDescription := "changed permission description"

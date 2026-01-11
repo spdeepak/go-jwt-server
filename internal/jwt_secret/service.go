@@ -7,8 +7,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-
-	"github.com/rs/zerolog/log"
+	"log/slog"
+	"os"
 
 	"github.com/spdeepak/go-jwt-server/config"
 )
@@ -16,17 +16,20 @@ import (
 func GetOrCreateSecret(token config.Token, storage Storage) []byte {
 	base64EncodedEncryptedSecret, err := storage.getDefaultEncryptedSecret(context.Background())
 	if err != nil {
-		log.Fatal().Msg("Failed to get default secret from DB")
+		slog.Error("Failed to get default secret from DB")
+		os.Exit(1)
 	}
 	if base64EncodedEncryptedSecret != "" {
 		if token.MasterKey != "" {
 			secret, err := Decrypt(base64EncodedEncryptedSecret, token.MasterKey)
 			if err != nil {
-				log.Fatal().Msgf("Failed to decrypt JWT secret from DB. Error: %s", err.Error())
+				slog.Error("Failed to decrypt JWT secret from DB", slog.Any("error", err))
+				os.Exit(1)
 			}
 			return secret
 		} else {
-			log.Fatal().Msg("JWT_MASTER_KEY not found to decrypt secret key")
+			slog.Error("JWT_MASTER_KEY not found to decrypt secret key")
+			os.Exit(1)
 		}
 	}
 
@@ -34,20 +37,24 @@ func GetOrCreateSecret(token config.Token, storage Storage) []byte {
 		secret := generateJWTSecret()
 		base64EncodedEncryptedSecret, err = Encrypt(secret, token.MasterKey)
 		if err != nil {
-			log.Fatal().Msgf("Failed to encrypt generated JWT secret and encode it to base64. Error: %s", err.Error())
+			slog.Error("Failed to encrypt generated JWT secret and encode it to base64", slog.Any("error", err))
+			os.Exit(1)
 		}
 		err = storage.saveDefaultSecret(context.Background(), base64EncodedEncryptedSecret)
 		if err != nil {
-			log.Fatal().Msgf("Failed to save encrypted generated JWT secret to DB. Error: %s", err.Error())
+			slog.Error("Failed to save encrypted generated JWT secret to DB", slog.Any("error", err))
+			os.Exit(1)
 		}
 		return []byte(secret)
 	}
 	if token.Secret == "" {
-		log.Fatal().Msg("Either JWT_MASTER_KEY or JWT_SECRET_KEY env variables should be set")
+		slog.Error("Either JWT_MASTER_KEY or JWT_SECRET_KEY env variables should be set")
+		os.Exit(1)
 	}
 	base64DecodedSecretKey, err := base64.StdEncoding.DecodeString(token.Secret)
 	if err != nil {
-		log.Fatal().Msgf("Failed to decode JWT_SECRET_KEY")
+		slog.Error("Failed to decode JWT_SECRET_KEY")
+		os.Exit(1)
 	}
 	return base64DecodedSecretKey
 }
@@ -56,7 +63,7 @@ func generateJWTSecret() string {
 	bytes := make([]byte, 32)
 	_, err := rand.Read(bytes)
 	if err != nil {
-		log.Fatal().Msgf("JWT_TOKEN_SECRET is not set. Failed to generate default JWT secret : %v", err)
+		slog.Error("JWT_TOKEN_SECRET is not set. Failed to generate default JWT secret", slog.Any("error", err))
 	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
