@@ -16,7 +16,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
-const emailHeader = "X-User-Email"
+const emailHeader = "User-Email"
 
 type Server struct {
 	userService       users.Service
@@ -154,7 +154,7 @@ func (s *Server) Create2FA(ctx *gin.Context, params api.Create2FAParams) {
 }
 
 func (s *Server) Login2FA(ctx *gin.Context, params api.Login2FAParams) {
-	userId, userIdPresent := ctx.Get("X-User-ID")
+	userId, userIdPresent := ctx.Get("User-ID")
 	if !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -175,7 +175,7 @@ func (s *Server) Login2FA(ctx *gin.Context, params api.Login2FAParams) {
 
 func (s *Server) Remove2FA(ctx *gin.Context, params api.Remove2FAParams) {
 	_, emailPresent := ctx.Get(emailHeader)
-	userId, userIdPresent := ctx.Get("X-User-ID")
+	userId, userIdPresent := ctx.Get("User-ID")
 	if !emailPresent || !userIdPresent {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return

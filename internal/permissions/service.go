@@ -13,7 +13,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
-const emailHeader = "X-User-Email"
+const emailHeader = "User-Email"
 
 type service struct {
 	storage repository.Querier

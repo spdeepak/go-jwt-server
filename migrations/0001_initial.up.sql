@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS users_2fa
     CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX unique_active_totp_per_user
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_totp_per_user
     ON users_2fa (user_id)
     WHERE revoked = false;
 
@@ -89,8 +89,8 @@ CREATE TABLE IF NOT EXISTS role_permissions
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_role_permissions_role_id ON role_permissions (role_id);
-CREATE INDEX idx_role_permissions_permission_id ON role_permissions (permission_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions (role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions (permission_id);
 
 -- User → Roles
 CREATE TABLE IF NOT EXISTS user_roles
@@ -104,8 +104,8 @@ CREATE TABLE IF NOT EXISTS user_roles
     CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_user_roles_user_id ON user_roles (user_id);
-CREATE INDEX idx_user_roles_role_id ON user_roles (role_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles (role_id);
 
 -- User → Permissions (optional overrides)
 CREATE TABLE IF NOT EXISTS user_permissions
@@ -119,8 +119,8 @@ CREATE TABLE IF NOT EXISTS user_permissions
     CONSTRAINT fk_permission FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_user_permissions_user_id ON user_permissions (user_id);
-CREATE INDEX idx_user_permissions_permission_id ON user_permissions (permission_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_permission_id ON user_permissions (permission_id);
 
 -- Tokens
 CREATE TABLE IF NOT EXISTS tokens

@@ -3,10 +3,10 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 
 	"github.com/spdeepak/go-jwt-server/internal/error"
 )
@@ -14,7 +14,7 @@ import (
 func ErrorMiddleware(c *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Ctx(c).Error().Any("error", err).Str("path", c.Request.URL.Path).Msg("Panic occurred")
+			slog.ErrorContext(c, "Panic occurred", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
 			// Respond with an error to the client
 			c.AbortWithStatusJSON(
 				http.StatusInternalServerError,
@@ -47,22 +47,13 @@ func ErrorMiddleware(c *gin.Context) {
 }
 
 func logError(c *gin.Context, err *gin.Error) {
-	log.Ctx(c).Error().
-		Any("error", err).
-		Str("path", c.Request.URL.Path).
-		Send()
+	slog.ErrorContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
 }
 
 func logWarning(c *gin.Context, err *gin.Error) {
-	log.Ctx(c).Warn().
-		Any("error", err).
-		Str("path", c.Request.URL.Path).
-		Send()
+	slog.WarnContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
 }
 
 func logDebug(c *gin.Context, err *gin.Error) {
-	log.Ctx(c).Debug().
-		Any("error", err).
-		Str("path", c.Request.URL.Path).
-		Send()
+	slog.DebugContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
 }

@@ -87,10 +87,10 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
 
 		switch claims["typ"].(string) {
 		case "2FA":
-			c.Set("X-User-ID", claims["sub"].(string))
+			c.Set("User-ID", claims["sub"].(string))
 		case "Bearer", "Refresh":
-			c.Set("X-User-ID", claims["sub"].(string))
-			c.Set("X-User-Email", claims["email"].(string))
+			c.Set("User-ID", claims["sub"].(string))
+			c.Set("User-Email", claims["email"].(string))
 		default:
 			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
 				Description: jwt.ErrTokenInvalidClaims.Error(),
@@ -108,7 +108,7 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
 			})
 			return
 		}
-		c.Set("X-User-ID", userId)
+		c.Set("User-ID", userId)
 		c.Set("user", token.Claims)
 		c.Next()
 	}
