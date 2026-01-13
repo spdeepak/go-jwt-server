@@ -40,7 +40,6 @@ func main() {
 		slog.Error("Failed to run migrations", slog.Any("error", err))
 	}
 	dbConnection := db.Connect(cfg.Postgres)
-	defer dbConnection.Close()
 
 	//JWT SecretKey
 	jwtSecretRepository := jwt_secretRepo.New(dbConnection)
@@ -116,6 +115,7 @@ func main() {
 		// The context is used to inform the Server it has 5 seconds to finish the request it is currently handling
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		dbConnection.Close()
 		if err = srv.Shutdown(ctx); err != nil {
 			slog.Error(fmt.Sprintf("Server forced to shutdown. Error: %s", err))
 			os.Exit(1)
