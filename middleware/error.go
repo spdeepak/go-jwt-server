@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -25,50 +24,7 @@ func ErrorMiddleware(c *gin.Context) {
 					StatusCode:  http.StatusInternalServerError,
 				},
 			)
-		} else {
-			for _, er := range c.Errors {
-				var e httperror.HttpError
-				switch {
-				case errors.As(er.Err, &e):
-					if e.StatusCode >= 400 && e.StatusCode < 500 {
-						logWarning(c, er)
-					} else {
-						logError(c, er)
-					}
-					c.AbortWithStatusJSON(e.StatusCode, e)
-				default:
-					logError(c, er)
-					c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{"message": "Service Unavailable"})
-				}
-			}
 		}
 	}()
 	c.Next()
-}
-
-func logError(c *gin.Context, err *gin.Error) {
-	var httpErr httperror.HttpError
-	if errors.As(err.Err, &httpErr) {
-		slog.ErrorContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Any("statusCode", httpErr.StatusCode))
-	} else {
-		slog.ErrorContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
-	}
-}
-
-func logWarning(c *gin.Context, err *gin.Error) {
-	var httpErr httperror.HttpError
-	if errors.As(err.Err, &httpErr) {
-		slog.WarnContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Any("statusCode", httpErr.StatusCode))
-	} else {
-		slog.WarnContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
-	}
-}
-
-func logDebug(c *gin.Context, err *gin.Error) {
-	var httpErr httperror.HttpError
-	if errors.As(err.Err, &httpErr) {
-		slog.DebugContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Any("statusCode", httpErr.StatusCode))
-	} else {
-		slog.DebugContext(c, "", slog.Any("error", err), slog.String("path", c.Request.URL.Path))
-	}
 }

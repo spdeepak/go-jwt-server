@@ -22,8 +22,6 @@ services:
     volumes:
       - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus-data:/prometheus
-#    tmpfs:
-#      - /prometheus
     restart: unless-stopped
 
   grafana:
