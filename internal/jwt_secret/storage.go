@@ -8,14 +8,15 @@ import (
 	"github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
 )
 
-type storage struct {
-	jwtSecretRepository repository.Querier
-}
-
-type Storage interface {
-	saveDefaultSecret(ctx context.Context, secret string) error
-	getDefaultEncryptedSecret(ctx context.Context) (string, error)
-}
+type (
+	storage struct {
+		jwtSecretRepository repository.Querier
+	}
+	Storage interface {
+		saveDefaultSecret(ctx context.Context, secret string) error
+		getDefaultEncryptedSecret(ctx context.Context) (string, error)
+	}
+)
 
 func NewStorage(jwtSecretRepository repository.Querier) Storage {
 	return &storage{
