@@ -21,10 +21,9 @@ services:
       - "9090:9090"
     volumes:
       - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    tmpfs:
-      - /prometheus
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - ./prometheus-data:/prometheus
+#    tmpfs:
+#      - /prometheus
     restart: unless-stopped
 
   grafana:

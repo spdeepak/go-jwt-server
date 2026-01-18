@@ -29,14 +29,12 @@ func GinLogger() gin.HandlerFunc {
 
 		startTime := time.Now()
 		c.Next()
-		endTime := time.Now()
-		latency := endTime.Sub(startTime).Milliseconds()
-		statusCode := c.Writer.Status()
+		latency := time.Since(startTime).Milliseconds()
 
 		var logEvents []slog.Attr
 		logEvents = append(logEvents, slog.Any("method", c.Request.Method))
 		logEvents = append(logEvents, slog.Any("path", c.Request.URL.Path))
-		logEvents = append(logEvents, slog.Any("status", statusCode))
+		logEvents = append(logEvents, slog.Any("status", c.Writer.Status()))
 		logEvents = append(logEvents, slog.Any("latency_ms", latency))
 		logEvents = append(logEvents, slog.Any("client_ip", c.ClientIP()))
 		logEvents = append(logEvents, slog.Any("user_agent", c.Request.UserAgent()))

@@ -41,24 +41,20 @@ func init() {
 func MetricHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		start := time.Now()
-		var httpStatusCode string
-		var duration time.Duration
-		defer func() {
-			if strings.HasPrefix(httpStatusCode, "4") || strings.HasPrefix(httpStatusCode, "5") {
-				slog.DebugContext(ctx, fmt.Sprintf("Request failed with status code %s for %s at %s from %s", httpStatusCode, ctx.Request.Method, ctx.FullPath(), ctx.Request.Host))
-			}
-			requestCounter.With(
-				prometheus.Labels{
-					requestMethod: ctx.Request.Method,
-					requestPath:   ctx.FullPath(),
-					statusCode:    httpStatusCode,
-				},
-			).Inc()
-			requestLatency.WithLabelValues(ctx.Request.Method, ctx.FullPath(), httpStatusCode).
-				Observe(float64(duration.Milliseconds()))
-		}()
 		ctx.Next()
-		duration = time.Since(start)
-		httpStatusCode = strconv.Itoa(ctx.Writer.Status())
+		duration := time.Since(start)
+		httpStatusCode := strconv.Itoa(ctx.Writer.Status())
+		if strings.HasPrefix(httpStatusCode, "4") || strings.HasPrefix(httpStatusCode, "5") {
+			slog.DebugContext(ctx, fmt.Sprintf("Request failed with status code %s for %s at %s from %s", httpStatusCode, ctx.Request.Method, ctx.FullPath(), ctx.Request.Host))
+		}
+		requestCounter.With(
+			prometheus.Labels{
+				requestMethod: ctx.Request.Method,
+				requestPath:   ctx.FullPath(),
+				statusCode:    httpStatusCode,
+			},
+		).Inc()
+		requestLatency.WithLabelValues(ctx.Request.Method, ctx.FullPath(), httpStatusCode).
+			Observe(duration.Seconds())
 	}
 }
