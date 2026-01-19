@@ -48,7 +48,7 @@ func main() {
 	//JWT Token
 	tokenRepository := tokenRepo.New(dbConnection)
 	tokenStorage := tokens.NewStorage(tokenRepository)
-	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
+	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Token.Issuer)
 	//2FA
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFAStorage := twoFA.NewStorage(twoFAQuery)
@@ -73,7 +73,7 @@ func main() {
 	}
 	swagger.Servers = nil
 
-	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
+	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths, cfg.Token.Issuer)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
