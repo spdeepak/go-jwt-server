@@ -88,26 +88,21 @@ func RequestValidator(swagger *openapi3.T) gin.HandlerFunc {
 func logError(c *gin.Context, err *gin.Error, logAttributes []any) {
 	var httpErr httperror.HttpError
 	if errors.As(err.Err, &httpErr) {
-		slog.ErrorContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode), slog.Group("details", logAttributes...))
+		logAttributes = append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))
+		slog.ErrorContext(c, httpErr.Description, logAttributes...)
 	} else {
-		slog.ErrorContext(c, "", slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path), slog.Group("details", logAttributes...))
+		logAttributes = append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))
+		slog.ErrorContext(c, "", logAttributes...)
 	}
 }
 
 func logWarning(c *gin.Context, err *gin.Error, logAttributes []any) {
 	var httpErr httperror.HttpError
 	if errors.As(err.Err, &httpErr) {
-		slog.WarnContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode), slog.Group("details", logAttributes...))
+		logAttributes = append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))
+		slog.WarnContext(c, httpErr.Description, logAttributes...)
 	} else {
-		slog.WarnContext(c, "", slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path), slog.Group("details", logAttributes...))
-	}
-}
-
-func logDebug(c *gin.Context, err *gin.Error, logAttributes []any) {
-	var httpErr httperror.HttpError
-	if errors.As(err.Err, &httpErr) {
-		slog.DebugContext(c, httpErr.Description, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode), slog.Group("details", logAttributes...))
-	} else {
-		slog.DebugContext(c, "", slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path), slog.Group("details", logAttributes...))
+		logAttributes = append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))
+		slog.WarnContext(c, "", logAttributes...)
 	}
 }
