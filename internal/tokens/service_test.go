@@ -72,7 +72,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -86,7 +86,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 	}
 	query.On("IsRefreshValid", ctx, refreshValidParams).Return(int32(1), nil)
 
-	claims, err := tokenService.ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
+	claims, err := tokenService.ValidateRefreshToken(ctx, "192.168.1.100", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
 }
@@ -115,7 +115,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -130,7 +130,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 
 	query.On("IsRefreshValid", ctx, refreshValidParams).Return(int32(0), nil)
 
-	claims, err := tokenService.ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
+	claims, err := tokenService.ValidateRefreshToken(ctx, "192.168.1.100", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.Error(t, err)
 	assert.Nil(t, claims)
 }
@@ -338,7 +338,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -362,7 +362,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 			params.OldRefreshToken == hashedRefreshToken
 	})).Return(nil)
 
-	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
+	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "192.168.1.100", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenResponse)
 	assert.NotEmpty(t, newBearerToken)
@@ -393,7 +393,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -417,7 +417,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 			params.OldRefreshToken == hashedRefreshToken
 	})).Return(errors.New("test error"))
 
-	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
+	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "192.168.1.100", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))
