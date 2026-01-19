@@ -52,7 +52,7 @@ type (
 	}
 )
 
-func NewService(tokenRepository *repository.Queries, secret []byte, issuer string) Service {
+func NewService(tokenRepository repository.Querier, secret []byte, issuer string) Service {
 	return &service{
 		secret:            secret,
 		issuer:            issuer,

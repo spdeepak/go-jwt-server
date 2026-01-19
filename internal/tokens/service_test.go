@@ -20,8 +20,7 @@ func TestService_GenerateTokenPair(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -41,7 +40,7 @@ func TestService_GenerateTokenPair(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
@@ -53,8 +52,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -74,7 +72,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -88,7 +86,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 	}
 	query.On("IsRefreshValid", ctx, refreshValidParams).Return(int32(1), nil)
 
-	claims, err := service.ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
+	claims, err := tokenService.ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
 }
@@ -97,8 +95,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -118,7 +115,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -133,7 +130,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 
 	query.On("IsRefreshValid", ctx, refreshValidParams).Return(int32(0), nil)
 
-	claims, err := service.ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
+	claims, err := tokenService.ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.Error(t, err)
 	assert.Nil(t, claims)
 }
@@ -142,8 +139,7 @@ func TestService_ValidateRefreshToken_NOK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -163,13 +159,13 @@ func TestService_ValidateRefreshToken_NOK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
 	assert.NotEmpty(t, response.RefreshToken)
 
-	claims, err := NewService(nil, []byte(secret+"asd"), "").ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
+	claims, err := NewService(query, []byte(secret+"asd"), "").ValidateRefreshToken(ctx, "", api.RefreshParams{XLoginSource: "api", UserAgent: "test"}, response.RefreshToken)
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))
@@ -181,8 +177,7 @@ func TestService_RevokeAllTokens_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("RevokeAllTokens", mock.Anything, "first.last@example.com").Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	service := NewService(query, []byte(secret), "")
 
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
@@ -194,12 +189,11 @@ func TestService_RevokeAllTokens_NOK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("RevokeAllTokens", mock.Anything, "first.last@example.com").Return(errors.New("error"))
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
-	err := service.RevokeAllTokens(ctx, "first.last@example.com")
+	err := tokenService.RevokeAllTokens(ctx, "first.last@example.com")
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))
@@ -210,8 +204,7 @@ func TestService_RevokeRefreshToken_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -231,7 +224,7 @@ func TestService_RevokeRefreshToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -240,7 +233,7 @@ func TestService_RevokeRefreshToken_OK(t *testing.T) {
 	hashedRefreshToken := hash(response.RefreshToken)
 	query.On("RevokeRefreshToken", ctx, hashedRefreshToken).Return(nil)
 
-	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
+	err = tokenService.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
 	assert.NoError(t, err)
 }
 
@@ -248,8 +241,7 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -269,7 +261,7 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -278,7 +270,7 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 	hashedRefreshToken := hash(response.RefreshToken)
 	query.On("RevokeRefreshToken", ctx, hashedRefreshToken).Return(errors.New("sql: no rows in result set"))
 
-	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
+	err = tokenService.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))
@@ -289,8 +281,7 @@ func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -310,7 +301,7 @@ func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -319,7 +310,7 @@ func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
 	hashedRefreshToken := hash(response.RefreshToken)
 	query.On("RevokeRefreshToken", ctx, hashedRefreshToken).Return(errors.New("error"))
 
-	err = service.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
+	err = tokenService.RevokeRefreshToken(ctx, api.RevokeRefreshTokenParams{}, api.RevokeCurrentSession{RefreshToken: response.RefreshToken})
 	assert.Error(t, err)
 }
 
@@ -327,8 +318,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -348,7 +338,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -372,7 +362,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 			params.OldRefreshToken == hashedRefreshToken
 	})).Return(nil)
 
-	tokenResponse, err := service.RefreshAndInvalidateToken(ctx, "", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
+	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenResponse)
 	assert.NotEmpty(t, newBearerToken)
@@ -383,8 +373,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 	secret := "JWT_$€CR€T"
 	query := repository.NewMockQuerier(t)
 	query.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	storage := NewStorage(query)
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
 	user := repository.User{
 		Email:     "first.last@example.com",
@@ -404,7 +393,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := service.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -428,7 +417,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 			params.OldRefreshToken == hashedRefreshToken
 	})).Return(errors.New("test error"))
 
-	tokenResponse, err := service.RefreshAndInvalidateToken(ctx, "", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
+	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))
@@ -452,11 +441,10 @@ func TestService_ListActiveSessions_OK(t *testing.T) {
 		},
 	}
 	query.On("ListAllActiveSessions", ctx, "first.last@example.com").Return(queryResponse, nil)
-	storage := NewStorage(query)
 	secret := "SOME_RANDOM_SECRET"
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
-	response, err := service.ListActiveSessions(ctx, "first.last@example.com")
+	response, err := tokenService.ListActiveSessions(ctx, "first.last@example.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, response)
 	assert.Len(t, response, 1)
@@ -472,11 +460,10 @@ func TestService_ListActiveSessions_NOK_DBQueryFail(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(w)
 	query := repository.NewMockQuerier(t)
 	query.On("ListAllActiveSessions", ctx, "first.last@example.com").Return(nil, errors.New("errror"))
-	storage := NewStorage(query)
 	secret := "SOME_RANDOM_SECRET"
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(query, []byte(secret), "")
 
-	response, err := service.ListActiveSessions(ctx, "first.last@example.com")
+	response, err := tokenService.ListActiveSessions(ctx, "first.last@example.com")
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))
@@ -486,7 +473,7 @@ func TestService_ListActiveSessions_NOK_DBQueryFail(t *testing.T) {
 
 func TestService_GenerateTempToken_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
-	service := NewService(nil, []byte(secret), "")
+	tokenService := NewService(nil, []byte(secret), "")
 	userId := uuid.New()
 
 	w := httptest.NewRecorder()
@@ -497,7 +484,7 @@ func TestService_GenerateTempToken_OK(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "192.168.1.100")
 	ctx.Request = req
 
-	response, err := service.GenerateTempToken(ctx, userId)
+	response, err := tokenService.GenerateTempToken(ctx, userId)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
