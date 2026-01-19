@@ -27,12 +27,11 @@ var (
 			Name: "go_jwt_server_auth_failures_total",
 			Help: "Total number of failed authentication attempts, labeled by reason",
 		},
-		[]string{"reason"}, // e.g., expired, invalid_signature, malformed
+		[]string{"reason"},
 	)
 )
 
-// JWTAuthMiddleware returns a middleware that checks for a valid JWT token,
-// but skips any paths listed in skipPaths.
+// JWTAuthMiddleware returns a middleware that checks for a valid JWT token, but skips any paths listed in skipPaths.
 func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path

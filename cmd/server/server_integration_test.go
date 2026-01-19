@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"), "test-issuer")
+	tokenService := tokens.NewService(nil, []byte("JWT_$€Cr€t"), "test-issuer")
 	userQuery := usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection)

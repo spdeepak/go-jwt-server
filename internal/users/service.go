@@ -121,7 +121,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 		XLoginSource: string(params.XLoginSource),
 		UserAgent:    params.UserAgent,
 	}
-	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
+	return s.tokenService.GenerateNewTokenPair(ctx, ctx.ClientIP(), tokenParams, jwtUser)
 }
 
 func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error) {
@@ -156,11 +156,11 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 		XLoginSource: string(params.XLoginSource),
 		UserAgent:    params.UserAgent,
 	}
-	return s.tokenService.GenerateNewTokenPair(ctx, tokenParams, jwtUser)
+	return s.tokenService.GenerateNewTokenPair(ctx, ctx.ClientIP(), tokenParams, jwtUser)
 }
 
 func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error) {
-	claims, err := s.tokenService.ValidateRefreshToken(ctx, params, refresh.RefreshToken)
+	claims, err := s.tokenService.ValidateRefreshToken(ctx, ctx.ClientIP(), params, refresh.RefreshToken)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, err
 	}
@@ -184,7 +184,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		XLoginSource: string(params.XLoginSource),
 		UserAgent:    params.UserAgent,
 	}
-	return s.tokenService.RefreshAndInvalidateToken(ctx, tokenParams, refresh, jwtUser)
+	return s.tokenService.RefreshAndInvalidateToken(ctx, ctx.ClientIP(), tokenParams, refresh, jwtUser)
 }
 
 func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error) {

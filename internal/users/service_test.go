@@ -214,7 +214,7 @@ func TestService_Login_OK(t *testing.T) {
 		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == "192.168.1.100" &&
 			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)
-	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"), "")
+	tokenService := tokens.NewService(nil, []byte("JWT_$€Cr€t"), "")
 	userService := NewService(userQuery, nil, tokenService)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -331,7 +331,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	tokenQuery := tokenRepo.NewMockQuerier(t)
 	tokenQuery.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
 	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService := tokens.NewService(tokenStorage, []byte(secret), "")
+	tokenService := tokens.NewService(nil, []byte(secret), "")
 
 	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetUserById", ctx, userId).Return(userRepo.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last"}, nil)

@@ -8,15 +8,6 @@ type TokenClaims struct {
 	FirstName string `json:"first_name,omitempty"`
 	LastName  string `json:"last_name,omitempty"`
 	Type      string `json:"typ" required:"true"`
+	AuthLevel string `json:"auth_level,omitempty"`
 	jwt.RegisteredClaims
 }
-
-//func (c TokenClaims) Valid() error {
-//	if c.Subject == "" {
-//		return jwt.ErrTokenRequiredClaimMissing
-//	}
-//	if c.Type == "" {
-//		return jwt.ErrTokenRequiredClaimMissing
-//	}
-//	return c.RegisteredClaims.Valid()
-//}
