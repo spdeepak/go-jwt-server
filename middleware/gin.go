@@ -56,7 +56,7 @@ func GinLogger() gin.HandlerFunc {
 				}
 			}
 		} else {
-			slog.InfoContext(c, "HTTP request", slog.String("path", c.Request.URL.Path), slog.Group("details", logAttributes...))
+			slog.InfoContext(c, "HTTP request", append(logAttributes, slog.String("path", c.Request.URL.Path))...)
 		}
 	}
 }
@@ -88,21 +88,17 @@ func RequestValidator(swagger *openapi3.T) gin.HandlerFunc {
 func logError(c *gin.Context, err *gin.Error, logAttributes []any) {
 	var httpErr httperror.HttpError
 	if errors.As(err.Err, &httpErr) {
-		logAttributes = append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))
-		slog.ErrorContext(c, httpErr.Description, logAttributes...)
+		slog.ErrorContext(c, httpErr.Description, append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))...)
 	} else {
-		logAttributes = append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))
-		slog.ErrorContext(c, "", logAttributes...)
+		slog.ErrorContext(c, "", append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))...)
 	}
 }
 
 func logWarning(c *gin.Context, err *gin.Error, logAttributes []any) {
 	var httpErr httperror.HttpError
 	if errors.As(err.Err, &httpErr) {
-		logAttributes = append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))
-		slog.WarnContext(c, httpErr.Description, logAttributes...)
+		slog.WarnContext(c, httpErr.Description, append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))...)
 	} else {
-		logAttributes = append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))
-		slog.WarnContext(c, "", logAttributes...)
+		slog.WarnContext(c, "", append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))...)
 	}
 }
