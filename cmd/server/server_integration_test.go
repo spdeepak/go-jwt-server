@@ -511,7 +511,7 @@ func TestServer_GetRoleById_OK(t *testing.T) {
 		Description: "role description",
 		Name:        "admin_role",
 	})
-	//Get Role By Id
+	//Get Role By ID
 	getRoleById(t, loginRes, roleRes)
 
 }
@@ -523,7 +523,7 @@ func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
 	//Login
 	loginRes := login2FADisabled(t)
 
-	//Get Role By Id
+	//Get Role By ID
 	getRoleByIdNotFound(t, loginRes, uuid.New().String())
 }
 

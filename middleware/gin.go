@@ -63,12 +63,17 @@ func GinLogger() gin.HandlerFunc {
 
 func RequestValidator(swagger *openapi3.T) gin.HandlerFunc {
 	authFunc := func(ctx context.Context, input *openapi3filter.AuthenticationInput) error {
-		if input.SecuritySchemeName != "bearerAuth" {
+		if input.SecuritySchemeName != "BearerAuth" {
 			return nil
 		}
 		authHeader := input.RequestValidationInput.Request.Header.Get("Authorization")
 		if authHeader == "" {
 			return errors.New("no authorization header")
+		}
+		for extensionKey, extensionValue := range input.RequestValidationInput.Route.Operation.Extensions {
+			//This has the extra extensions for role and permission mapping and will be used in jwt middleware
+			//Extensions like: aegis-required-roles, aegis-required-permissions
+			ginmiddleware.GetGinContext(ctx).Set(extensionKey, extensionValue)
 		}
 		return nil
 	}

@@ -66,7 +66,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -90,7 +90,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -116,7 +116,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -133,7 +133,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -147,7 +147,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -168,7 +168,7 @@ paths:
       tags:
         - 2FA
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -187,7 +187,7 @@ paths:
       tags:
         - 2FA
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -215,7 +215,7 @@ paths:
       tags:
         - 2FA
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -239,7 +239,7 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -258,7 +258,7 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -283,7 +283,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-required-roles:
+        - admin
+      aegis-required-permissions:
+          - users:read
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -301,7 +305,7 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -326,7 +330,7 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -341,7 +345,7 @@ paths:
       tags:
         - Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -360,7 +364,7 @@ paths:
       tags:
         - Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -385,7 +389,7 @@ paths:
       tags:
         - Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -403,7 +407,7 @@ paths:
       tags:
         - Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -428,7 +432,7 @@ paths:
       tags:
         - Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -443,7 +447,7 @@ paths:
       tags:
         - Roles and Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -463,7 +467,7 @@ paths:
       tags:
         - Admin
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - name: firstName
@@ -516,7 +520,7 @@ paths:
       tags:
         - User
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -534,7 +538,7 @@ paths:
       tags:
         - User
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -555,7 +559,7 @@ paths:
       tags:
         - User
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -571,7 +575,7 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -592,7 +596,7 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/RoleId'
         - $ref: '#/components/parameters/PermissionId'
@@ -619,7 +623,7 @@ paths:
           description: OK
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
