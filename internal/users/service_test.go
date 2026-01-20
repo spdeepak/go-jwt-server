@@ -320,8 +320,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	//2FA
 	twoFAQuery := twoFARepo.NewMockQuerier(t)
 	twoFAQuery.On("Get2FADetails", ctx, userId).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -357,8 +356,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	//2FA
 	twoFAQuery := twoFARepo.NewMockQuerier(t)
 	twoFAQuery.On("Get2FADetails", ctx, userId).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -392,8 +390,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
 		return id.Valid
 	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -429,8 +426,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
 		return id.Valid
 	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -466,8 +462,7 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
 		return id.Valid
 	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)

@@ -1,12 +1,12 @@
 package twoFA
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -20,23 +20,23 @@ import (
 
 type service struct {
 	appName string
-	storage Storage
+	query   repository.Querier
 }
 
 type Service interface {
-	Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
-	Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId pgtype.UUID, passcode string) (bool, error)
-	Remove2FA(ctx *gin.Context, userId pgtype.UUID, passcode string) error
+	Setup2FA(ctx context.Context, email string) (User2FASetup, error)
+	Verify2FALogin(ctx context.Context, params api.Login2FAParams, userId pgtype.UUID, passcode string) (bool, error)
+	Remove2FA(ctx context.Context, userId pgtype.UUID, passcode string) error
 }
 
-func NewService(appName string, storage Storage) Service {
+func NewService(appName string, query repository.Querier) Service {
 	return &service{
 		appName: appName,
-		storage: storage,
+		query:   query,
 	}
 }
 
-func (s *service) Setup2FA(ctx *gin.Context, email string) (User2FASetup, error) {
+func (s *service) Setup2FA(ctx context.Context, email string) (User2FASetup, error) {
 	//Generate secret using the given app name as issues
 	//and use email for the account name
 	key, err := totp.Generate(totp.GenerateOpts{
@@ -61,8 +61,8 @@ func (s *service) Setup2FA(ctx *gin.Context, email string) (User2FASetup, error)
 	}, nil
 }
 
-func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, userId pgtype.UUID, passcode string) (bool, error) {
-	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
+func (s *service) Verify2FALogin(ctx context.Context, params api.Login2FAParams, userId pgtype.UUID, passcode string) (bool, error) {
+	twoFADetails, err := s.query.Get2FADetails(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, fmt.Sprintf("Failed to get 2FA details for user: %s", userId), slog.Any("error", err))
 		return false, httperror.New(httperror.InvalidTwoFA)
@@ -75,8 +75,8 @@ func (s *service) Verify2FALogin(ctx *gin.Context, params api.Login2FAParams, us
 	})
 }
 
-func (s *service) Remove2FA(ctx *gin.Context, userId pgtype.UUID, passcode string) error {
-	twoFADetails, err := s.storage.get2FADetails(ctx, userId)
+func (s *service) Remove2FA(ctx context.Context, userId pgtype.UUID, passcode string) error {
+	twoFADetails, err := s.query.Get2FADetails(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, fmt.Sprintf("Failed to get 2FA details for user: %s", userId), slog.Any("error", err))
 		return httperror.New(httperror.InvalidTwoFA)
@@ -95,7 +95,7 @@ func (s *service) Remove2FA(ctx *gin.Context, userId pgtype.UUID, passcode strin
 		slog.ErrorContext(ctx, fmt.Sprintf("Invalid 2FA code for user: %s", userId), slog.Any("error", err))
 		return httperror.New(httperror.InvalidTwoFA)
 	}
-	if err = s.storage.delete2FA(ctx, repository.Delete2FAParams{UserID: userId, Secret: twoFADetails.Secret}); err != nil {
+	if err = s.query.Delete2FA(ctx, repository.Delete2FAParams{UserID: userId, Secret: twoFADetails.Secret}); err != nil {
 		slog.ErrorContext(ctx, fmt.Sprintf("Failed to delete 2FA setup for user: %s", userId), slog.Any("error", err))
 		return err
 	}

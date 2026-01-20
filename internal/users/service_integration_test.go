@@ -322,8 +322,7 @@ func login2FA_OK(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
@@ -369,8 +368,7 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
@@ -412,8 +410,7 @@ func login2FA_NOK_UserNotExist(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
@@ -472,8 +469,7 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
@@ -549,8 +545,7 @@ func TestService_AssignRolesToUser(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
@@ -610,8 +605,7 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
 	userService := NewService(userStorage, twoFaService, tokenService)
 
