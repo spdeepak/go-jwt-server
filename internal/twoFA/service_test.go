@@ -43,8 +43,7 @@ func TestService_Verify2FALogin_OK(t *testing.T) {
 	//2FA
 	twoFAQuery := repository.NewMockQuerier(t)
 	twoFAQuery.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := NewStorage(twoFAQuery)
-	otpService := NewService("go-jwt-server", twoFAStorage)
+	otpService := NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -59,8 +58,7 @@ func TestService_Verify2FALogin_NOK_MinuteOldPasscode(t *testing.T) {
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage)
+	otpService := NewService("go-jwt-server", query)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -75,8 +73,7 @@ func TestService_Verify2FALogin_NOK_NotFoundInDB(t *testing.T) {
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{}, errors.New("error"))
-	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage)
+	otpService := NewService("go-jwt-server", query)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -92,8 +89,7 @@ func TestService_Remove2FA_OK(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	query.On("Delete2FA", ctx, repository.Delete2FAParams{UserID: userId, Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(nil)
-	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage)
+	otpService := NewService("go-jwt-server", query)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -107,8 +103,7 @@ func TestService_Remove2FA_NOK_MinuteOldPasscode(t *testing.T) {
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage)
+	otpService := NewService("go-jwt-server", query)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -122,8 +117,7 @@ func TestService_Remove2FA_NOK_NotFoundInDB(t *testing.T) {
 	userId := pgtype.UUID{Bytes: uuid.New(), Valid: true}
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{}, errors.New("error"))
-	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage)
+	otpService := NewService("go-jwt-server", query)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
@@ -138,8 +132,7 @@ func TestService_Remove2FA_NOK_DeleteInDB(t *testing.T) {
 	query := repository.NewMockQuerier(t)
 	query.On("Get2FADetails", ctx, userId).Return(repository.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
 	query.On("Delete2FA", ctx, repository.Delete2FAParams{UserID: userId, Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}).Return(errors.New("error"))
-	optStorage := NewStorage(query)
-	otpService := NewService("go-jwt-server", optStorage)
+	otpService := NewService("go-jwt-server", query)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)

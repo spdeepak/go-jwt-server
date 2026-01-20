@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/config"
 	"github.com/spdeepak/go-jwt-server/internal/db"
 	"github.com/spdeepak/go-jwt-server/internal/error"
+	"github.com/spdeepak/go-jwt-server/internal/logging"
 	"github.com/spdeepak/go-jwt-server/internal/permissions"
 	permissionsRepo "github.com/spdeepak/go-jwt-server/internal/permissions/repository"
 	"github.com/spdeepak/go-jwt-server/internal/roles"
@@ -56,13 +58,12 @@ var dbConfig = config.PostgresConfig{
 }
 
 func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(logging.NewDefaultHandler()))
 	dbConnection := db.Connect(dbConfig)
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFaService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	tokenQuery := tokenRepo.New(dbConnection)
-	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "test-issuer")
 	userQuery := usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection)
@@ -75,7 +76,7 @@ func TestMain(m *testing.M) {
 	router = gin.New()
 	router.Use(
 		middleware.RequestValidator(swagger),
-		middleware.JWTAuthMiddleware([]byte("JWT_$€Cr€t"), nil),
+		middleware.JWTAuthMiddleware([]byte("JWT_$€Cr€t"), nil, "test-issuer"),
 		gin.Recovery(),
 		middleware.ErrorMiddleware,
 		middleware.GinLogger(),

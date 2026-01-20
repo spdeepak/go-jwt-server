@@ -12,13 +12,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 
-	repository2 "github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
 )
 
 func TestStorage_saveDefaultSecret_OK_DefaultSecretExists(t *testing.T) {
 	ctx := context.Background()
 	secret := "JWT_$€CR€T"
-	query := repository2.NewMockQuerier(t)
+	query := repository.NewMockQuerier(t)
 	query.On("CreateDefaultSecret", ctx, secret).Return(nil)
 	storage := NewStorage(query)
 
@@ -30,8 +30,8 @@ func TestStorage_saveDefaultSecret_NOK_DefaultSecretCreateFail(t *testing.T) {
 	if os.Getenv("FATAL_TEST") == "1" {
 		ctx := context.Background()
 		secret := "JWT_$€CR€T"
-		query := repository2.NewMockQuerier(t)
-		query.On("GetDefaultSecret", ctx).Return(repository2.JwtSecret{Secret: secret}, errors.New("error"))
+		query := repository.NewMockQuerier(t)
+		query.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{Secret: secret}, errors.New("error"))
 		query.On("CreateDefaultSecret", ctx, secret).Return(errors.New("error"))
 		storage := NewStorage(query)
 		storage.saveDefaultSecret(context.Background(), secret)
@@ -47,9 +47,9 @@ func TestStorage_saveDefaultSecret_NOK_DefaultSecretCreateFail(t *testing.T) {
 }
 
 func TestStorage_getDefaultEncryptedSecret_OK(t *testing.T) {
-	query := repository2.NewMockQuerier(t)
+	query := repository.NewMockQuerier(t)
 	ctx := context.Background()
-	jwtSecret := repository2.JwtSecret{
+	jwtSecret := repository.JwtSecret{
 		ID:         pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		Secret:     "random_secret",
 		SecretType: "default",
@@ -66,10 +66,10 @@ func TestStorage_getDefaultEncryptedSecret_OK(t *testing.T) {
 }
 
 func TestStorage_getDefaultEncryptedSecret_NOK(t *testing.T) {
-	query := repository2.NewMockQuerier(t)
+	query := repository.NewMockQuerier(t)
 	ctx := context.Background()
 	err := errors.New("error")
-	query.On("GetDefaultSecret", ctx).Return(repository2.JwtSecret{}, err)
+	query.On("GetDefaultSecret", ctx).Return(repository.JwtSecret{}, err)
 	storage := NewStorage(query)
 
 	jwt, err := storage.getDefaultEncryptedSecret(ctx)

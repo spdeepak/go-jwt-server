@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,7 +36,7 @@ func NewDefaultHandler() slog.Handler {
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	extra := make(map[string]interface{})
 	r.Attrs(func(a slog.Attr) bool {
-		extra[a.Key] = a.Value.Any()
+		extra[a.Key] = slogValueToJSON(a.Value)
 		return true
 	})
 
@@ -82,5 +83,37 @@ func GetLogLevelFromEnv() slog.Level {
 		return slog.LevelError
 	default:
 		return slog.LevelInfo
+	}
+}
+
+func slogValueToJSON(v slog.Value) any {
+	switch v.Kind() {
+	case slog.KindString:
+		return v.String()
+	case slog.KindInt64:
+		return v.Int64()
+	case slog.KindUint64:
+		return v.Uint64()
+	case slog.KindFloat64:
+		return v.Float64()
+	case slog.KindBool:
+		return v.Bool()
+	case slog.KindDuration:
+		return v.Duration().String()
+	case slog.KindTime:
+		return v.Time().Format(time.RFC3339Nano)
+	case slog.KindGroup:
+		m := make(map[string]any)
+		for _, a := range v.Group() {
+			m[a.Key] = slogValueToJSON(a.Value)
+		}
+		return m
+	case slog.KindAny:
+		if err, ok := v.Any().(error); ok {
+			return err.Error()
+		}
+		return v.Any()
+	default:
+		return nil
 	}
 }

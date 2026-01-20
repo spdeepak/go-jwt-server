@@ -35,7 +35,9 @@ jobs:
         run: go build ./...
 
       - name: Test
-        run: go test -p 1 ./... -coverprofile=coverage.out
+        run: |
+          go test -p 1 ./... -coverprofile=coverage.raw
+          grep -vE "(mock|generated|cmd/main.go)" coverage.raw > coverage.out
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4

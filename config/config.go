@@ -18,6 +18,7 @@ type AppConfig struct {
 	Token    Token          `required:"true" json:"token" yaml:"token"`
 	Postgres PostgresConfig `required:"true" json:"postgres" yaml:"postgres"`
 	Auth     Auth           `required:"true" json:"auth" yaml:"auth"`
+	TwoFA    TwoFA          `required:"true" json:"twoFA" yaml:"twoFA"`
 }
 
 type Token struct {
@@ -46,6 +47,10 @@ type PostgresConfig struct {
 
 type Auth struct {
 	SkipPaths []string `json:"skipPaths" yaml:"skipPaths"`
+}
+
+type TwoFA struct {
+	AppName string `required:"true" json:"appName" yaml:"appName"`
 }
 
 type Bearer struct {

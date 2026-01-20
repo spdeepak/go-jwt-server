@@ -1,4 +1,4 @@
 *.gen.go*
 vendor
 .idea
-configs
+prometheus-data
