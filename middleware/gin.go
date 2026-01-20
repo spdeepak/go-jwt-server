@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"slices"
 	"time"
 
@@ -29,22 +30,33 @@ func GinLogger() gin.HandlerFunc {
 
 		startTime := time.Now()
 		c.Next()
-		endTime := time.Now()
-		latency := endTime.Sub(startTime).Milliseconds()
-		statusCode := c.Writer.Status()
+		latency := time.Since(startTime).Milliseconds()
 
-		var logEvents []slog.Attr
-		logEvents = append(logEvents, slog.Any("method", c.Request.Method))
-		logEvents = append(logEvents, slog.Any("path", c.Request.URL.Path))
-		logEvents = append(logEvents, slog.Any("status", statusCode))
-		logEvents = append(logEvents, slog.Any("latency_ms", latency))
-		logEvents = append(logEvents, slog.Any("client_ip", c.ClientIP()))
-		logEvents = append(logEvents, slog.Any("user_agent", c.Request.UserAgent()))
+		logAttributes := []any{
+			slog.String("method", c.Request.Method),
+			slog.String("path", c.Request.URL.Path),
+			slog.Int64("latency_ms", latency),
+			slog.String("client_ip", c.ClientIP()),
+		}
 
 		if len(c.Errors) > 0 {
-			slog.ErrorContext(c, "errors", c.Errors.String(), slog.GroupValue(logEvents...))
+			for _, er := range c.Errors {
+				var e httperror.HttpError
+				switch {
+				case errors.As(er.Err, &e):
+					if e.StatusCode >= 400 && e.StatusCode < 500 {
+						logWarning(c, er, logAttributes)
+					} else {
+						logError(c, er, logAttributes)
+					}
+					c.AbortWithStatusJSON(e.StatusCode, e)
+				default:
+					logError(c, er, logAttributes)
+					c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{"message": "Service Unavailable"})
+				}
+			}
 		} else {
-			slog.InfoContext(c, "HTTP request", slog.Any("trace", slog.GroupValue(logEvents...)))
+			slog.InfoContext(c, "HTTP request", append(logAttributes, slog.String("path", c.Request.URL.Path))...)
 		}
 	}
 }
@@ -71,4 +83,22 @@ func RequestValidator(swagger *openapi3.T) gin.HandlerFunc {
 			AuthenticationFunc: authFunc,
 		},
 	})
+}
+
+func logError(c *gin.Context, err *gin.Error, logAttributes []any) {
+	var httpErr httperror.HttpError
+	if errors.As(err.Err, &httpErr) {
+		slog.ErrorContext(c, httpErr.Description, append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))...)
+	} else {
+		slog.ErrorContext(c, "", append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))...)
+	}
+}
+
+func logWarning(c *gin.Context, err *gin.Error, logAttributes []any) {
+	var httpErr httperror.HttpError
+	if errors.As(err.Err, &httpErr) {
+		slog.WarnContext(c, httpErr.Description, append(logAttributes, slog.String("errorCode", httpErr.ErrorCode), slog.String("metadata", httpErr.Metadata), slog.Int("statusCode", httpErr.StatusCode))...)
+	} else {
+		slog.WarnContext(c, "", append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))...)
+	}
 }

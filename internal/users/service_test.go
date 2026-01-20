@@ -209,12 +209,11 @@ func TestService_Login_OK(t *testing.T) {
 			nil)
 
 	tokenQuery := tokenRepo.NewMockQuerier(t)
-	tokenStorage := tokens.NewStorage(tokenQuery)
 	tokenQuery.On("SaveToken", ctx, mock.MatchedBy(func(token tokenRepo.SaveTokenParams) bool {
 		return token.Token != "" && token.RefreshToken != "" && token.IpAddress == "192.168.1.100" &&
 			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)
-	tokenService := tokens.NewService(tokenStorage, []byte("JWT_$€Cr€t"))
+	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "")
 	userService := NewService(userQuery, nil, tokenService)
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -321,8 +320,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	//2FA
 	twoFAQuery := twoFARepo.NewMockQuerier(t)
 	twoFAQuery.On("Get2FADetails", ctx, userId).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -330,8 +328,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	secret := "JWT_$€CR€T"
 	tokenQuery := tokenRepo.NewMockQuerier(t)
 	tokenQuery.On("SaveToken", mock.Anything, mock.Anything).Return(nil)
-	tokenStorage := tokens.NewStorage(tokenQuery)
-	tokenService := tokens.NewService(tokenStorage, []byte(secret))
+	tokenService := tokens.NewService(tokenQuery, []byte(secret), "")
 
 	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetUserById", ctx, userId).Return(userRepo.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last"}, nil)
@@ -359,8 +356,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	//2FA
 	twoFAQuery := twoFARepo.NewMockQuerier(t)
 	twoFAQuery.On("Get2FADetails", ctx, userId).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -394,8 +390,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
 		return id.Valid
 	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -431,8 +426,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
 		return id.Valid
 	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-20*time.Second))
 	assert.NoError(t, err)
@@ -468,8 +462,7 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 	twoFAQuery.On("Get2FADetails", ctx, mock.MatchedBy(func(id pgtype.UUID) bool {
 		return id.Valid
 	})).Return(twoFARepo.Users2fa{Secret: "2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ"}, nil)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService("go-jwt-server", twoFAQuery)
 
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)

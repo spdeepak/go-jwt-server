@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
@@ -46,12 +47,10 @@ func main() {
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
 	//JWT Token
 	tokenRepository := tokenRepo.New(dbConnection)
-	tokenStorage := tokens.NewStorage(tokenRepository)
-	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
+	tokenService := tokens.NewService(tokenRepository, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Token.Issuer)
 	//2FA
 	twoFAQuery := twoFARepo.New(dbConnection)
-	twoFAStorage := twoFA.NewStorage(twoFAQuery)
-	twoFAService := twoFA.NewService("go-jwt-server", twoFAStorage)
+	twoFAService := twoFA.NewService(cfg.TwoFA.AppName, twoFAQuery)
 	//Users
 	userRepository := userRepo.New(dbConnection)
 	userService := users.NewService(userRepository, twoFAService, tokenService)
@@ -72,14 +71,16 @@ func main() {
 	}
 	swagger.Servers = nil
 
-	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths)
+	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths, cfg.Token.Issuer)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(middleware.RequestValidator(swagger))
-	router.Use(authMiddleware)
-	router.Use(gin.Recovery())
-	router.Use(middleware.ErrorMiddleware)
-	router.Use(middleware.GinLogger())
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	router.Use(middleware.MetricHandler(),
+		middleware.RequestValidator(swagger),
+		authMiddleware,
+		gin.Recovery(),
+		middleware.ErrorMiddleware,
+		middleware.GinLogger())
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
@@ -87,20 +88,10 @@ func main() {
 		Handler: router,
 	}
 
-	//go func() {
-	//	r := mux.NewRouter()
-	//	r.Path("/metrics").Handler(promhttp.Handler())
-	//slog.Info(fmt.Sprintf("Starting server on %s", srv.Addr))
-	//	if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-	//slog.Error(fmt.Sprintf("failed to start server. Error: %s", err))
-	//os.Exit(1)
-	//	}
-	//}()
-
 	chanErrors := make(chan error)
 	// Initializing the Server in a goroutine so that it won't block the graceful shutdown handling below
 	go func() {
-		chanErrors <- router.Run()
+		chanErrors <- srv.ListenAndServe()
 	}()
 
 	chanSignals := make(chan os.Signal, 1)
