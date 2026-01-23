@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +38,8 @@ import (
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
-var userQuery usersRepo.Querier
+var roleQuery roleRepo.Querier
+var permissionQuery permissionsRepo.Querier
 var router *gin.Engine
 var dbConfig = config.PostgresConfig{
 	Host:              "localhost",
@@ -66,11 +66,11 @@ func TestMain(m *testing.M) {
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "test-issuer")
-	userQuery = usersRepo.New(dbConnection)
+	userQuery := usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
-	roleQuery := roleRepo.New(dbConnection)
+	roleQuery = roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
-	permissionQuery := permissionsRepo.New(dbConnection)
+	permissionQuery = permissionsRepo.New(dbConnection)
 	permissionService := permissions.NewService(permissionQuery)
 	//Setup router
 	swagger, _ := api.GetSwagger()
@@ -108,10 +108,53 @@ func truncateTables() {
 					SELECT tablename
 					FROM pg_tables
 					WHERE schemaname = 'public'
-				LOOP
-					EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
-				END LOOP;
-		END $$;
+					LOOP
+						EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
+					END LOOP;
+				INSERT INTO users(email, first_name, last_name, password, two_fa_enabled)
+				VALUES ('admin@localhost', 'Admin', 'User', '$2a$10$dg5hjvb7RQOLP6uwXBQeweQhwnJZBbOBn7oQHf0fY80oxuHu9ess6',
+						false);
+				WITH new_role AS (
+					INSERT INTO roles (name, description, created_by, updated_by)
+						VALUES ('super_admin', 'Super administrator role', 'system', 'system')
+						RETURNING id),
+					 new_permissions AS (
+						 INSERT INTO permissions (name, description, created_by, updated_by)
+							 VALUES ('roles:create', 'Permission to create roles', 'system', 'system'),
+									('roles:read', 'Permission to read roles', 'system', 'system'),
+									('roles:update', 'Permission to update roles', 'system', 'system'),
+									('roles:delete', 'Permission to delete roles', 'system', 'system'),
+									('roles:user_assign', 'Permission to assign roles to user', 'system', 'system'),
+									('roles:user_unassign', 'Permission to unassign roles to user', 'system', 'system'),
+									('permissions:create', 'Permission to create permissions', 'system', 'system'),
+									('permissions:read', 'Permission to read permissions', 'system', 'system'),
+									('permissions:update', 'Permission to update permissions', 'system', 'system'),
+									('permissions:delete', 'Permission to delete permissions', 'system', 'system'),
+									('users:create', 'Permission to create users', 'system', 'system'),
+									('users:read', 'Permission to read users', 'system', 'system'),
+									('users:update', 'Permission to update users', 'system', 'system'),
+									('users:delete', 'Permission to delete users', 'system', 'system'),
+									('users:roles_assign', 'Permission to assign roles to users', 'system', 'system'),
+									('users:roles_unassign', 'Permission to unassign roles to users', 'system', 'system')
+							 RETURNING id)
+				INSERT
+				INTO role_permissions (role_id, permission_id, created_by)
+				SELECT nr.id, p.id, 'system'
+				FROM new_role nr
+						 CROSS JOIN new_permissions p;
+		
+				WITH admin_user AS (SELECT id
+									FROM users
+									WHERE email = 'admin@localhost'),
+					 admin_role AS (SELECT id
+									FROM roles
+									WHERE name = 'super_admin')
+				INSERT
+				INTO user_roles (user_id, role_id, created_by)
+				SELECT u.id, ar.id, 'system'
+				FROM admin_user u
+						 CROSS JOIN admin_role ar;
+			END $$;
     `)
 	require.NoError(t, err)
 }
@@ -504,38 +547,34 @@ func TestServer_CreateNewRole_OK(t *testing.T) {
 
 func TestServer_GetRoleById_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
-	//Login
-	loginRes := login2FADisabled(t)
-	//Create a new Role
-	roleRes := createRole(t, loginRes, api.CreateRole{
-		Description: "role description",
-		Name:        "admin",
-	})
-	//Assign role to user
-	user, err := userQuery.GetUserByEmail(context.Background(), "first.last@example.com")
+	//Login with super admin
+	loginRes := loginSuperAdmin(t)
+	allRoles, err := roleQuery.ListRoles(context.Background())
 	assert.NoError(t, err)
-	assert.NotNil(t, user)
-	err = userQuery.AssignRolesToUser(context.Background(), usersRepo.AssignRolesToUserParams{
-		UserID:    user.ID,
-		RoleID:    []pgtype.UUID{{Valid: true, Bytes: roleRes.Id}},
-		CreatedBy: "test@example.com",
-	})
-	assert.NoError(t, err)
-	//Login again to get token with role claims
-	loginRes = login2FADisabled(t)
-	//Get Role By ID
-	getRoleById(t, loginRes, roleRes)
-
+	assert.NotEmpty(t, allRoles)
+	for _, role := range allRoles {
+		id, rerr := role.ID.UUIDValue()
+		assert.NoError(t, rerr)
+		roleRes := api.RoleResponse{
+			CreatedAt:   role.CreatedAt,
+			CreatedBy:   role.CreatedBy,
+			Description: role.Description,
+			Id:          id.Bytes,
+			Name:        role.Name,
+			UpdatedAt:   role.UpdatedAt,
+			UpdatedBy:   role.UpdatedBy,
+		}
+		getRoleById(t, loginRes, roleRes)
+	}
 }
 
 func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
-	//Login
-	loginRes := login2FADisabled(t)
+	//Login with super admin
+	loginRes := loginSuperAdmin(t)
+	allRoles, err := roleQuery.ListRoles(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, allRoles)
 
 	//Get Role By ID
 	getRoleByIdNotFound(t, loginRes, uuid.New().String())
@@ -543,19 +582,8 @@ func TestServer_GetRoleById_NOK_NotFound(t *testing.T) {
 
 func TestServer_ListAllRoles_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
-	//Login
-	loginRes := login2FADisabled(t)
-	//Create a new Role
-	roleRes1 := createRole(t, loginRes, api.CreateRole{
-		Description: "role description",
-		Name:        "admin_role_1",
-	})
-	roleRes2 := createRole(t, loginRes, api.CreateRole{
-		Description: "role description",
-		Name:        "admin_role_2",
-	})
+	//Login with super admin
+	loginRes := loginSuperAdmin(t)
 	//List All roles
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/roles", nil)
 	assert.NotNil(t, req)
@@ -569,11 +597,27 @@ func TestServer_ListAllRoles_OK(t *testing.T) {
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
 
+	allRoles, err := roleQuery.ListRoles(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, allRoles)
+	apiAllRoles := make([]api.RoleResponse, 0)
+	for _, role := range allRoles {
+		id, rerr := role.ID.UUIDValue()
+		assert.NoError(t, rerr)
+		apiAllRoles = append(apiAllRoles, api.RoleResponse{
+			CreatedAt:   role.CreatedAt,
+			CreatedBy:   role.CreatedBy,
+			Description: role.Description,
+			Id:          id.Bytes,
+			Name:        role.Name,
+			UpdatedAt:   role.UpdatedAt,
+			UpdatedBy:   role.UpdatedBy,
+		})
+	}
+
 	var roleResponse []api.RoleResponse
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
-	assert.Len(t, roleResponse, 2)
-	assert.Contains(t, roleResponse, roleRes1)
-	assert.Contains(t, roleResponse, roleRes2)
+	assert.EqualValues(t, apiAllRoles, roleResponse)
 }
 
 func TestServer_UpdateRoleById_OK(t *testing.T) {
@@ -705,19 +749,8 @@ func TestServer_GetPermissionById_NOK_NotFound(t *testing.T) {
 
 func TestServer_ListAllPermissions_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
-	//Login
-	loginRes := login2FADisabled(t)
-	//Create a new Permission
-	permissionRes1 := createPermission(t, loginRes, api.CreatePermission{
-		Description: "permission description",
-		Name:        "admin_permission_1",
-	})
-	permissionRes2 := createPermission(t, loginRes, api.CreatePermission{
-		Description: "permission description",
-		Name:        "admin_permission_2",
-	})
+	//Login with super admin
+	loginRes := loginSuperAdmin(t)
 	//List All permissions
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/access-control/permissions", nil)
 	assert.NotNil(t, req)
@@ -733,9 +766,25 @@ func TestServer_ListAllPermissions_OK(t *testing.T) {
 
 	var permissionResponse []api.PermissionResponse
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &permissionResponse))
-	assert.Len(t, permissionResponse, 2)
-	assert.Contains(t, permissionResponse, permissionRes1)
-	assert.Contains(t, permissionResponse, permissionRes2)
+
+	allPermissions, err := permissionQuery.ListPermissions(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, allPermissions)
+	apiAllPermissions := make([]api.PermissionResponse, 0)
+	for _, role := range allPermissions {
+		id, rerr := role.ID.UUIDValue()
+		assert.NoError(t, rerr)
+		apiAllPermissions = append(apiAllPermissions, api.PermissionResponse{
+			CreatedAt:   role.CreatedAt,
+			CreatedBy:   role.CreatedBy,
+			Description: role.Description,
+			Id:          id.Bytes,
+			Name:        role.Name,
+			UpdatedAt:   role.UpdatedAt,
+			UpdatedBy:   role.UpdatedBy,
+		})
+	}
+	assert.EqualValues(t, apiAllPermissions, permissionResponse)
 }
 
 func TestServer_UpdatePermissionById_OK(t *testing.T) {
@@ -1110,6 +1159,33 @@ func signup2FAEnabled(t *testing.T) api.SignUpWith2FAResponse {
 func login2FADisabled(t *testing.T) api.LoginSuccessWithJWT {
 	loginBytes, err := json.Marshal(api.UserLogin{
 		Email:    "first.last@example.com",
+		Password: "$trong_P@$$w0rd",
+	})
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginBytes))
+	assert.NotNil(t, req)
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("x-login-source", "api")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+
+	var res api.LoginSuccessWithJWT
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &res))
+	assert.NotEmpty(t, res.RefreshToken)
+	assert.NotEmpty(t, res.AccessToken)
+
+	return res
+}
+
+func loginSuperAdmin(t *testing.T) api.LoginSuccessWithJWT {
+	loginBytes, err := json.Marshal(api.UserLogin{
+		Email:    "admin@localhost",
 		Password: "$trong_P@$$w0rd",
 	})
 	assert.NoError(t, err)

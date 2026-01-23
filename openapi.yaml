@@ -286,7 +286,7 @@ paths:
         - BearerAuth: [ ]
       aegis-auth:
         anyOf:
-          roles: [ admin ]
+          roles: [ super_admin ]
           permissions: [ roles:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
