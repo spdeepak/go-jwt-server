@@ -40,7 +40,7 @@ func TestService_GenerateTokenPair(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user, nil, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
@@ -72,7 +72,7 @@ func TestService_ValidateRefreshToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -115,7 +115,7 @@ func TestService_ValidateRefreshToken_NOK_AlreadyRevoked(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -159,7 +159,7 @@ func TestService_ValidateRefreshToken_NOK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -224,7 +224,7 @@ func TestService_RevokeRefreshToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -261,7 +261,7 @@ func TestService_RevokeRefreshToken_NOK_RefreshTokenInvalid(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -301,7 +301,7 @@ func TestService_RevokeRefreshToken_NOK_UnknownDBError(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -338,7 +338,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -393,7 +393,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)

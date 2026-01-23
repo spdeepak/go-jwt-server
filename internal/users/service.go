@@ -19,25 +19,26 @@ import (
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
-type service struct {
-	storage      repository.Querier
-	tokenService tokens.Service
-	twoFAService twoFA.Service
-}
+type (
+	service struct {
+		query        repository.Querier
+		tokenService tokens.Service
+		twoFAService twoFA.Service
+	}
+	Service interface {
+		Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error)
+		Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
+		Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error)
+		RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
+		GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error)
+		AssignRolesToUser(ctx *gin.Context, userId api.UuId, params api.AssignRolesToUserParams, assignRoleToUser api.AssignRoleToUser, email string) error
+		UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error
+	}
+)
 
-type Service interface {
-	Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2FAResponse, error)
-	Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error)
-	Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error)
-	RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error)
-	GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error)
-	AssignRolesToUser(ctx *gin.Context, userId api.UuId, params api.AssignRolesToUserParams, assignRoleToUser api.AssignRoleToUser, email string) error
-	UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId api.RoleId, params api.RemoveRolesForUserParams) error
-}
-
-func NewService(storage repository.Querier, twoFAService twoFA.Service, tokenService tokens.Service) Service {
+func NewService(query repository.Querier, twoFAService twoFA.Service, tokenService tokens.Service) Service {
 	return &service{
-		storage:      storage,
+		query:        query,
 		twoFAService: twoFAService,
 		tokenService: tokenService,
 	}
@@ -58,7 +59,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 			Password:     hashedPassword,
 			TwoFaEnabled: user.TwoFAEnabled,
 		}
-		if err = s.storage.Signup(ctx, userSignup); err != nil {
+		if err = s.query.Signup(ctx, userSignup); err != nil {
 			if err.Error() == "ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)" {
 				return api.SignUpWith2FAResponse{}, httperror.New(httperror.UserAlreadyExists)
 			}
@@ -80,7 +81,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 		Password:     hashedPassword,
 		TwoFaEnabled: user.TwoFAEnabled,
 	}
-	err = s.storage.SignupWith2FA(ctx, userSignupWith2FA)
+	err = s.query.SignupWith2FA(ctx, userSignupWith2FA)
 	if err != nil {
 		if err.Error() == "ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)" {
 			return api.SignUpWith2FAResponse{}, httperror.New(httperror.UserAlreadyExists)
@@ -94,7 +95,7 @@ func (s *service) Signup(ctx *gin.Context, user api.UserSignup) (api.SignUpWith2
 }
 
 func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.UserLogin) (any, error) {
-	user, err := s.storage.GetEntireUserByEmail(ctx, login.Email)
+	user, err := s.query.GetEntireUserByEmail(ctx, login.Email)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -121,7 +122,7 @@ func (s *service) Login(ctx *gin.Context, params api.LoginParams, login api.User
 		XLoginSource: string(params.XLoginSource),
 		UserAgent:    params.UserAgent,
 	}
-	return s.tokenService.GenerateNewTokenPair(ctx, ctx.ClientIP(), tokenParams, jwtUser)
+	return s.tokenService.GenerateNewTokenPair(ctx, ctx.ClientIP(), tokenParams, jwtUser, user.RoleNames, user.PermissionNames)
 }
 
 func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId uuid.UUID, passcode string) (api.LoginSuccessWithJWT, error) {
@@ -134,7 +135,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 		return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidTwoFA)
 	}
 
-	user, err := s.storage.GetUserById(ctx, pgtypeUUID)
+	user, err := s.query.GetUserById(ctx, pgtypeUUID)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			return api.LoginSuccessWithJWT{}, httperror.New(httperror.InvalidCredentials)
@@ -156,7 +157,7 @@ func (s *service) Login2FA(ctx *gin.Context, params api.Login2FAParams, userId u
 		XLoginSource: string(params.XLoginSource),
 		UserAgent:    params.UserAgent,
 	}
-	return s.tokenService.GenerateNewTokenPair(ctx, ctx.ClientIP(), tokenParams, jwtUser)
+	return s.tokenService.GenerateNewTokenPair(ctx, ctx.ClientIP(), tokenParams, jwtUser, nil, nil)
 }
 
 func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refresh api.Refresh) (api.LoginSuccessWithJWT, error) {
@@ -169,7 +170,7 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
 
-	user, err := s.storage.GetEntireUserByEmail(ctx, email)
+	user, err := s.query.GetEntireUserByEmail(ctx, email)
 	if err != nil {
 		return api.LoginSuccessWithJWT{}, httperror.NewWithMetadata(httperror.InvalidRefreshToken, "Invalid token claims")
 	}
@@ -184,11 +185,11 @@ func (s *service) RefreshToken(ctx *gin.Context, params api.RefreshParams, refre
 		XLoginSource: string(params.XLoginSource),
 		UserAgent:    params.UserAgent,
 	}
-	return s.tokenService.RefreshAndInvalidateToken(ctx, ctx.ClientIP(), tokenParams, refresh, jwtUser)
+	return s.tokenService.RefreshAndInvalidateToken(ctx, ctx.ClientIP(), tokenParams, refresh, jwtUser, user.RoleNames, user.PermissionNames)
 }
 
 func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, params api.GetRolesOfUserParams) (api.UserWithRoles, error) {
-	userRolesAndPermissions, err := s.storage.GetUserRolesAndPermissionsFromID(ctx, util.UUIDToPgtypeUUID(id))
+	userRolesAndPermissions, err := s.query.GetUserRolesAndPermissionsFromID(ctx, util.UUIDToPgtypeUUID(id))
 	if err != nil {
 		return api.UserWithRoles{}, err
 	}
@@ -212,7 +213,7 @@ func (s *service) AssignRolesToUser(ctx *gin.Context, userId api.UuId, params ap
 		RoleID:    rolesIds,
 		CreatedBy: email,
 	}
-	if err := s.storage.AssignRolesToUser(ctx, assignRolesToUser); err != nil {
+	if err := s.query.AssignRolesToUser(ctx, assignRolesToUser); err != nil {
 		return err
 	}
 	return nil
@@ -223,7 +224,7 @@ func (s *service) UnassignRolesOfUser(ctx *gin.Context, userId api.UuId, roleId 
 		UserID: util.UUIDToPgtypeUUID(userId),
 		RoleID: util.UUIDToPgtypeUUID(roleId),
 	}
-	err := s.storage.UnassignRolesToUser(ctx, unassignRolesToUser)
+	err := s.query.UnassignRolesToUser(ctx, unassignRolesToUser)
 	if err != nil {
 		return err
 	}

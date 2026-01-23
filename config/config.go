@@ -73,7 +73,11 @@ func (c *AppConfig) readAppConfig() {
 	v := viper.New()
 
 	v.SetTypeByDefaultValue(true)
-	v.SetConfigFile(os.Getenv("CONFIG_FILE_PATH"))
+	configsFile := "./configs/application.yaml"
+	if e := os.Getenv("CONFIG_FILE_PATH"); e != "" {
+		configsFile = e
+	}
+	v.SetConfigFile(configsFile)
 	c.v = v
 
 	if err := v.ReadInConfig(); err != nil {
@@ -89,7 +93,11 @@ func (s *secret) readSecret() {
 	v := viper.New()
 
 	v.SetTypeByDefaultValue(true)
-	v.SetConfigFile(os.Getenv("SECRETS_FILE_PATH"))
+	secretsFile := "./configs/secrets.json"
+	if e := os.Getenv("SECRETS_FILE_PATH"); e != "" {
+		secretsFile = e
+	}
+	v.SetConfigFile(secretsFile)
 	s.v = v
 
 	if err := v.ReadInConfig(); err != nil {

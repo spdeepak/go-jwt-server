@@ -284,10 +284,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
-      aegis-required-roles:
-        - admin
-      aegis-required-permissions:
-          - users:read
+      aegis-auth:
+        anyOf:
+          roles: [ admin ]
+          permissions: [ roles:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'

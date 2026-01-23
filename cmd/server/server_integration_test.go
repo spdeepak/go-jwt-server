@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,7 @@ import (
 	"github.com/spdeepak/go-jwt-server/util"
 )
 
+var userQuery usersRepo.Querier
 var router *gin.Engine
 var dbConfig = config.PostgresConfig{
 	Host:              "localhost",
@@ -64,7 +66,7 @@ func TestMain(m *testing.M) {
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "test-issuer")
-	userQuery := usersRepo.New(dbConnection)
+	userQuery = usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery := roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
@@ -509,8 +511,20 @@ func TestServer_GetRoleById_OK(t *testing.T) {
 	//Create a new Role
 	roleRes := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
-		Name:        "admin_role",
+		Name:        "admin",
 	})
+	//Assign role to user
+	user, err := userQuery.GetUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	err = userQuery.AssignRolesToUser(context.Background(), usersRepo.AssignRolesToUserParams{
+		UserID:    user.ID,
+		RoleID:    []pgtype.UUID{{Valid: true, Bytes: roleRes.Id}},
+		CreatedBy: "test@example.com",
+	})
+	assert.NoError(t, err)
+	//Login again to get token with role claims
+	loginRes = login2FADisabled(t)
 	//Get Role By ID
 	getRoleById(t, loginRes, roleRes)
 

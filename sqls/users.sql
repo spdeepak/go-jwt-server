@@ -58,8 +58,8 @@ SELECT u.id                                                       AS user_id,
        u.locked,
        u.two_fa_enabled,
        u.created_at                                               AS user_created_at,
-       COALESCE(STRING_AGG(DISTINCT r.role_name, ', '), '')       AS role_names,
-       COALESCE(STRING_AGG(DISTINCT p.permission_name, ', '), '') AS permission_names
+       COALESCE(ARRAY_AGG(DISTINCT r.role_name) FILTER (WHERE r.role_name IS NOT NULL), '{}')::text[] AS role_names,
+       COALESCE(ARRAY_AGG(DISTINCT p.permission_name) FILTER (WHERE p.permission_name IS NOT NULL), '{}')::text[] AS permission_names
 FROM user_base u
          LEFT JOIN user_roles_joined AS r ON r.user_id = u.id
          LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id

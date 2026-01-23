@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -20,6 +21,10 @@ var IgnorePaths = []string{
 	"/live",
 	"/ready",
 }
+
+const (
+	aegisAuth = "aegis-auth"
+)
 
 // GinLogger is the middleware function that uses slog for logging
 func GinLogger() gin.HandlerFunc {
@@ -71,9 +76,20 @@ func RequestValidator(swagger *openapi3.T) gin.HandlerFunc {
 			return errors.New("no authorization header")
 		}
 		for extensionKey, extensionValue := range input.RequestValidationInput.Route.Operation.Extensions {
-			//This has the extra extensions for role and permission mapping and will be used in jwt middleware
-			//Extensions like: aegis-required-roles, aegis-required-permissions
-			ginmiddleware.GetGinContext(ctx).Set(extensionKey, extensionValue)
+			if rolesAndPermissions, ok := extensionValue.(map[string]interface{}); ok && extensionKey == aegisAuth {
+				//This has the extra extensions for role and permission mapping and will be used in jwt middleware
+				//Extensions like: aegis-required-roles, aegis-required-permissions
+				tokenPolicy := authPolicy{}
+				marshal, err := json.Marshal(rolesAndPermissions)
+				if err != nil {
+					return errors.New("invalid auth policy")
+				}
+				err = json.Unmarshal(marshal, &tokenPolicy)
+				if err != nil {
+					return errors.New("invalid auth policy")
+				}
+				ginmiddleware.GetGinContext(ctx).Set(aegisAuth, &tokenPolicy)
+			}
 		}
 		return nil
 	}
@@ -106,4 +122,12 @@ func logWarning(c *gin.Context, err *gin.Error, logAttributes []any) {
 	} else {
 		slog.WarnContext(c, "", append(logAttributes, slog.String("error", err.Error()), slog.String("path", c.Request.URL.Path))...)
 	}
+}
+
+func toStringSlice(in []interface{}) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = v.(string)
+	}
+	return out
 }

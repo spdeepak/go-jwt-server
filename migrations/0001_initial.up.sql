@@ -144,3 +144,5 @@ CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens (refresh_token);
 CREATE INDEX IF NOT EXISTS idx_tokens_email ON tokens (email);
 CREATE INDEX IF NOT EXISTS idx_bearer_valid ON tokens (token, ip_address, user_agent, device_name, revoked);
 CREATE INDEX IF NOT EXISTS idx_refresh_valid ON tokens (refresh_token, ip_address, user_agent, device_name, revoked);
+
+-- Create Admin User
