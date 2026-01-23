@@ -534,10 +534,8 @@ func TestServer_RevokeAllTokens_OK(t *testing.T) {
 
 func TestServer_CreateNewRole_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	res := login2FADisabled(t)
+	res := loginSuperAdmin(t)
 	//Create a new Role
 	createRole(t, res, api.CreateRole{
 		Description: "role description",
@@ -622,10 +620,8 @@ func TestServer_ListAllRoles_OK(t *testing.T) {
 
 func TestServer_UpdateRoleById_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	roleRes := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -710,10 +706,8 @@ func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
 
 func TestServer_CreateNewPermission_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	res := login2FADisabled(t)
+	res := loginSuperAdmin(t)
 	//Create a new Permission
 	createPermission(t, res, api.CreatePermission{
 		Description: "permission description",
@@ -723,10 +717,8 @@ func TestServer_CreateNewPermission_OK(t *testing.T) {
 
 func TestServer_GetPermissionById_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Permission
 	permissionRes := createPermission(t, loginRes, api.CreatePermission{
 		Description: "permission description",
@@ -789,10 +781,8 @@ func TestServer_ListAllPermissions_OK(t *testing.T) {
 
 func TestServer_UpdatePermissionById_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Permission
 	permissionRes := createPermission(t, loginRes, api.CreatePermission{
 		Description: "permission description",
@@ -922,7 +912,7 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 	//Signup
 	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	role := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -955,7 +945,7 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 	var rolesAndPermissions []api.RolesAndPermissionResponse
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &rolesAndPermissions))
 	assert.NotEmpty(t, rolesAndPermissions)
-	assert.Len(t, rolesAndPermissions, 1)
+	assert.Len(t, rolesAndPermissions, 2)
 	assert.NotEmpty(t, rolesAndPermissions[0].Roles)
 	assert.Len(t, rolesAndPermissions[0].Roles.Permissions, 2)
 	assert.Equal(t, role.Name, rolesAndPermissions[0].Roles.Name)
@@ -1287,7 +1277,7 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, createRole api.Create
 	assert.Equal(t, createRole.Description, roleResponse.Description)
 	assert.Equal(t, createRole.Name, roleResponse.Name)
 	assert.IsType(t, uuid.UUID{}, roleResponse.Id)
-	assert.Equal(t, "first.last@example.com", roleResponse.CreatedBy)
+	assert.Equal(t, "admin@localhost", roleResponse.CreatedBy)
 	assert.NotNil(t, roleResponse.CreatedAt)
 
 	return roleResponse
@@ -1353,7 +1343,7 @@ func createPermission(t *testing.T, res api.LoginSuccessWithJWT, createPermissio
 	assert.Equal(t, createPermission.Description, permissionResponse.Description)
 	assert.Equal(t, createPermission.Name, permissionResponse.Name)
 	assert.IsType(t, uuid.UUID{}, permissionResponse.Id)
-	assert.Equal(t, "first.last@example.com", permissionResponse.CreatedBy)
+	assert.Equal(t, "admin@localhost", permissionResponse.CreatedBy)
 	assert.NotNil(t, permissionResponse.CreatedAt)
 
 	return permissionResponse
