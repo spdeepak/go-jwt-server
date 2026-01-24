@@ -35,10 +35,10 @@ import (
 	"github.com/spdeepak/go-jwt-server/internal/users"
 	usersRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
-	"github.com/spdeepak/go-jwt-server/util"
 )
 
 var roleQuery roleRepo.Querier
+var userQuery usersRepo.Querier
 var permissionQuery permissionsRepo.Querier
 var router *gin.Engine
 var dbConfig = config.PostgresConfig{
@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "test-issuer")
-	userQuery := usersRepo.New(dbConnection)
+	userQuery = usersRepo.New(dbConnection)
 	userService := users.NewService(userQuery, twoFaService, tokenService)
 	roleQuery = roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
@@ -112,7 +112,7 @@ func truncateTables() {
 						EXECUTE format('TRUNCATE TABLE public.%I CASCADE;', r.tablename);
 					END LOOP;
 				INSERT INTO users(email, first_name, last_name, password, two_fa_enabled)
-				VALUES ('admin@localhost', 'Admin', 'User', '$2a$10$dg5hjvb7RQOLP6uwXBQeweQhwnJZBbOBn7oQHf0fY80oxuHu9ess6',
+				VALUES ('admin@localhost.com', 'Admin', 'User', '$2a$10$dg5hjvb7RQOLP6uwXBQeweQhwnJZBbOBn7oQHf0fY80oxuHu9ess6',
 						false);
 				WITH new_role AS (
 					INSERT INTO roles (name, description, created_by, updated_by)
@@ -145,7 +145,7 @@ func truncateTables() {
 		
 				WITH admin_user AS (SELECT id
 									FROM users
-									WHERE email = 'admin@localhost'),
+									WHERE email = 'admin@localhost.com'),
 					 admin_role AS (SELECT id
 									FROM roles
 									WHERE name = 'super_admin')
@@ -1050,33 +1050,14 @@ func TestServer_RemoveRolesForUser_OK(t *testing.T) {
 
 func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
-	//Create a new Role
-	role := createRole(t, loginRes, api.CreateRole{
-		Description: "role description",
-		Name:        "admin_role",
-	})
-	//Create a new Permission
-	permissionRes := createPermission(t, loginRes, api.CreatePermission{
-		Description: "permission description",
-		Name:        "admin_permission",
-	})
-	//Assign Permission to Role
-	assignPermissionToRole(t, permissionRes, role, loginRes)
-	//Assign Roles to User
-	assignRolesToUser(t, role, loginRes)
-	//Get Roles of User
-	dbConnection := db.Connect(dbConfig)
-	userQuery := usersRepo.New(dbConnection)
-	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
-	dbConnection.Close()
+	loginRes := loginSuperAdmin(t)
+	//Get User details
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
-	assert.Empty(t, user.PermissionNames)
+	assert.NotEmpty(t, user.PermissionNames)
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/roles", user.UserID.String()), nil)
 	assert.NotNil(t, req)
 	assert.NoError(t, err)
@@ -1091,10 +1072,8 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &userWithRoles))
 	assert.NotEmpty(t, userWithRoles)
 	assert.NotEmpty(t, userWithRoles.Roles)
-	assert.Empty(t, userWithRoles.Permissions)
-	id, err := util.PgtypeUUIDToUUID(user.UserID)
-	require.NoError(t, err)
-	assert.Equal(t, id, userWithRoles.Id)
+	assert.NotEmpty(t, userWithRoles.Permissions)
+	assert.Equal(t, user.UserID.String(), userWithRoles.Id.String())
 }
 
 func signup2FADisabled(t *testing.T) {
@@ -1175,7 +1154,7 @@ func login2FADisabled(t *testing.T) api.LoginSuccessWithJWT {
 
 func loginSuperAdmin(t *testing.T) api.LoginSuccessWithJWT {
 	loginBytes, err := json.Marshal(api.UserLogin{
-		Email:    "admin@localhost",
+		Email:    "admin@localhost.com",
 		Password: "$trong_P@$$w0rd",
 	})
 	assert.NoError(t, err)
@@ -1277,7 +1256,7 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, createRole api.Create
 	assert.Equal(t, createRole.Description, roleResponse.Description)
 	assert.Equal(t, createRole.Name, roleResponse.Name)
 	assert.IsType(t, uuid.UUID{}, roleResponse.Id)
-	assert.Equal(t, "admin@localhost", roleResponse.CreatedBy)
+	assert.Equal(t, "admin@localhost.com", roleResponse.CreatedBy)
 	assert.NotNil(t, roleResponse.CreatedAt)
 
 	return roleResponse
@@ -1343,7 +1322,7 @@ func createPermission(t *testing.T, res api.LoginSuccessWithJWT, createPermissio
 	assert.Equal(t, createPermission.Description, permissionResponse.Description)
 	assert.Equal(t, createPermission.Name, permissionResponse.Name)
 	assert.IsType(t, uuid.UUID{}, permissionResponse.Id)
-	assert.Equal(t, "admin@localhost", permissionResponse.CreatedBy)
+	assert.Equal(t, "admin@localhost.com", permissionResponse.CreatedBy)
 	assert.NotNil(t, permissionResponse.CreatedAt)
 
 	return permissionResponse
@@ -1447,7 +1426,7 @@ func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse
 func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
 	dbConnection := db.Connect(dbConfig)
 	userQuery := usersRepo.New(dbConnection)
-	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.Empty(t, user.RoleNames)

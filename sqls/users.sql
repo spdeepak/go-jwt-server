@@ -97,28 +97,47 @@ GROUP BY u.id, u.email, u.password,
 WITH user_base AS (SELECT *
                    FROM users
                    WHERE users.id = sqlc.arg('id')),
+-- User → Roles
      user_roles_joined AS (SELECT r.name AS role_name, ur.user_id
                            FROM user_base u
                                     LEFT JOIN user_roles ur ON ur.user_id = u.id
-                                    LEFT JOIN roles r ON ur.role_id = r.id),
-     user_permissions_joined AS (SELECT p.name AS permission_name, up.user_id
+                                    LEFT JOIN roles r ON r.id = ur.role_id),
+-- Permissions directly assigned to user
+     user_permissions_direct AS (SELECT p.name AS permission_name, up.user_id
                                  FROM user_base u
                                           LEFT JOIN user_permissions up ON up.user_id = u.id
-                                          LEFT JOIN permissions p ON up.permission_id = p.id)
+                                          LEFT JOIN permissions p ON p.id = up.permission_id),
+-- Permissions inherited via roles
+     user_permissions_via_roles AS (SELECT p.name AS permission_name, ur.user_id
+                                    FROM user_base u
+                                             JOIN user_roles ur ON ur.user_id = u.id
+                                             JOIN role_permissions rp ON rp.role_id = ur.role_id
+                                             JOIN permissions p ON p.id = rp.permission_id),
+-- Union all permissions (direct + role-based)
+     all_user_permissions AS (SELECT permission_name, user_id
+                              FROM user_permissions_direct
+                              UNION
+                              SELECT permission_name, user_id
+                              FROM user_permissions_via_roles)
 
-SELECT u.id                                                       AS user_id,
+SELECT u.id                                                                                                       AS user_id,
        u.email,
        u.first_name,
        u.last_name,
        u.locked,
        u.two_fa_enabled,
-       u.created_at                                               AS user_created_at,
-       COALESCE(STRING_AGG(DISTINCT r.role_name, ', '), '')       AS role_names,
-       COALESCE(STRING_AGG(DISTINCT p.permission_name, ', '), '') AS permission_names
+       u.created_at                                                                                               AS user_created_at,
+       COALESCE(ARRAY_AGG(DISTINCT r.role_name) FILTER (WHERE r.role_name IS NOT NULL),
+                '{}')::text[]                                                                                     AS role_names,
+       COALESCE(ARRAY_AGG(DISTINCT p.permission_name) FILTER (WHERE p.permission_name IS NOT NULL),
+                '{}')::text[]                                                                                     AS permission_names
 FROM user_base u
-         LEFT JOIN user_roles_joined AS r ON r.user_id = u.id
-         LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id
-GROUP BY u.id, u.email, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at;
+         LEFT JOIN user_roles_joined r ON r.user_id = u.id
+         LEFT JOIN all_user_permissions p ON p.user_id = u.id
+GROUP BY u.id, u.email, u.password,
+         u.first_name, u.last_name,
+         u.locked, u.two_fa_enabled,
+         u.created_at;
 
 -- name: AssignRolesToUser :exec
 INSERT INTO user_roles (user_id, role_id, created_at, created_by)

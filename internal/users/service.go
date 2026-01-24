@@ -198,8 +198,8 @@ func (s *service) GetUserRolesAndPermissions(ctx *gin.Context, id api.UuId, para
 		Email:       openapi_types.Email(userRolesAndPermissions.Email),
 		FirstName:   userRolesAndPermissions.FirstName,
 		LastName:    userRolesAndPermissions.LastName,
-		Permissions: util.SliceSplit(userRolesAndPermissions.PermissionNames.(string), ", "),
-		Roles:       util.SliceSplit(userRolesAndPermissions.RoleNames.(string), ", "),
+		Permissions: userRolesAndPermissions.PermissionNames,
+		Roles:       userRolesAndPermissions.RoleNames,
 	}, nil
 }
 
