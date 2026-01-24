@@ -656,10 +656,8 @@ func TestServer_UpdateRoleById_OK(t *testing.T) {
 
 func TestServer_UpdateRoleById_NOK_RoleNotFound(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	roleRes := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -688,10 +686,8 @@ func TestServer_UpdateRoleById_NOK_RoleNotFound(t *testing.T) {
 
 func TestServer_DeleteRoleById_NOK_NotFound(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	roleRes := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -817,10 +813,8 @@ func TestServer_UpdatePermissionById_OK(t *testing.T) {
 
 func TestServer_UpdatePermissionById_NOK_PermissionNotFound(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Permission
 	permissionRes := createPermission(t, loginRes, api.CreatePermission{
 		Description: "permission description",
@@ -849,10 +843,8 @@ func TestServer_UpdatePermissionById_NOK_PermissionNotFound(t *testing.T) {
 
 func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Permission
 	permissionRes := createPermission(t, loginRes, api.CreatePermission{
 		Description: "permission description",
@@ -867,10 +859,8 @@ func TestServer_DeletePermissionById_NOK_NotFound(t *testing.T) {
 
 func TestServer_AssignPermissionToRole_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	role := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -887,10 +877,8 @@ func TestServer_AssignPermissionToRole_OK(t *testing.T) {
 
 func TestServer_UnassignPermissionFromRole_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	role := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -909,8 +897,6 @@ func TestServer_UnassignPermissionFromRole_OK(t *testing.T) {
 
 func TestServer_RolesAndPermissions_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
 	loginRes := loginSuperAdmin(t)
 	//Create a new Role
@@ -961,10 +947,8 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 
 func TestServer_AssignRolesToUser_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	role := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -983,10 +967,8 @@ func TestServer_AssignRolesToUser_OK(t *testing.T) {
 
 func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	role := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -1000,14 +982,11 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	//Assign Permission to Role
 	assignPermissionToRole(t, permissionRes, role, loginRes)
 	//Assign Roles to User
-	dbConnection := db.Connect(dbConfig)
-	userQuery := usersRepo.New(dbConnection)
-	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
-	dbConnection.Close()
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
-	assert.Empty(t, user.RoleNames)
-	assert.Empty(t, user.PermissionNames)
+	assert.NotEmpty(t, user.RoleNames)
+	assert.NotEmpty(t, user.PermissionNames)
 	assignPermission, err := json.Marshal(api.AssignRoleToUser{
 		Roles: []openapi_types.UUID{uuid.New()},
 	})
@@ -1026,10 +1005,8 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 
 func TestServer_RemoveRolesForUser_OK(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
+	loginRes := loginSuperAdmin(t)
 	//Create a new Role
 	role := createRole(t, loginRes, api.CreateRole{
 		Description: "role description",
@@ -1424,13 +1401,11 @@ func unassignPermissionToRole(t *testing.T, permissionRes api.PermissionResponse
 }
 
 func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
-	dbConnection := db.Connect(dbConfig)
-	userQuery := usersRepo.New(dbConnection)
 	user, err := userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
-	assert.Empty(t, user.RoleNames)
-	assert.Empty(t, user.PermissionNames)
+	assert.NotEmpty(t, user.RoleNames)
+	assert.NotEmpty(t, user.PermissionNames)
 	assignPermission, err := json.Marshal(api.AssignRoleToUser{
 		Roles: []openapi_types.UUID{role.Id},
 	})
@@ -1445,23 +1420,19 @@ func assignRolesToUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSu
 	router.ServeHTTP(recorder, req)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
-	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
-	dbConnection.Close()
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
-	assert.Empty(t, user.PermissionNames)
+	assert.NotEmpty(t, user.PermissionNames)
 }
 
 func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.LoginSuccessWithJWT) {
-	dbConnection := db.Connect(dbConfig)
-	defer dbConnection.Close()
-	userQuery := usersRepo.New(dbConnection)
-	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.NotEmpty(t, user.RoleNames)
-	assert.Empty(t, user.PermissionNames)
+	assert.NotEmpty(t, user.PermissionNames)
 	assert.NoError(t, err)
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/users/%s/roles/%s", user.UserID.String(), role.Id.String()), nil)
 	assert.NotNil(t, req)
@@ -1473,9 +1444,11 @@ func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.Login
 	router.ServeHTTP(recorder, req)
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
-	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	updatedUser, err := userQuery.GetEntireUserByEmail(context.Background(), "admin@localhost.com")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, user)
-	assert.Empty(t, user.RoleNames)
-	assert.Empty(t, user.PermissionNames)
+	assert.NotEmpty(t, updatedUser)
+	assert.NotEmpty(t, updatedUser.RoleNames)
+	assert.NotEmpty(t, updatedUser.PermissionNames)
+	assert.NotEqualValues(t, user.RoleNames, updatedUser.RoleNames)
+	assert.NotEqualValues(t, user.PermissionNames, updatedUser.PermissionNames)
 }

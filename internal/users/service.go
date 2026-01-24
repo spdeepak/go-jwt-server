@@ -1,11 +1,13 @@
 package users
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"golang.org/x/crypto/bcrypt"
@@ -214,6 +216,12 @@ func (s *service) AssignRolesToUser(ctx *gin.Context, userId api.UuId, params ap
 		CreatedBy: email,
 	}
 	if err := s.query.AssignRolesToUser(ctx, assignRolesToUser); err != nil {
+		var pgerr pgconn.PgError
+		if errors.As(err, &pgerr) {
+			if pgerr.Code == "23503" {
+				return httperror.New(httperror.RoleDoesntExist)
+			}
+		}
 		return err
 	}
 	return nil
