@@ -338,7 +338,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, nil, nil)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, []string{}, []string{})
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -362,7 +362,7 @@ func TestService_RefreshAndInvalidateToken_OK(t *testing.T) {
 			params.OldRefreshToken == hashedRefreshToken
 	})).Return(nil)
 
-	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "192.168.1.100", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
+	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "192.168.1.100", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"}, []string{}, []string{})
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenResponse)
 	assert.NotEmpty(t, newBearerToken)
@@ -393,7 +393,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 		XLoginSource: string(api.LoginSourceApi),
 		UserAgent:    "test",
 	}
-	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, nil, nil)
+	response, err := tokenService.GenerateNewTokenPair(ctx, "192.168.1.100", tokenParams, user, []string{}, []string{})
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.NotEmpty(t, response.AccessToken)
@@ -417,7 +417,7 @@ func TestService_RefreshAndInvalidateToken_NOK_InvalidationFailed(t *testing.T) 
 			params.OldRefreshToken == hashedRefreshToken
 	})).Return(errors.New("test error"))
 
-	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "192.168.1.100", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"})
+	tokenResponse, err := tokenService.RefreshAndInvalidateToken(ctx, "192.168.1.100", TokenParams{XLoginSource: "test", UserAgent: "Api Testing"}, api.Refresh{RefreshToken: response.RefreshToken}, repository.User{Email: "first.last@example.com"}, []string{}, []string{})
 	assert.Error(t, err)
 	var he httperror.HttpError
 	assert.True(t, errors.As(err, &he))

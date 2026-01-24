@@ -216,7 +216,7 @@ func (s *service) AssignRolesToUser(ctx *gin.Context, userId api.UuId, params ap
 		CreatedBy: email,
 	}
 	if err := s.query.AssignRolesToUser(ctx, assignRolesToUser); err != nil {
-		var pgerr pgconn.PgError
+		var pgerr *pgconn.PgError
 		if errors.As(err, &pgerr) {
 			if pgerr.Code == "23503" {
 				return httperror.New(httperror.RoleDoesntExist)
