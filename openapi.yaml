@@ -591,7 +591,7 @@ paths:
       aegis-auth:
         anyOf:
           roles: [ super_admin ]
-          permissions: [ users:read, users:roles_assign ]
+          permissions: [ users:read, users:assign-roles ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -616,7 +616,7 @@ paths:
       aegis-auth:
         anyOf:
           roles: [ super_admin ]
-          permissions: [ users:read, users:roles_assign, users:roles_unassign ]
+          permissions: [ users:read, users:assign-roles, users:unassign-roles ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -636,7 +636,7 @@ paths:
       aegis-auth:
         anyOf:
           roles: [ super_admin ]
-          permissions: [ roles:read, permissions:read, roles:permissions_assign ]
+          permissions: [ roles:read, permissions:read, roles:assign-permission ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -661,7 +661,7 @@ paths:
       aegis-auth:
         anyOf:
           roles: [ super_admin ]
-          permissions: [ roles:read, permissions:read, roles:permissions_unassign ]
+          permissions: [ roles:read, permissions:read, roles:unassign-permission ]
       parameters:
         - $ref: '#/components/parameters/RoleId'
         - $ref: '#/components/parameters/PermissionId'

@@ -157,22 +157,20 @@ WITH new_role AS (
                     ('roles:read', 'Permission to read roles', 'system', 'system'),
                     ('roles:update', 'Permission to update roles', 'system', 'system'),
                     ('roles:delete', 'Permission to delete roles', 'system', 'system'),
-                    ('roles:user_assign', 'Permission to assign roles to user', 'system', 'system'),
-                    ('roles:user_unassign', 'Permission to unassign roles to user', 'system', 'system'),
-                    ('roles:permission_assign', 'Permission to assign permissions to roles', 'system', 'system'),
-                    ('roles:permission_unassign', 'Permission to unassign permissions to roles', 'system', 'system'),
-                    -- Default Permissions related to permissions
+                    ('roles:assign-permission', 'Permission to assign permissions to roles', 'system', 'system'),
+                    ('roles:unassign-permission', 'Permission to unassign permissions to roles', 'system', 'system'),
                     ('permissions:create', 'Permission to create permissions', 'system', 'system'),
                     ('permissions:read', 'Permission to read permissions', 'system', 'system'),
                     ('permissions:update', 'Permission to update permissions', 'system', 'system'),
                     ('permissions:delete', 'Permission to delete permissions', 'system', 'system'),
-                    -- Default Permissions related to users
                     ('users:create', 'Permission to create users', 'system', 'system'),
                     ('users:read', 'Permission to read users', 'system', 'system'),
                     ('users:update', 'Permission to update users', 'system', 'system'),
                     ('users:delete', 'Permission to delete users', 'system', 'system'),
-                    ('users:roles_assign', 'Permission to assign roles to users', 'system', 'system'),
-                    ('users:roles_unassign', 'Permission to unassign roles to users', 'system', 'system')
+                    ('users:assign-roles', 'Permission to assign roles to users', 'system', 'system'),
+                    ('users:unassign-roles', 'Permission to unassign roles to users', 'system', 'system'),
+                    ('users:assign-permissions', 'Permission to assign roles to users', 'system', 'system'),
+                    ('users:unassign-permissions', 'Permission to assign roles to users', 'system', 'system')
              RETURNING id)
 INSERT
 INTO role_permissions (role_id, permission_id, created_by)
