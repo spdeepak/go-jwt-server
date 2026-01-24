@@ -240,6 +240,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -259,6 +263,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:create ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -625,6 +633,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read, roles:permissions_assign ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -646,6 +658,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read, roles:permissions_unassign ]
       parameters:
         - $ref: '#/components/parameters/RoleId'
         - $ref: '#/components/parameters/PermissionId'

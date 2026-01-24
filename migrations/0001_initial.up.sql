@@ -159,13 +159,15 @@ WITH new_role AS (
                     ('roles:delete', 'Permission to delete roles', 'system', 'system'),
                     ('roles:user_assign', 'Permission to assign roles to user', 'system', 'system'),
                     ('roles:user_unassign', 'Permission to unassign roles to user', 'system', 'system'),
+                    ('roles:permission_assign', 'Permission to assign permissions to roles', 'system', 'system'),
+                    ('roles:permission_unassign', 'Permission to unassign permissions to roles', 'system', 'system'),
                     -- Default Permissions related to permissions
                     ('permissions:create', 'Permission to create permissions', 'system', 'system'),
                     ('permissions:read', 'Permission to read permissions', 'system', 'system'),
                     ('permissions:update', 'Permission to update permissions', 'system', 'system'),
                     ('permissions:delete', 'Permission to delete permissions', 'system', 'system'),
-                    ('users:create', 'Permission to create users', 'system', 'system'),
                     -- Default Permissions related to users
+                    ('users:create', 'Permission to create users', 'system', 'system'),
                     ('users:read', 'Permission to read users', 'system', 'system'),
                     ('users:update', 'Permission to update users', 'system', 'system'),
                     ('users:delete', 'Permission to delete users', 'system', 'system'),
