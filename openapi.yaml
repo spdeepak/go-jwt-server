@@ -306,6 +306,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:update ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -331,6 +335,10 @@ paths:
         - Roles
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:delete ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -346,6 +354,10 @@ paths:
         - Permissions
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -365,6 +377,10 @@ paths:
         - Permissions
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:create ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -390,6 +406,10 @@ paths:
         - Permissions
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -408,6 +428,10 @@ paths:
         - Permissions
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read, permissions:update ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -433,6 +457,10 @@ paths:
         - Permissions
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read, permissions:delete ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -448,6 +476,10 @@ paths:
         - Roles and Permissions
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -468,6 +500,10 @@ paths:
         - Admin
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - name: firstName
@@ -521,6 +557,11 @@ paths:
         - User
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read ]
+          self: true
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -539,6 +580,10 @@ paths:
         - User
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:roles_assign ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -560,6 +605,10 @@ paths:
         - User
       security:
         - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:roles_assign, users:roles_unassign ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'

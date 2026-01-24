@@ -726,11 +726,8 @@ func TestServer_GetPermissionById_OK(t *testing.T) {
 
 func TestServer_GetPermissionById_NOK_NotFound(t *testing.T) {
 	truncateTables()
-	//Signup
-	signup2FADisabled(t)
 	//Login
-	loginRes := login2FADisabled(t)
-
+	loginRes := loginSuperAdmin(t)
 	//Get Permission By Id
 	getPermissionByIdNotFound(t, loginRes, uuid.New().String())
 }
