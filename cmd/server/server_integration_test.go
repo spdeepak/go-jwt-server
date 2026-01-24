@@ -1004,7 +1004,7 @@ func TestServer_AssignRolesToUser_NOK_RolesDoesntExist(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
-	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
 }
 
