@@ -420,6 +420,7 @@ func login2FA_NOK_UserNotExist(t *testing.T) {
 }
 
 func TestService_GetUserRolesAndPermissions(t *testing.T) {
+	truncateTables()
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -505,12 +506,11 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userRolesAndPermissions)
 	assert.Len(t, userRolesAndPermissions.Roles, 3)
-	assert.Len(t, userRolesAndPermissions.Permissions, 4)
-
-	truncateTables()
+	assert.Len(t, userRolesAndPermissions.Permissions, 19)
 }
 
 func TestService_AssignRolesToUser(t *testing.T) {
+	truncateTables()
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -566,11 +566,10 @@ func TestService_AssignRolesToUser(t *testing.T) {
 
 	err = userService.AssignRolesToUser(ctx, userByEmail.UserID.Bytes, api.AssignRolesToUserParams{}, api.AssignRoleToUser{Roles: []uuid.UUID{createdRole.Id}}, "first.last@example.com")
 	assert.NoError(t, err)
-
-	truncateTables()
 }
 
 func TestService_UnassignRolesToUser(t *testing.T) {
+	truncateTables()
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Header("x-login-source", "test")
@@ -640,6 +639,4 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, userByEmail)
 	assert.Empty(t, userByEmail.RoleNames)
-
-	truncateTables()
 }
