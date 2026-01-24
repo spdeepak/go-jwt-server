@@ -554,12 +554,12 @@ func TestServer_GetRoleById_OK(t *testing.T) {
 		id, rerr := role.ID.UUIDValue()
 		assert.NoError(t, rerr)
 		roleRes := api.RoleResponse{
-			CreatedAt:   role.CreatedAt,
+			CreatedAt:   role.CreatedAt.In(time.UTC),
 			CreatedBy:   role.CreatedBy,
 			Description: role.Description,
 			Id:          id.Bytes,
 			Name:        role.Name,
-			UpdatedAt:   role.UpdatedAt,
+			UpdatedAt:   role.UpdatedAt.In(time.UTC),
 			UpdatedBy:   role.UpdatedBy,
 		}
 		getRoleById(t, loginRes, roleRes)
@@ -603,18 +603,22 @@ func TestServer_ListAllRoles_OK(t *testing.T) {
 		id, rerr := role.ID.UUIDValue()
 		assert.NoError(t, rerr)
 		apiAllRoles = append(apiAllRoles, api.RoleResponse{
-			CreatedAt:   role.CreatedAt,
+			CreatedAt:   role.CreatedAt.In(time.UTC),
 			CreatedBy:   role.CreatedBy,
 			Description: role.Description,
 			Id:          id.Bytes,
 			Name:        role.Name,
-			UpdatedAt:   role.UpdatedAt,
+			UpdatedAt:   role.UpdatedAt.In(time.UTC),
 			UpdatedBy:   role.UpdatedBy,
 		})
 	}
 
 	var roleResponse []api.RoleResponse
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
+	for i := range roleResponse {
+		roleResponse[i].CreatedAt = roleResponse[i].CreatedAt.In(time.UTC)
+		roleResponse[i].UpdatedAt = roleResponse[i].UpdatedAt.In(time.UTC)
+	}
 	assert.EqualValues(t, apiAllRoles, roleResponse)
 }
 
@@ -648,9 +652,9 @@ func TestServer_UpdateRoleById_OK(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
 	assert.Equal(t, roleRes.Name, roleResponse.Name)
 	assert.Equal(t, updatedRoleDescription, roleResponse.Description)
-	assert.Equal(t, roleRes.CreatedAt, roleResponse.CreatedAt)
+	assert.Equal(t, roleRes.CreatedAt.In(time.UTC), roleResponse.CreatedAt.In(time.UTC))
 	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
-	assert.NotEqual(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
+	assert.NotEqual(t, roleRes.UpdatedAt.In(time.UTC), roleResponse.UpdatedAt.In(time.UTC))
 	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
 }
 
@@ -760,14 +764,18 @@ func TestServer_ListAllPermissions_OK(t *testing.T) {
 		id, rerr := role.ID.UUIDValue()
 		assert.NoError(t, rerr)
 		apiAllPermissions = append(apiAllPermissions, api.PermissionResponse{
-			CreatedAt:   role.CreatedAt,
+			CreatedAt:   role.CreatedAt.In(time.UTC),
 			CreatedBy:   role.CreatedBy,
 			Description: role.Description,
 			Id:          id.Bytes,
 			Name:        role.Name,
-			UpdatedAt:   role.UpdatedAt,
+			UpdatedAt:   role.UpdatedAt.In(time.UTC),
 			UpdatedBy:   role.UpdatedBy,
 		})
+	}
+	for i := range permissionResponse {
+		permissionResponse[i].CreatedAt = permissionResponse[i].CreatedAt.In(time.UTC)
+		permissionResponse[i].UpdatedAt = permissionResponse[i].UpdatedAt.In(time.UTC)
 	}
 	assert.EqualValues(t, apiAllPermissions, permissionResponse)
 }
@@ -802,9 +810,9 @@ func TestServer_UpdatePermissionById_OK(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &permissionResponse))
 	assert.Equal(t, permissionRes.Name, permissionResponse.Name)
 	assert.Equal(t, updatedPermissionDescription, permissionResponse.Description)
-	assert.Equal(t, permissionRes.CreatedAt, permissionResponse.CreatedAt)
+	assert.Equal(t, permissionRes.CreatedAt.In(time.UTC), permissionResponse.CreatedAt.In(time.UTC))
 	assert.Equal(t, permissionRes.CreatedBy, permissionResponse.CreatedBy)
-	assert.NotEqual(t, permissionRes.UpdatedAt, permissionResponse.UpdatedAt)
+	assert.NotEqual(t, permissionRes.UpdatedAt.In(time.UTC), permissionResponse.UpdatedAt.In(time.UTC))
 	assert.Equal(t, permissionRes.UpdatedBy, permissionResponse.UpdatedBy)
 }
 
@@ -933,9 +941,9 @@ func TestServer_RolesAndPermissions_OK(t *testing.T) {
 	assert.Len(t, rolesAndPermissions[0].Roles.Permissions, 2)
 	assert.Equal(t, role.Name, rolesAndPermissions[0].Roles.Name)
 	assert.Equal(t, role.Description, rolesAndPermissions[0].Roles.Description)
-	assert.Equal(t, role.CreatedAt, rolesAndPermissions[0].Roles.CreatedAt)
+	assert.Equal(t, role.CreatedAt.In(time.UTC), rolesAndPermissions[0].Roles.CreatedAt.In(time.UTC))
 	assert.Equal(t, role.CreatedBy, rolesAndPermissions[0].Roles.CreatedBy)
-	assert.Equal(t, role.UpdatedAt, rolesAndPermissions[0].Roles.UpdatedAt)
+	assert.Equal(t, role.UpdatedAt.In(time.UTC), rolesAndPermissions[0].Roles.UpdatedAt.In(time.UTC))
 	assert.Equal(t, role.UpdatedBy, rolesAndPermissions[0].Roles.UpdatedBy)
 
 	assert.Contains(t, rolesAndPermissions[0].Roles.Permissions, permissionRes1)
@@ -1231,7 +1239,7 @@ func createRole(t *testing.T, res api.LoginSuccessWithJWT, createRole api.Create
 	assert.Equal(t, createRole.Name, roleResponse.Name)
 	assert.IsType(t, uuid.UUID{}, roleResponse.Id)
 	assert.Equal(t, "admin@localhost.com", roleResponse.CreatedBy)
-	assert.NotNil(t, roleResponse.CreatedAt)
+	assert.NotNil(t, roleResponse.CreatedAt.In(time.UTC))
 
 	return roleResponse
 }
@@ -1253,9 +1261,9 @@ func getRoleById(t *testing.T, loginRes api.LoginSuccessWithJWT, roleRes api.Rol
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &roleResponse))
 	assert.Equal(t, roleRes.Name, roleResponse.Name)
 	assert.Equal(t, roleRes.Description, roleResponse.Description)
-	assert.Equal(t, roleRes.CreatedAt, roleResponse.CreatedAt)
+	assert.Equal(t, roleRes.CreatedAt.In(time.UTC), roleResponse.CreatedAt.In(time.UTC))
 	assert.Equal(t, roleRes.CreatedBy, roleResponse.CreatedBy)
-	assert.Equal(t, roleRes.UpdatedAt, roleResponse.UpdatedAt)
+	assert.Equal(t, roleRes.UpdatedAt.In(time.UTC), roleResponse.UpdatedAt.In(time.UTC))
 	assert.Equal(t, roleRes.UpdatedBy, roleResponse.UpdatedBy)
 
 	return roleResponse
@@ -1297,7 +1305,7 @@ func createPermission(t *testing.T, res api.LoginSuccessWithJWT, createPermissio
 	assert.Equal(t, createPermission.Name, permissionResponse.Name)
 	assert.IsType(t, uuid.UUID{}, permissionResponse.Id)
 	assert.Equal(t, "admin@localhost.com", permissionResponse.CreatedBy)
-	assert.NotNil(t, permissionResponse.CreatedAt)
+	assert.NotNil(t, permissionResponse.CreatedAt.In(time.UTC))
 
 	return permissionResponse
 }
@@ -1319,9 +1327,9 @@ func getPermissionById(t *testing.T, loginRes api.LoginSuccessWithJWT, permissio
 	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &permissionResponse))
 	assert.Equal(t, permissionRes.Name, permissionResponse.Name)
 	assert.Equal(t, permissionRes.Description, permissionResponse.Description)
-	assert.Equal(t, permissionRes.CreatedAt, permissionResponse.CreatedAt)
+	assert.Equal(t, permissionRes.CreatedAt.In(time.UTC), permissionResponse.CreatedAt.In(time.UTC))
 	assert.Equal(t, permissionRes.CreatedBy, permissionResponse.CreatedBy)
-	assert.Equal(t, permissionRes.UpdatedAt, permissionResponse.UpdatedAt)
+	assert.Equal(t, permissionRes.UpdatedAt.In(time.UTC), permissionResponse.UpdatedAt.In(time.UTC))
 	assert.Equal(t, permissionRes.UpdatedBy, permissionResponse.UpdatedBy)
 }
 
