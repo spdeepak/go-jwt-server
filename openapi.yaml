@@ -360,6 +360,7 @@ paths:
       operationId: listAllPermissions
       tags:
         - Permissions
+        - Admin
       security:
         - BearerAuth: [ ]
       aegis-auth:
@@ -383,6 +384,7 @@ paths:
       operationId: createNewPermission
       tags:
         - Permissions
+        - Admin
       security:
         - BearerAuth: [ ]
       aegis-auth:
@@ -412,6 +414,7 @@ paths:
       operationId: getPermissionById
       tags:
         - Permissions
+        - Admin
       security:
         - BearerAuth: [ ]
       aegis-auth:
@@ -434,6 +437,7 @@ paths:
       operationId: updatePermissionById
       tags:
         - Permissions
+        - Admin
       security:
         - BearerAuth: [ ]
       aegis-auth:
@@ -463,6 +467,7 @@ paths:
       operationId: deletePermissionById
       tags:
         - Permissions
+        - Admin
       security:
         - BearerAuth: [ ]
       aegis-auth:
