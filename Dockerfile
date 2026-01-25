@@ -1,17 +1,20 @@
 FROM golang:1.24 AS builder
 
+LABEL maintainer="Deepak"
+LABEL description="Aegis"
+LABEL version="1.0.0"
+
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
 WORKDIR /app
 
-COPY Makefile go.mod go.sum ./
-
+COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
-RUN make generate
 
-RUN go build -v -o server ./cmd/server
+COPY Makefile ./
+COPY . .
+RUN make generate && go build -v -o server ./cmd/server
 
 FROM gcr.io/distroless/static:nonroot
 
