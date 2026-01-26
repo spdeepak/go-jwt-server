@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: go-jwt-server
+  name: aegis
   labels:
-    app: go-jwt-server
+    app: aegis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: go-jwt-server
+      app: aegis
   template:
     metadata:
       labels:
-        app: go-jwt-server
+        app: aegis
     spec:
       containers:
-        - name: go-jwt-server
-          image: localhost/go-jwt-server:dev
+        - name: aegis
+          image: localhost/aegis:dev
           imagePullPolicy: Never
           ports:
             - containerPort: 8080
@@ -41,4 +41,4 @@ spec:
       volumes:
         - name: app-config
           configMap:
-            name: go-jwt-server-config
+            name: aegis-config

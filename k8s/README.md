@@ -11,12 +11,12 @@ This is how to deploy thw image on your local k8s running on Mac.
    ```
 3. Build the Docker image with podman<br/>
     ```
-    podman build -t go-jwt-server:dev .
+    podman build -t aegis:dev .
    ```
 4. Save and load image to kind cluster<br/>
     ```
-   podman save localhost/go-jwt-server:dev -o go-jwt-server.tar
-   kind load image-archive go-jwt-server.tar
+   podman save localhost/aegis:dev -o aegis.tar
+   kind load image-archive aegis.tar
    ```
 5. Deploy PostgreSQL 18<br/>
     ```
@@ -35,24 +35,24 @@ This is how to deploy thw image on your local k8s running on Mac.
 8. Apply application configuration
     ```
     Below command is to create configmap and save it to k8s/configmap.yaml
-    kubectl create configmap go-jwt-server-config --from-file=configs/application.yaml --from-file=configs/secrets.json --dry-run=client -o yaml > k8s/configmap.yaml
+    kubectl create configmap aegis-config --from-file=configs/application.yaml --from-file=configs/secrets.json --dry-run=client -o yaml > k8s/configmap.yaml
     kubectl apply -f k8s/configmap.yaml
     kubectl apply -f k8s/deployment.yaml
     kubectl apply -f k8s/service.yaml
     ```
 9. Wait for the application to be ready
     ```
-    kubectl wait --for=condition=ready pod -l app=go-jwt-server --timeout=60s
+    kubectl wait --for=condition=ready pod -l app=aegis --timeout=60s
     kubectl get pods
     ```
 10. Check logs to verify it's running
     ```
-    kubectl logs deployment/go-jwt-server
+    kubectl logs deployment/aegis
     ```
 11. Access the service locally
     ```
     # Port forward to access the API
-    kubectl port-forward svc/go-jwt-server 8080:80
+    kubectl port-forward svc/aegis 8080:80
     # In another terminal, test the API
     curl -X POST http://localhost:8080/api/v1/auth/signup \
       -H "Content-Type: application/json" \
