@@ -34,4 +34,4 @@ data:
     }
 kind: ConfigMap
 metadata:
-  name: go-jwt-server-config
+  name: aegis-config
