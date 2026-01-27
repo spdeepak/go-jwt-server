@@ -609,6 +609,99 @@ paths:
       responses:
         '200':
           description: Role assignment confirmation
+  /api/v1/users/{id}/lock:
+    post:
+      summary: Lock a user
+      description: |
+        Locks a user account due to security reasons.
+        Locked users cannot authenticate until unlocked.
+      operationId: lockUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:lock ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: User locked successfully
+        '404':
+          description: User not found
+    delete:
+      summary: Unlock a user
+      description: |
+        Unlocks a previously locked user account.
+      operationId: unlockUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:unlock ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: User unlocked successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/disable:
+    post:
+      summary: Disable user account
+      description: |
+        Disables a user account for administrative reasons.
+        Disabled users cannot authenticate until enabled.
+      operationId: disableUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:disable ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '204':
+          description: User disabled successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/enable:
+    post:
+      summary: Enable user account
+      description: |
+        Re-enables a previously disabled user account.
+      operationId: enableUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:enable ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '204':
+          description: User enabled successfully
+        '404':
+          description: User not found
   /api/v1/users/{id}/roles/{roleId}:
     delete:
       summary: Remove roles of user

@@ -414,3 +414,23 @@ func (s *Server) GetListOfUsers(ctx *gin.Context, params api.GetListOfUsersParam
 	//TODO implement me
 	panic("implement me")
 }
+
+func (s *Server) DisableUser(c *gin.Context, id api.UuId, params api.DisableUserParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) EnableUser(c *gin.Context, id api.UuId, params api.EnableUserParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) UnlockUser(c *gin.Context, id api.UuId, params api.UnlockUserParams) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) LockUser(c *gin.Context, id api.UuId, params api.LockUserParams) {
+	//TODO implement me
+	panic("implement me")
+}

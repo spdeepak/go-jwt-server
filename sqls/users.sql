@@ -205,3 +205,27 @@ FROM user_base u
          LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id
 GROUP BY u.id, u.email, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at
 LIMIT sqlc.arg('size') OFFSET sqlc.arg('page');
+
+-- name: LockUserById :exec
+UPDATE users
+SET locked = true,
+    locked_at = now()
+WHERE id = sqlc.arg('id');
+
+-- name: UnlockUserById :exec
+UPDATE users
+SET locked = false,
+    locked_at = null
+WHERE id = sqlc.arg('id');
+
+-- name: DisableUserById :exec
+UPDATE users
+SET disabled = true,
+    disabled_at = now()
+WHERE id = sqlc.arg('id');
+
+-- name: EnableUserById :exec
+UPDATE users
+SET disabled = false,
+    disabled_at = null
+WHERE id = sqlc.arg('id');
