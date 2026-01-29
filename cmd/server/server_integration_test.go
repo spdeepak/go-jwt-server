@@ -83,7 +83,7 @@ func TestMain(m *testing.M) {
 		middleware.ErrorMiddleware,
 		middleware.GinLogger(),
 	)
-	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService)
+	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService, nil)
 	api.RegisterHandlers(router, server)
 
 	// Run all tests

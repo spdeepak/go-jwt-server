@@ -145,6 +145,18 @@ CREATE INDEX IF NOT EXISTS idx_tokens_email ON tokens (email);
 CREATE INDEX IF NOT EXISTS idx_bearer_valid ON tokens (token, ip_address, user_agent, device_name, revoked);
 CREATE INDEX IF NOT EXISTS idx_refresh_valid ON tokens (refresh_token, ip_address, user_agent, device_name, revoked);
 
+-- User Security Actions
+CREATE TABLE IF NOT EXISTS user_security_actions
+(
+    id          UUID PRIMARY KEY     DEFAULT uuidv7(),
+    user_id     UUID        NOT NULL,
+    actor_id    UUID        NOT NULL,
+    action      TEXT        NOT NULL,
+    ip_address  TEXT        NOT NULL,
+    user_agent  TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Create Admin User
 INSERT INTO users(email, first_name, last_name, password, two_fa_enabled)
 VALUES ('admin@localhost', 'Admin', 'User', '$2a$10$dg5hjvb7RQOLP6uwXBQeweQhwnJZBbOBn7oQHf0fY80oxuHu9ess6', false);

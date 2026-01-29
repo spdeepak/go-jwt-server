@@ -152,6 +152,7 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.Han
 			return
 		}
 
+		c.Set("user-ip", c.ClientIP())
 		c.Set("user", token.Claims)
 		authSuccess.Inc()
 		c.Next()

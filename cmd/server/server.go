@@ -24,15 +24,17 @@ type Server struct {
 	permissionService permissions.Service
 	tokenService      tokens.Service
 	twoFAService      twoFA.Service
+	adminService      users.AdminService
 }
 
-func NewServer(userService users.Service, roleService roles.Service, permissionService permissions.Service, tokenService tokens.Service, otpService twoFA.Service) api.ServerInterface {
+func NewServer(userService users.Service, roleService roles.Service, permissionService permissions.Service, tokenService tokens.Service, otpService twoFA.Service, adminService users.AdminService) api.ServerInterface {
 	return &Server{
 		userService:       userService,
 		roleService:       roleService,
 		permissionService: permissionService,
 		tokenService:      tokenService,
 		twoFAService:      otpService,
+		adminService:      adminService,
 	}
 }
 
@@ -415,22 +417,38 @@ func (s *Server) GetListOfUsers(ctx *gin.Context, params api.GetListOfUsersParam
 	panic("implement me")
 }
 
-func (s *Server) DisableUser(c *gin.Context, id api.UuId, params api.DisableUserParams) {
-	//TODO implement me
-	panic("implement me")
+func (s *Server) LockUser(ctx *gin.Context, id api.UuId, params api.LockUserParams) {
+	if err := s.adminService.LockUserById(ctx, id, params); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
-func (s *Server) EnableUser(c *gin.Context, id api.UuId, params api.EnableUserParams) {
-	//TODO implement me
-	panic("implement me")
+func (s *Server) UnlockUser(ctx *gin.Context, id api.UuId, params api.UnlockUserParams) {
+	if err := s.adminService.UnlockUserById(ctx, id, params); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
-func (s *Server) UnlockUser(c *gin.Context, id api.UuId, params api.UnlockUserParams) {
-	//TODO implement me
-	panic("implement me")
+func (s *Server) DisableUser(ctx *gin.Context, id api.UuId, params api.DisableUserParams) {
+	if err := s.adminService.DisableUserById(ctx, id, params); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }
 
-func (s *Server) LockUser(c *gin.Context, id api.UuId, params api.LockUserParams) {
-	//TODO implement me
-	panic("implement me")
+func (s *Server) EnableUser(ctx *gin.Context, id api.UuId, params api.EnableUserParams) {
+	if err := s.adminService.EnableUserById(ctx, id, params); err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.Status(http.StatusOK)
+	return
 }

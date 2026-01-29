@@ -60,9 +60,12 @@ func main() {
 	//Permissions
 	permissionQuery := permissionsRepo.New(dbConnection)
 	permissionsService := permissions.NewService(permissionQuery)
+	//Admin
+	adminQuery := userRepo.New(dbConnection)
+	adminService := users.NewAdminService(adminQuery)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService, roleService, permissionsService, tokenService, twoFAService)
+	server := NewServer(userService, roleService, permissionsService, tokenService, twoFAService, adminService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
