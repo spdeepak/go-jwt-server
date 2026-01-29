@@ -210,42 +210,77 @@ LIMIT sqlc.arg('size') OFFSET sqlc.arg('page');
 WITH locked_user AS (UPDATE users
 SET locked = true,
     locked_at = now()
-    WHERE id = sqlc.arg('user_id')
-    returning id)
+    WHERE users.id = sqlc.arg('user_id')
+    returning users.id)
 INSERT
 INTO user_security_actions(user_id, actor_id, action, ip_address, user_agent)
-VALUES (sqlc.arg('user_id'), sqlc.arg('actor_id'), 'lock', sqlc.arg('ip_address'), sqlc.arg('user_agent'))
-returning id;
+SELECT locked_user.id,
+       sqlc.arg('actor_id'),
+       'lock',
+       sqlc.arg('ip_address'),
+       sqlc.arg('user_agent')
+FROM locked_user
+RETURNING id;
 
 -- name: UnlockUserById :one
-WITH unlocked_user AS (UPDATE users
-SET locked = false,
-    locked_at = now()
-    WHERE id = sqlc.arg('user_id')
-    returning id)
+WITH unlocked_user AS (
+    UPDATE users
+        SET locked = false,
+            locked_at = now()
+        WHERE users.id = sqlc.arg('user_id')
+        returning users.id)
 INSERT
-INTO user_security_actions(user_id, actor_id, action, ip_address, user_agent)
-VALUES (sqlc.arg('user_id'), sqlc.arg('actor_id'), 'unlock', sqlc.arg('ip_address'), sqlc.arg('user_agent'))
-returning id;
+INTO user_security_actions(user_id,
+                           actor_id,
+                           action,
+                           ip_address,
+                           user_agent)
+SELECT unlocked_user.id,
+       sqlc.arg('actor_id'),
+       'unlock',
+       sqlc.arg('ip_address'),
+       sqlc.arg('user_agent')
+FROM unlocked_user
+RETURNING id;
 
 -- name: DisableUserById :one
-WITH disable_user AS (UPDATE users
-SET disabled = true,
-    disabled_at = now()
-    WHERE id = sqlc.arg('user_id')
-    returning id)
+WITH disable_user AS (
+    UPDATE users
+        SET disabled = true,
+            disabled_at = now()
+        WHERE users.id = sqlc.arg('user_id')
+        returning users.id)
 INSERT
-INTO user_security_actions(user_id, actor_id, action, ip_address, user_agent)
-VALUES (sqlc.arg('user_id'), sqlc.arg('actor_id'), 'disable', sqlc.arg('ip_address'), sqlc.arg('user_agent'))
-returning id;
+INTO user_security_actions(user_id,
+                           actor_id,
+                           action,
+                           ip_address,
+                           user_agent)
+SELECT disable_user.id,
+       sqlc.arg('actor_id'),
+       'disable',
+       sqlc.arg('ip_address'),
+       sqlc.arg('user_agent')
+FROM disable_user
+RETURNING id;
 
 -- name: EnableUserById :one
-WITH enable_user AS (UPDATE users
-SET disabled = false,
-    disabled_at = now()
-    WHERE id = sqlc.arg('user_id')
-    returning id)
+WITH enable_user AS (
+    UPDATE users
+        SET disabled = false,
+            disabled_at = now()
+        WHERE users.id = sqlc.arg('user_id')
+        RETURNING users.id)
 INSERT
-INTO user_security_actions(user_id, actor_id, action, ip_address, user_agent)
-VALUES (sqlc.arg('user_id'), sqlc.arg('actor_id'), 'enable', sqlc.arg('ip_address'), sqlc.arg('user_agent'))
-returning id;
+INTO user_security_actions (user_id,
+                            actor_id,
+                            action,
+                            ip_address,
+                            user_agent)
+SELECT enable_user.id,
+       sqlc.arg('actor_id'),
+       'enable',
+       sqlc.arg('ip_address'),
+       sqlc.arg('user_agent')
+FROM enable_user
+RETURNING id;
