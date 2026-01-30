@@ -1080,6 +1080,23 @@ func TestServer_LockUser_OK(t *testing.T) {
 	assert.True(t, user.Locked)
 }
 
+func TestServer_LockUser_NOK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Lock endpoint
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/lock", uuid.NewString()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
 func TestServer_UnlockUser_OK(t *testing.T) {
 	truncateTables()
 	//Login
@@ -1105,6 +1122,23 @@ func TestServer_UnlockUser_OK(t *testing.T) {
 	assert.False(t, user.Locked)
 }
 
+func TestServer_UnlockUser_NOK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Unlock endpoint
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/users/%s/lock", uuid.NewString()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
 func TestServer_DisableUser_OK(t *testing.T) {
 	truncateTables()
 	//Login
@@ -1122,6 +1156,23 @@ func TestServer_DisableUser_OK(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.True(t, user.Disabled)
+}
+
+func TestServer_DisableUser_NOK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Disable endpoint
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/disable", uuid.NewString()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
 }
 
 func TestServer_EnableUser_OK(t *testing.T) {
@@ -1147,6 +1198,23 @@ func TestServer_EnableUser_OK(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, user)
 	assert.False(t, user.Disabled)
+}
+
+func TestServer_EnableUser_NOK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Enable endpoint
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/enable", uuid.NewString()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
 }
 
 func signup2FADisabled(t *testing.T) {
@@ -1578,7 +1646,7 @@ func unlockUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow,
 }
 
 func disableUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow, loginRes api.LoginSuccessWithJWT) {
-	//Lock endpoint
+	//Disable endpoint
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/disable", user.UserID.String()), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, req)
@@ -1592,7 +1660,7 @@ func disableUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow
 }
 
 func enableUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow, loginRes api.LoginSuccessWithJWT) {
-	//Lock endpoint
+	//Enable endpoint
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/enable", user.UserID.String()), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, req)
