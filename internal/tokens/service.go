@@ -38,9 +38,9 @@ type (
 		// ValidateRefreshToken verifies if a given refresh token is valid
 		ValidateRefreshToken(ctx context.Context, clientIP string, params api.RefreshParams, refreshToken string) (jwt.MapClaims, error)
 		// GenerateNewTokenPair Generates a token for a given user
-		GenerateNewTokenPair(ctx context.Context, clientIP string, params TokenParams, user repository.User) (api.LoginSuccessWithJWT, error)
+		GenerateNewTokenPair(ctx context.Context, clientIP string, params TokenParams, user repository.User, roles, permissions []string) (api.LoginSuccessWithJWT, error)
 		// RefreshAndInvalidateToken Invalidates the given refresh token and generates a new token for the given user
-		RefreshAndInvalidateToken(ctx context.Context, clientIP string, params TokenParams, refresh api.Refresh, user repository.User) (api.LoginSuccessWithJWT, error)
+		RefreshAndInvalidateToken(ctx context.Context, clientIP string, params TokenParams, refresh api.Refresh, user repository.User, roles, permissions []string) (api.LoginSuccessWithJWT, error)
 		// RevokeRefreshToken marks a refresh token as revoked
 		RevokeRefreshToken(ctx context.Context, params api.RevokeRefreshTokenParams, refresh api.RevokeCurrentSession) error
 		// RevokeAllTokens marks all refresh tokens of a give user
@@ -93,9 +93,9 @@ func (s *service) ValidateRefreshToken(ctx context.Context, clientIP string, par
 	return claims, nil
 }
 
-func (s *service) GenerateNewTokenPair(ctx context.Context, clientIP string, params TokenParams, user repository.User) (api.LoginSuccessWithJWT, error) {
+func (s *service) GenerateNewTokenPair(ctx context.Context, clientIP string, params TokenParams, user repository.User, roles, permissions []string) (api.LoginSuccessWithJWT, error) {
 	now := time.Now()
-	accessClaims := s.bearerTokenClaims(user, now)
+	accessClaims := s.bearerTokenClaims(user, now, roles, permissions)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
@@ -130,9 +130,9 @@ func (s *service) GenerateNewTokenPair(ctx context.Context, clientIP string, par
 	}, nil
 }
 
-func (s *service) RefreshAndInvalidateToken(ctx context.Context, clientIP string, params TokenParams, refresh api.Refresh, user repository.User) (api.LoginSuccessWithJWT, error) {
+func (s *service) RefreshAndInvalidateToken(ctx context.Context, clientIP string, params TokenParams, refresh api.Refresh, user repository.User, roles, permissions []string) (api.LoginSuccessWithJWT, error) {
 	now := time.Now()
-	accessClaims := s.bearerTokenClaims(user, now)
+	accessClaims := s.bearerTokenClaims(user, now, roles, permissions)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString(s.secret)
 	if err != nil {
@@ -238,13 +238,15 @@ func (s *service) tempTokenClaims(userId uuid.UUID, now time.Time) TokenClaims {
 	}
 }
 
-func (s *service) bearerTokenClaims(user repository.User, now time.Time) TokenClaims {
+func (s *service) bearerTokenClaims(user repository.User, now time.Time, roles, permissions []string) TokenClaims {
 	return TokenClaims{
-		Name:      user.FirstName + " " + user.LastName,
-		Email:     user.Email,
-		FirstName: user.FirstName,
-		LastName:  user.LastName,
-		Type:      "Bearer",
+		Name:        user.FirstName + " " + user.LastName,
+		Email:       user.Email,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Roles:       roles,
+		Permissions: permissions,
+		Type:        "Bearer",
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    s.issuer,
 			Subject:   user.ID.String(),

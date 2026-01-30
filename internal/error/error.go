@@ -43,6 +43,8 @@ const (
 	PermissionCreationFailed = "JWT0023"
 	PermissionDoesntExist    = "JWT0024"
 	InvalidRequestBody       = "JWT0025"
+	UserNotFound             = "JWT0026"
+	UserOperationFailed      = "JWT0027"
 )
 
 var httpErrors = map[string]HttpError{
@@ -149,6 +151,14 @@ var httpErrors = map[string]HttpError{
 	InvalidRequestBody: {
 		StatusCode:  http.StatusBadRequest,
 		Description: "invalid request body",
+	},
+	UserNotFound: {
+		StatusCode:  http.StatusNotFound,
+		Description: "user not found",
+	},
+	UserOperationFailed: {
+		StatusCode:  http.StatusExpectationFailed,
+		Description: "user account lock failed",
 	},
 }
 

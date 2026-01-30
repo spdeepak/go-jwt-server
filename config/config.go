@@ -13,70 +13,71 @@ import (
 	"github.com/spf13/viper"
 )
 
-type AppConfig struct {
-	v        *viper.Viper
-	Token    Token          `required:"true" json:"token" yaml:"token"`
-	Postgres PostgresConfig `required:"true" json:"postgres" yaml:"postgres"`
-	Auth     Auth           `required:"true" json:"auth" yaml:"auth"`
-	TwoFA    TwoFA          `required:"true" json:"twoFA" yaml:"twoFA"`
-}
+type (
+	AppConfig struct {
+		v        *viper.Viper
+		Token    Token          `required:"true" json:"token" yaml:"token"`
+		Postgres PostgresConfig `required:"true" json:"postgres" yaml:"postgres"`
+		Auth     Auth           `required:"true" json:"auth" yaml:"auth"`
+		TwoFA    TwoFA          `required:"true" json:"twoFA" yaml:"twoFA"`
+	}
+	Token struct {
+		Secret    string `json:"secretKey" yaml:"secret"`
+		MasterKey string `json:"masterKey" yaml:"masterKey"`
+		Issuer    string `required:"true" json:"issuer" yaml:"issuer"`
+	}
+	PostgresConfig struct {
+		Host              string        `required:"true" json:"host" yaml:"host"`
+		Port              string        `json:"port" yaml:"port"`
+		DBName            string        `required:"true" json:"dbName" yaml:"dbName"`
+		UserName          string        `required:"true" json:"username" yaml:"username"`
+		Password          string        `required:"true" json:"password" yaml:"password"`
+		SSLMode           string        `required:"true" json:"sslMode" yaml:"sslMode"`
+		Timeout           time.Duration `required:"true" json:"timeout" yaml:"timeout"`
+		MaxRetry          int           `required:"true" json:"maxRetry" yaml:"maxRetry"`
+		ConnectTimeout    time.Duration `required:"true" json:"connectTimeout" yaml:"connectTimeout" validate:"required,gt=0"`
+		StatementTimeout  time.Duration `required:"true" json:"statementTimeout" yaml:"statementTimeout" validate:"required,gt=0"`
+		MaxOpenConns      int           `required:"true" json:"maxOpenConns" yaml:"maxOpenConns" validate:"required,gt=0"`
+		MaxIdleConns      int           `required:"true" json:"maxIdleConns" yaml:"maxIdleConns" validate:"required,gt=0"`
+		ConnMaxLifetime   time.Duration `required:"true" json:"connMaxLifetime" yaml:"connMaxLifetime" validate:"required,gt=0"`
+		ConnMaxIdleTime   time.Duration `required:"true" json:"connMaxIdleTime" yaml:"connMaxIdleTime" validate:"required,gt=0"`
+		HealthCheckPeriod time.Duration `required:"true" json:"healthCheckPeriod" yaml:"healthCheckPeriod" validate:"required,gt=0"`
+	}
+	Auth struct {
+		SkipPaths []string `json:"skipPaths" yaml:"skipPaths"`
+	}
+	TwoFA struct {
+		AppName string `required:"true" json:"appName" yaml:"appName"`
+	}
+	Bearer struct {
+		TTL time.Duration `required:"true" json:"ttl" yaml:"ttl"`
+	}
+	Refresh struct {
+		TTL time.Duration `required:"true" json:"ttl" yaml:"ttl"`
+	}
+)
 
-type Token struct {
-	Secret    string `json:"secretKey" yaml:"secret"`
-	MasterKey string `json:"masterKey" yaml:"masterKey"`
-	Issuer    string `required:"true" json:"issuer" yaml:"issuer"`
-}
-
-type PostgresConfig struct {
-	Host              string        `required:"true" json:"host" yaml:"host"`
-	Port              string        `json:"port" yaml:"port"`
-	DBName            string        `required:"true" json:"dbName" yaml:"dbName"`
-	UserName          string        `required:"true" json:"username" yaml:"username"`
-	Password          string        `required:"true" json:"password" yaml:"password"`
-	SSLMode           string        `required:"true" json:"sslMode" yaml:"sslMode"`
-	Timeout           time.Duration `required:"true" json:"timeout" yaml:"timeout"`
-	MaxRetry          int           `required:"true" json:"maxRetry" yaml:"maxRetry"`
-	ConnectTimeout    time.Duration `required:"true" json:"connectTimeout" yaml:"connectTimeout" validate:"required,gt=0"`
-	StatementTimeout  time.Duration `required:"true" json:"statementTimeout" yaml:"statementTimeout" validate:"required,gt=0"`
-	MaxOpenConns      int           `required:"true" json:"maxOpenConns" yaml:"maxOpenConns" validate:"required,gt=0"`
-	MaxIdleConns      int           `required:"true" json:"maxIdleConns" yaml:"maxIdleConns" validate:"required,gt=0"`
-	ConnMaxLifetime   time.Duration `required:"true" json:"connMaxLifetime" yaml:"connMaxLifetime" validate:"required,gt=0"`
-	ConnMaxIdleTime   time.Duration `required:"true" json:"connMaxIdleTime" yaml:"connMaxIdleTime" validate:"required,gt=0"`
-	HealthCheckPeriod time.Duration `required:"true" json:"healthCheckPeriod" yaml:"healthCheckPeriod" validate:"required,gt=0"`
-}
-
-type Auth struct {
-	SkipPaths []string `json:"skipPaths" yaml:"skipPaths"`
-}
-
-type TwoFA struct {
-	AppName string `required:"true" json:"appName" yaml:"appName"`
-}
-
-type Bearer struct {
-	TTL time.Duration `required:"true" json:"ttl" yaml:"ttl"`
-}
-
-type Refresh struct {
-	TTL time.Duration `required:"true" json:"ttl" yaml:"ttl"`
-}
-
-type secret struct {
-	v        *viper.Viper
-	JWT      JWT            `required:"true" json:"jwt" yaml:"jwt"`
-	Postgres PostgresConfig `json:"postgres" yaml:"postgres"`
-}
-
-type JWT struct {
-	SecretKey string `json:"secretKey" yaml:"secretKey"`
-	MasterKey string `json:"masterKey" yaml:"masterKey"`
-}
+type (
+	secret struct {
+		v        *viper.Viper
+		JWT      JWT            `required:"true" json:"jwt" yaml:"jwt"`
+		Postgres PostgresConfig `json:"postgres" yaml:"postgres"`
+	}
+	JWT struct {
+		SecretKey string `json:"secretKey" yaml:"secretKey"`
+		MasterKey string `json:"masterKey" yaml:"masterKey"`
+	}
+)
 
 func (c *AppConfig) readAppConfig() {
 	v := viper.New()
 
 	v.SetTypeByDefaultValue(true)
-	v.SetConfigFile(os.Getenv("CONFIG_FILE_PATH"))
+	configsFile := "./configs/application.yaml"
+	if e := os.Getenv("CONFIG_FILE_PATH"); e != "" {
+		configsFile = e
+	}
+	v.SetConfigFile(configsFile)
 	c.v = v
 
 	if err := v.ReadInConfig(); err != nil {
@@ -92,7 +93,11 @@ func (s *secret) readSecret() {
 	v := viper.New()
 
 	v.SetTypeByDefaultValue(true)
-	v.SetConfigFile(os.Getenv("SECRETS_FILE_PATH"))
+	secretsFile := "./configs/secrets.json"
+	if e := os.Getenv("SECRETS_FILE_PATH"); e != "" {
+		secretsFile = e
+	}
+	v.SetConfigFile(secretsFile)
 	s.v = v
 
 	if err := v.ReadInConfig(); err != nil {

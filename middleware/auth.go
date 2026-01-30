@@ -13,6 +13,7 @@ import (
 
 	"github.com/spdeepak/go-jwt-server/internal/error"
 	"github.com/spdeepak/go-jwt-server/internal/tokens"
+	"github.com/spdeepak/go-jwt-server/util"
 )
 
 var (
@@ -30,6 +31,10 @@ var (
 		[]string{"reason"},
 	)
 )
+
+func init() {
+	prometheus.MustRegister(authFailures, authSuccess)
+}
 
 // JWTAuthMiddleware returns a middleware that checks for a valid JWT token, but skips any paths listed in skipPaths.
 func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.HandlerFunc {
@@ -91,7 +96,6 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.Han
 			})
 			return
 		}
-
 		claims, ok := token.Claims.(*tokens.TokenClaims)
 		if !ok {
 			authFailures.WithLabelValues("ClaimsMissing").Inc()
@@ -101,6 +105,17 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.Han
 				StatusCode:  http.StatusUnauthorized,
 			})
 			return
+		}
+		if endpointAuthPolicy, endpointAuthPolicyExists := c.Get(aegisAuth); endpointAuthPolicyExists {
+			if !endpointAuthPolicy.(*authPolicy).evalAnyOf(claims.Roles, claims.Permissions, false) {
+				authFailures.WithLabelValues("RolesAndPermissionsMissing").Inc()
+				c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+					Description: jwt.ErrTokenRequiredClaimMissing.Error(),
+					Metadata:    "Roles and Permissions Missing",
+					StatusCode:  http.StatusUnauthorized,
+				})
+				return
+			}
 		}
 		if claims.Subject == "" {
 			authFailures.WithLabelValues("RequiredClaimsMissing").Inc()
@@ -137,12 +152,37 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.Han
 			return
 		}
 
+		c.Set("user-ip", c.ClientIP())
 		c.Set("user", token.Claims)
 		authSuccess.Inc()
 		c.Next()
 	}
 }
 
-func init() {
-	prometheus.MustRegister(authFailures, authSuccess)
+type (
+	authPolicy struct {
+		AnyOf of   `json:"anyOf,omitempty"`
+		AllOf of   `json:"allOf,omitempty"`
+		Self  bool `json:"self,omitempty"`
+	}
+	of struct {
+		Roles       []string `json:"roles,omitempty"`
+		Permissions []string `json:"permissions,omitempty"`
+	}
+)
+
+func (a *authPolicy) evalAnyOf(userRoles []string, userPerms []string, isSelf bool) bool {
+	if a.AnyOf.Roles == nil && a.AnyOf.Permissions == nil {
+		return true
+	}
+	if a.Self && !isSelf {
+		return false
+	}
+	if a.AnyOf.Roles != nil && len(a.AnyOf.Roles) > 0 && !util.HasAny(a.AnyOf.Roles, userRoles) {
+		return false
+	}
+	if a.AnyOf.Permissions != nil && len(a.AnyOf.Permissions) > 0 && !util.HasAny(a.AnyOf.Permissions, userPerms) {
+		return false
+	}
+	return true
 }

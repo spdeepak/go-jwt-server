@@ -66,7 +66,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -90,7 +90,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -116,7 +116,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -133,7 +133,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -147,7 +147,7 @@ paths:
       tags:
         - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -168,7 +168,7 @@ paths:
       tags:
         - 2FA
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -187,7 +187,7 @@ paths:
       tags:
         - 2FA
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -215,7 +215,7 @@ paths:
       tags:
         - 2FA
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -239,7 +239,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -258,7 +262,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:create ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -283,7 +291,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -301,7 +313,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:update ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -326,7 +342,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:delete ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -340,8 +360,13 @@ paths:
       operationId: listAllPermissions
       tags:
         - Permissions
+        - Admin
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -359,8 +384,13 @@ paths:
       operationId: createNewPermission
       tags:
         - Permissions
+        - Admin
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:create ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -384,8 +414,13 @@ paths:
       operationId: getPermissionById
       tags:
         - Permissions
+        - Admin
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -402,8 +437,13 @@ paths:
       operationId: updatePermissionById
       tags:
         - Permissions
+        - Admin
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read, permissions:update ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -427,8 +467,13 @@ paths:
       operationId: deletePermissionById
       tags:
         - Permissions
+        - Admin
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read, permissions:delete ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -443,7 +488,11 @@ paths:
       tags:
         - Roles and Permissions
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -455,6 +504,63 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RolesAndPermissionResponse'
+  /api/v1/users:
+    get:
+      summary: Get list of users
+      description: Get a list of users with given filter
+      operationId: GetListOfUsers
+      tags:
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - name: firstName
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: lastName
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: email
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+        - name: size
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: page
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDetails'
   /api/v1/users/{id}/roles:
     get:
       summary: Get user's roles
@@ -463,7 +569,12 @@ paths:
       tags:
         - User
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read ]
+          self: true
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -481,7 +592,11 @@ paths:
       tags:
         - User
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:assign-roles ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -494,6 +609,99 @@ paths:
       responses:
         '200':
           description: Role assignment confirmation
+  /api/v1/users/{id}/lock:
+    post:
+      summary: Lock a user
+      description: |
+        Locks a user account due to security reasons.
+        Locked users cannot authenticate until unlocked.
+      operationId: lockUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:lock ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: User locked successfully
+        '404':
+          description: User not found
+    delete:
+      summary: Unlock a user
+      description: |
+        Unlocks a previously locked user account.
+      operationId: unlockUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:unlock ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: User unlocked successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/disable:
+    post:
+      summary: Disable user account
+      description: |
+        Disables a user account for administrative reasons.
+        Disabled users cannot authenticate until enabled.
+      operationId: disableUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:disable ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '204':
+          description: User disabled successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/enable:
+    post:
+      summary: Enable user account
+      description: |
+        Re-enables a previously disabled user account.
+      operationId: enableUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:enable ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '204':
+          description: User enabled successfully
+        '404':
+          description: User not found
   /api/v1/users/{id}/roles/{roleId}:
     delete:
       summary: Remove roles of user
@@ -502,7 +710,11 @@ paths:
       tags:
         - User
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:assign-roles, users:unassign-roles ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/UuId'
@@ -518,7 +730,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read, roles:assign-permission ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
         - $ref: '#/components/parameters/RoleId'
@@ -539,7 +755,11 @@ paths:
       tags:
         - Roles
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read, roles:unassign-permission ]
       parameters:
         - $ref: '#/components/parameters/RoleId'
         - $ref: '#/components/parameters/PermissionId'
@@ -566,7 +786,7 @@ paths:
           description: OK
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
@@ -958,3 +1178,66 @@ components:
           items:
             type: string
             format: uuid
+    UserDetails:
+      type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - locked
+        - twoFAEnabled
+        - createdAt
+        - updatedAt
+        - roles
+        - permissions
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          example: first.last@example.com
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    UserDetailsRole:
+      type: object
+      required:
+        - id
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    UserDetailsPermission:
+      type: object
+      required:
+        - id
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
