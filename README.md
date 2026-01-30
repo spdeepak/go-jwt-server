@@ -1,8 +1,8 @@
 # Go JWT Server
 
-![CI](https://github.com/spdeepak/go-jwt-server/actions/workflows/go.yml/badge.svg)
-[![codecov](https://codecov.io/gh/spdeepak/go-jwt-server/branch/main/graph/badge.svg)](https://codecov.io/gh/spdeepak/go-jwt-server)
-[![Go Report Card](https://goreportcard.com/badge/github.com/spdeepak/go-jwt-server)](https://goreportcard.com/report/github.com/spdeepak/go-jwt-server)
+![CI](https://github.com/spdeepak/aegis/actions/workflows/go.yml/badge.svg)
+[![codecov](https://codecov.io/gh/spdeepak/aegis/branch/main/graph/badge.svg)](https://codecov.io/gh/spdeepak/aegis)
+[![Go Report Card](https://goreportcard.com/badge/github.com/spdeepak/aegis)](https://goreportcard.com/report/github.com/spdeepak/aegis)
 
 This is a lightweight, work-in-progress JWT authentication server built with Golang. It focuses on providing
 foundational security features such as flexible key management (via a master or secret key), refresh token rotation, and
