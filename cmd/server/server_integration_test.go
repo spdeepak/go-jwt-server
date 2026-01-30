@@ -72,6 +72,7 @@ func TestMain(m *testing.M) {
 	rolesService := roles.NewService(roleQuery)
 	permissionQuery = permissionsRepo.New(dbConnection)
 	permissionService := permissions.NewService(permissionQuery)
+	adminService := users.NewAdminService(userQuery)
 	//Setup router
 	swagger, _ := api.GetSwagger()
 	swagger.Servers = nil
@@ -83,7 +84,7 @@ func TestMain(m *testing.M) {
 		middleware.ErrorMiddleware,
 		middleware.GinLogger(),
 	)
-	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService, nil)
+	server := NewServer(userService, rolesService, permissionService, tokenService, twoFaService, adminService)
 	api.RegisterHandlers(router, server)
 
 	// Run all tests
@@ -1060,6 +1061,94 @@ func TestServer_GetRolesOfUser_OK(t *testing.T) {
 	assert.Equal(t, user.UserID.String(), userWithRoles.Id.String())
 }
 
+func TestServer_LockUser_OK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Signup another user
+	signup2FADisabled(t)
+	//Get User details
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.False(t, user.Locked)
+	lockUser(t, err, user, loginRes)
+	//Get User details
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.True(t, user.Locked)
+}
+
+func TestServer_UnlockUser_OK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Signup another user
+	signup2FADisabled(t)
+	//Get User details
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.False(t, user.Locked)
+	lockUser(t, err, user, loginRes)
+	//Get User details
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.True(t, user.Locked)
+	unlockUser(t, err, user, loginRes)
+	//Get User details
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.False(t, user.Locked)
+}
+
+func TestServer_DisableUser_OK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Signup another user
+	signup2FADisabled(t)
+	//Get User details
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.False(t, user.Disabled)
+	disableUser(t, err, user, loginRes)
+	//Get User details
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.True(t, user.Disabled)
+}
+
+func TestServer_EnableUser_OK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	//Signup another user
+	signup2FADisabled(t)
+	//Get User details
+	user, err := userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.False(t, user.Disabled)
+	disableUser(t, err, user, loginRes)
+	//Get User details
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.True(t, user.Disabled)
+	enableUser(t, err, user, loginRes)
+	//Get User details
+	user, err = userQuery.GetEntireUserByEmail(context.Background(), "first.last@example.com")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, user)
+	assert.False(t, user.Disabled)
+}
+
 func signup2FADisabled(t *testing.T) {
 	signupBytes, err := json.Marshal(api.UserSignup{
 		Email:        "first.last@example.com",
@@ -1458,4 +1547,60 @@ func removeRolesFromUser(t *testing.T, role api.RoleResponse, loginRes api.Login
 	assert.NotEmpty(t, updatedUser.PermissionNames)
 	assert.NotEqualValues(t, user.RoleNames, updatedUser.RoleNames)
 	assert.NotEqualValues(t, user.PermissionNames, updatedUser.PermissionNames)
+}
+
+func lockUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow, loginRes api.LoginSuccessWithJWT) {
+	//Lock endpoint
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/lock", user.UserID.String()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+}
+
+func unlockUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow, loginRes api.LoginSuccessWithJWT) {
+	//Lock endpoint
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/users/%s/lock", user.UserID.String()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+}
+
+func disableUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow, loginRes api.LoginSuccessWithJWT) {
+	//Lock endpoint
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/disable", user.UserID.String()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
+}
+
+func enableUser(t *testing.T, err error, user usersRepo.GetEntireUserByEmailRow, loginRes api.LoginSuccessWithJWT) {
+	//Lock endpoint
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/enable", user.UserID.String()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, recorder.Body.String())
 }

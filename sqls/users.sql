@@ -71,6 +71,7 @@ SELECT u.id         AS user_id,
        u.last_name,
        u.locked,
        u.two_fa_enabled,
+       u.disabled,
        u.created_at AS user_created_at,
 
        COALESCE(
@@ -90,7 +91,7 @@ FROM user_base u
          LEFT JOIN all_user_permissions p ON p.user_id = u.id
 GROUP BY u.id, u.email, u.password,
          u.first_name, u.last_name,
-         u.locked, u.two_fa_enabled,
+         u.locked, u.disabled, u.two_fa_enabled,
          u.created_at;
 
 -- name: GetUserRolesAndPermissionsFromID :one
