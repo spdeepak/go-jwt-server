@@ -1,0 +1,37 @@
+apiVersion: v1
+data:
+  application.yaml: |-
+    token:
+      bearer:
+        ttl: 15m
+      refresh:
+        ttl: 168m
+      issuer: go-jwt-server
+    postgres:
+      host: postgres
+      dbName: jwt_server
+      port: 5432
+      timeout: 10s
+      maxRetry: 5
+      sslMode: disable
+      connectTimeout: 10s
+      statementTimeout: 15s
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 10m
+      connMaxIdleTime: 2m
+      healthCheckPeriod: 1m
+    auth:
+      skipPaths:
+    #    - /api/v1/access-control/roles
+    #    - /api/v1/access-control/roles/{id}
+  secrets.json: |-
+    {
+      "postgres": {
+        "username": "admin",
+        "password": "admin"
+      }
+    }
+kind: ConfigMap
+metadata:
+  name: aegis-config

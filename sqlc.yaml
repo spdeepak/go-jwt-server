@@ -7,10 +7,14 @@ sql:
     gen:
       go:
         package: "repository"
-        out: "./users/repository"
+        out: "./internal/users/repository"
+        output_files_suffix: ".gen.go"
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_querier_file_name: "querier.gen.go"
         emit_interface: true
         emit_json_tags: true
-        sql_package: "database/sql"
+        sql_package: "pgx/v5"
         overrides:
           - db_type: "timestamptz"
             go_type:
@@ -23,10 +27,14 @@ sql:
     gen:
       go:
         package: "repository"
-        out: "./jwt_secret/repository"
+        out: "./internal/jwt_secret/repository"
+        output_files_suffix: ".gen.go"
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_querier_file_name: "querier.gen.go"
         emit_interface: true
         emit_json_tags: true
-        sql_package: "database/sql"
+        sql_package: "pgx/v5"
         overrides:
           - db_type: "timestamptz"
             go_type:
@@ -39,10 +47,74 @@ sql:
     gen:
       go:
         package: "repository"
-        out: "./tokens/repository"
+        out: "./internal/tokens/repository"
+        output_files_suffix: ".gen.go"
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_querier_file_name: "querier.gen.go"
         emit_interface: true
         emit_json_tags: true
-        sql_package: "database/sql"
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"
+  - schema:
+      - "./migrations/*.up.sql"
+    queries: "./sqls/2fa.sql"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "repository"
+        out: "./internal/twoFA/repository"
+        output_files_suffix: ".gen.go"
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_querier_file_name: "querier.gen.go"
+        emit_interface: true
+        emit_json_tags: true
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"
+  - schema:
+      - "./migrations/*.up.sql"
+    queries: "./sqls/roles.sql"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "repository"
+        out: "./internal/roles/repository"
+        output_files_suffix: ".gen.go"
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_querier_file_name: "querier.gen.go"
+        emit_interface: true
+        emit_json_tags: true
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "timestamptz"
+            go_type:
+              import: "time"
+              type: "Time"
+  - schema:
+      - "./migrations/*.up.sql"
+    queries: "./sqls/permissions.sql"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "repository"
+        out: "./internal/permissions/repository"
+        output_files_suffix: ".gen.go"
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_querier_file_name: "querier.gen.go"
+        emit_interface: true
+        emit_json_tags: true
+        sql_package: "pgx/v5"
         overrides:
           - db_type: "timestamptz"
             go_type:

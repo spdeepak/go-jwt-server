@@ -2,12 +2,14 @@ name: Go JWT Server CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [ "**" ]
   pull_request:
-    branches: ["**"]
+    branches: [ "**" ]
 
 jobs:
   build-and-test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -18,12 +20,90 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.24
+          cache: true
+
+      - name: Start dependency stack
+        run: |
+          docker compose up -d --build
+          # optional: wait for health-checks
+          docker compose ps
 
       - name: Run Makefile pre-step
-        run: make
+        run: make generate
 
       - name: Build
         run: go build ./...
 
       - name: Test
-        run: go test ./... -coverprofile=coverage.out
+        run: |
+          go test -p 1 ./... -coverprofile=coverage.raw
+          grep -vE "(mock|generated|cmd/main.go)" coverage.raw > coverage.out
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+
+      - name: Shut down stack
+        if: always()
+        run: docker compose down -v
+
+      - name: Delete old workflow runs (keep last 2)
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "Deleting previous workflow runs..."
+          gh run list \
+            --workflow "Go JWT Server CI" \
+            --limit 100 \
+            --json databaseId,createdAt \
+            -q 'sort_by(.createdAt) | reverse | .[2:] | .[].databaseId' |
+          while read -r run_id; do
+            echo "Deleting run $run_id"
+            gh run delete "$run_id" --repo "${{ github.repository }}" || echo "Skipped $run_id"
+          done
+
+  docker-build-test:
+    permissions:
+      contents: read
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract short SHA
+        id: vars
+        run: echo "SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        run: docker build -t spdeepak/go-jwt-server:${{ env.SHA_SHORT }} .
+
+  docker:
+    permissions:
+      contents: read
+      packages: write
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build and push multi-arch Docker image
+        run: docker buildx build --platform linux/amd64,linux/arm64 -t spdeepak/go-jwt-server:latest --push .

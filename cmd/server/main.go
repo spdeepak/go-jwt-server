@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,40 +11,36 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/spdeepak/go-jwt-server/api"
 	"github.com/spdeepak/go-jwt-server/config"
-	"github.com/spdeepak/go-jwt-server/db"
-	httperror "github.com/spdeepak/go-jwt-server/error"
-	"github.com/spdeepak/go-jwt-server/jwt_secret"
-	secret "github.com/spdeepak/go-jwt-server/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/internal/db"
+	"github.com/spdeepak/go-jwt-server/internal/jwt_secret"
+	jwt_secretRepo "github.com/spdeepak/go-jwt-server/internal/jwt_secret/repository"
+	"github.com/spdeepak/go-jwt-server/internal/logging"
+	"github.com/spdeepak/go-jwt-server/internal/permissions"
+	permissionsRepo "github.com/spdeepak/go-jwt-server/internal/permissions/repository"
+	"github.com/spdeepak/go-jwt-server/internal/roles"
+	roleRepo "github.com/spdeepak/go-jwt-server/internal/roles/repository"
+	"github.com/spdeepak/go-jwt-server/internal/tokens"
+	tokenRepo "github.com/spdeepak/go-jwt-server/internal/tokens/repository"
+	"github.com/spdeepak/go-jwt-server/internal/twoFA"
+	twoFARepo "github.com/spdeepak/go-jwt-server/internal/twoFA/repository"
+	"github.com/spdeepak/go-jwt-server/internal/users"
+	userRepo "github.com/spdeepak/go-jwt-server/internal/users/repository"
 	"github.com/spdeepak/go-jwt-server/middleware"
-	"github.com/spdeepak/go-jwt-server/tokens"
-	token "github.com/spdeepak/go-jwt-server/tokens/repository"
-	"github.com/spdeepak/go-jwt-server/users"
-	user "github.com/spdeepak/go-jwt-server/users/repository"
 )
 
 func main() {
-
-	dbConfig := db.Config{
-		Host:     "localhost",
-		Port:     "5432",
-		UserName: "admin",
-		Password: "admin",
-		DBName:   "jwt_server",
-		SSLMode:  "disable",
-		Timeout:  10 * time.Second,
-		MaxRetry: 5,
-	}
-
+	slog.SetDefault(slog.New(logging.NewDefaultHandler()))
 	cfg := config.NewConfiguration()
 
-	dbConnection, err := db.Connect(dbConfig)
+	err := db.RunMigrations(cfg.Postgres)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to connect to database")
+		slog.Error("Failed to run migrations", slog.Any("error", err))
 	}
-	db.RunMigrationQueries(dbConnection, "migrations")
+	dbConnection := db.Connect(cfg.Postgres)
 
 	// Initialize Redis client
 	redisClient, err := db.NewRedisClient(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
@@ -53,32 +50,47 @@ func main() {
 	defer redisClient.Close()
 
 	//JWT SecretKey
-	jwtSecretRepository := secret.New(dbConnection.DB)
+	jwtSecretRepository := jwt_secretRepo.New(dbConnection)
 	jwtSecretStorage := jwt_secret.NewStorage(jwtSecretRepository)
 	//JWT Token
-	tokenRepository := token.New(dbConnection.DB)
-	tokenStorage := tokens.NewStorage(tokenRepository)
-	tokenService := tokens.NewService(tokenStorage, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage))
+	tokenRepository := tokenRepo.New(dbConnection)
+	tokenService := tokens.NewService(tokenRepository, jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Token.Issuer)
+	//2FA
+	twoFAQuery := twoFARepo.New(dbConnection)
+	twoFAService := twoFA.NewService(cfg.TwoFA.AppName, twoFAQuery)
 	//Users
-	userRepository := user.New(dbConnection.DB)
-	userStorage := users.NewStorage(userRepository)
-	userService := users.NewService(userStorage, tokenService, redisClient, cfg.ReCAPTCHA.Secret)
+	userRepository := userRepo.New(dbConnection)
+	userService := users.NewService(userRepository, twoFAService, tokenService, redisClient, cfg.ReCAPTCHA.Secret)
+	//Roles
+	roleQuery := roleRepo.New(dbConnection)
+	roleService := roles.NewService(roleQuery)
+	//Permissions
+	permissionQuery := permissionsRepo.New(dbConnection)
+	permissionsService := permissions.NewService(permissionQuery)
+	//Admin
+	adminQuery := userRepo.New(dbConnection)
+	adminService := users.NewAdminService(adminQuery)
 
 	//oapi-codegen implementation handler
-	server := NewServer(userService, tokenService)
+	server := NewServer(userService, roleService, permissionsService, tokenService, twoFAService, adminService)
 
 	swagger, err := api.GetSwagger()
 	if err != nil {
-		log.Err(err).Msgf("Error loading swagger spec\n: %v", os.Stderr)
+		slog.Error(fmt.Sprintf("Error loading swagger spec\n: %v", os.Stderr), slog.Any("error", err))
 		os.Exit(1)
 	}
 	swagger.Servers = nil
 
-	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), nil)
-
+	authMiddleware := middleware.JWTAuthMiddleware(jwt_secret.GetOrCreateSecret(cfg.Token, jwtSecretStorage), cfg.Auth.SkipPaths, cfg.Token.Issuer)
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(httperror.Middleware)
-	router.Use(authMiddleware)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	router.Use(middleware.MetricHandler(),
+		middleware.RequestValidator(swagger),
+		authMiddleware,
+		gin.Recovery(),
+		middleware.ErrorMiddleware,
+		middleware.GinLogger())
 	api.RegisterHandlers(router, server)
 
 	srv := &http.Server{
@@ -89,23 +101,26 @@ func main() {
 	chanErrors := make(chan error)
 	// Initializing the Server in a goroutine so that it won't block the graceful shutdown handling below
 	go func() {
-		chanErrors <- router.Run()
+		chanErrors <- srv.ListenAndServe()
 	}()
 
 	chanSignals := make(chan os.Signal, 1)
 	signal.Notify(chanSignals, os.Interrupt, syscall.SIGTERM)
 
 	select {
-	case err := <-chanErrors:
-		log.Fatal().Err(err).Msg("Unable to run Server")
+	case err = <-chanErrors:
+		slog.Error(fmt.Sprintf("Unable to run server. Error: %s", err))
+		os.Exit(1)
 	case s := <-chanSignals:
-		log.Warn().Msgf("Warning: Received %s signal, aborting in 5 seconds...", s)
+		slog.Warn(fmt.Sprintf("Warning: Received %s signal, aborting in 5 seconds...", s))
 		// The context is used to inform the Server it has 5 seconds to finish the request it is currently handling
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Fatal().Err(err).Msgf("Server forced to shutdown")
+		dbConnection.Close()
+		if err = srv.Shutdown(ctx); err != nil {
+			slog.Error(fmt.Sprintf("Server forced to shutdown. Error: %s", err))
+			os.Exit(1)
 		}
-		log.Info().Msgf("Server exiting gracefully")
+		slog.Info("Server exiting gracefully")
 	}
 }

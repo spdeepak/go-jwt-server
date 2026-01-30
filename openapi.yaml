@@ -5,11 +5,11 @@ info:
 paths:
   /api/v1/auth/signup:
     post:
-      description: User signup
-      summary: Endpoint for user signup
+      summary: User signup
+      description: Endpoint for user signup
       operationId: signup
       tags:
-        - auth
+        - Auth
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -20,15 +20,23 @@ paths:
             schema:
               $ref: '#/components/schemas/UserSignup'
       responses:
-        '200':
-          description: OK
+        '204':
+          description: User created without 2FA
+        '409':
+          description: User already exists
+        '201':
+          description: User created with 2FA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignUpWith2FAResponse'
   /api/v1/auth/login:
     post:
-      description: User login
-      summary: Endpoint for user login
+      summary: User login
+      description: Endpoint for user login
       operationId: login
       tags:
-        - auth
+        - Auth
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -45,14 +53,44 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/LoginSuccessWithJWT'
+                  - $ref: '#/components/schemas/LoginRequires2FA'
+                discriminator:
+                  propertyName: type
+  /api/v1/auth/password:
+    post:
+      summary: Change password
+      description: Endpoint to change password
+      operationId: changePassword
+      tags:
+        - Auth
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Change password request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: UNAUTHORISED
   /api/v1/auth/refresh:
     post:
-      description: Token refresh
-      summary: Endpoint to get new token using refresh token
+      summary: Token refresh
+      description: Endpoint to get new token using refresh token
       operationId: refresh
       tags:
-        - auth
+        - Auth
+      security:
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/LoginSource'
         - $ref: '#/components/parameters/UserAgent'
@@ -69,16 +107,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/LoginSuccessWithJWT'
   /api/v1/auth/sessions:
     get:
-      description: Get all sessions
-      summary: Endpoint to get all active sessions of a given user
+      summary: Get all sessions
+      description: Endpoint to get all active sessions of a given user
       operationId: getAllSessions
       tags:
-        - auth
+        - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -89,13 +127,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/GetAllSessionResponse'
     delete:
-      description: Revoke all refresh tokens
-      summary: Endpoint to revoke all refresh tokens of a user
+      summary: Revoke all refresh tokens
+      description: Endpoint to revoke all refresh tokens of a user
       operationId: revokeAllTokens
       tags:
-        - auth
+        - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       responses:
@@ -103,13 +141,13 @@ paths:
           description: OK
   /api/v1/auth/sessions/current:
     delete:
-      description: Revoke refresh token
-      summary: Endpoint to revoke single refresh token
+      summary: Revoke refresh token
+      description: Endpoint to revoke single refresh token
       operationId: revokeRefreshToken
       tags:
-        - auth
+        - Auth
       security:
-        - bearerAuth: [ ]
+        - BearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/UserAgent'
       requestBody:
@@ -122,10 +160,616 @@ paths:
       responses:
         '200':
           description: OK
+  /api/v1/auth/2fa/setup:
+    post:
+      summary: Create 2fa
+      description: Endpoint to create 2fa for a user
+      operationId: create2FA
+      tags:
+        - 2FA
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFAResponse'
+  /api/v1/auth/2fa/login:
+    post:
+      summary: Verify 2FA code and login
+      description: Endpoint to verify 2FA code of a user with temp_token to login and get bearer and refresh token
+      operationId: login2FA
+      tags:
+        - 2FA
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Verify 2FA code
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login2FARequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessWithJWT'
+        '401':
+          description: UNAUTHORISED
+  /api/v1/auth/2fa:
+    delete:
+      summary: Remove 2fa
+      description: Endpoint to remove 2fa code of a user
+      operationId: remove2FA
+      tags:
+        - 2FA
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/LoginSource'
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Verify 2FA code
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Remove2FARequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: UNAUTHORISED
+  /api/v1/access-control/roles:
+    get:
+      summary: List all roles
+      description: Endpoint to list all roles in the system
+      operationId: listAllRoles
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '200':
+          description: List of all roles available in the system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleResponse'
+    post:
+      summary: Create a new role
+      description: Endpoint to create a new role
+      operationId: createNewRole
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:create ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Create role request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRole'
+      responses:
+        '201':
+          description: Create a new role in the system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+  /api/v1/access-control/roles/{roleId}:
+    get:
+      summary: Get role by ID
+      description: Endpoint to Get role details by it's id
+      operationId: getRoleById
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+    patch:
+      summary: Update role
+      description: Endpoint to update a role by it's ID
+      operationId: updateRoleById
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:update ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/RoleId'
+      requestBody:
+        description: Create role request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRole'
+      responses:
+        '200':
+          description: Updated role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+    delete:
+      summary: Delete role
+      description: Endpoint to delete a role by it's ID
+      operationId: deleteRoleById
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, roles:delete ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Delete role confirmation
+  /api/v1/access-control/permissions:
+    get:
+      summary: List all permissions
+      description: Endpoint to list all permissions in the system
+      operationId: listAllPermissions
+      tags:
+        - Permissions
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '200':
+          description: List of all permissions available in the system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionResponse'
+    post:
+      summary: Create a new permission
+      description: Endpoint to create a new permission
+      operationId: createNewPermission
+      tags:
+        - Permissions
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:create ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      requestBody:
+        description: Create permission request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePermission'
+      responses:
+        '201':
+          description: Create a new permission in the system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
+  /api/v1/access-control/permissions/{id}:
+    get:
+      summary: Get permission by ID
+      description: Endpoint to Get permission details by it's id
+      operationId: getPermissionById
+      tags:
+        - Permissions
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Permission details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
+    patch:
+      summary: Update permission
+      description: Endpoint to update a permission by it's ID
+      operationId: updatePermissionById
+      tags:
+        - Permissions
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read, permissions:update ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      requestBody:
+        description: Create role request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermission'
+      responses:
+        '200':
+          description: Updated permission details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
+    delete:
+      summary: Delete permission
+      description: Endpoint to delete a permission by it's ID
+      operationId: deletePermissionById
+      tags:
+        - Permissions
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ permissions:read, permissions:delete ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Delete permission confirmation
+  /api/v1/access-control/roles/permissions:
+    get:
+      summary: Roles and their permissions
+      description: List of Roles and their assigned permissions
+      operationId: rolesAndPermissions
+      tags:
+        - Roles and Permissions
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+      responses:
+        '200':
+          description: List of roles and their assigned permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RolesAndPermissionResponse'
+  /api/v1/users:
+    get:
+      summary: Get list of users
+      description: Get a list of users with given filter
+      operationId: GetListOfUsers
+      tags:
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - name: firstName
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: lastName
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: email
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+        - name: size
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: page
+          description: Enter the first name of the user you want to search
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDetails'
+  /api/v1/users/{id}/roles:
+    get:
+      summary: Get user's roles
+      description: Endpoint to list roles of a user
+      operationId: getRolesOfUser
+      tags:
+        - User
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read ]
+          self: true
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: Roles of a user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithRoles'
+    post:
+      summary: Assign roles to user
+      description: Endpoint to assign roles to a given user
+      operationId: assignRolesToUser
+      tags:
+        - User
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:assign-roles ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      requestBody:
+        description: List of permissions to assign to a role
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleToUser'
+      responses:
+        '200':
+          description: Role assignment confirmation
+  /api/v1/users/{id}/lock:
+    post:
+      summary: Lock a user
+      description: |
+        Locks a user account due to security reasons.
+        Locked users cannot authenticate until unlocked.
+      operationId: lockUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:lock ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: User locked successfully
+        '404':
+          description: User not found
+    delete:
+      summary: Unlock a user
+      description: |
+        Unlocks a previously locked user account.
+      operationId: unlockUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:unlock ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '200':
+          description: User unlocked successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/disable:
+    post:
+      summary: Disable user account
+      description: |
+        Disables a user account for administrative reasons.
+        Disabled users cannot authenticate until enabled.
+      operationId: disableUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:disable ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '204':
+          description: User disabled successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/enable:
+    post:
+      summary: Enable user account
+      description: |
+        Re-enables a previously disabled user account.
+      operationId: enableUser
+      tags:
+        - User
+        - Admin
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:enable ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+      responses:
+        '204':
+          description: User enabled successfully
+        '404':
+          description: User not found
+  /api/v1/users/{id}/roles/{roleId}:
+    delete:
+      summary: Remove roles of user
+      description: Endpoint to remove roles of a user
+      operationId: removeRolesForUser
+      tags:
+        - User
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ users:read, users:assign-roles, users:unassign-roles ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/UuId'
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Role removal confirmation
+  /api/v1/access-control/roles/{roleId}/permissions:
+    post:
+      summary: Assign permissions to a role
+      description: Assign multiple permissions to a role
+      operationId: assignPermissionToRole
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read, roles:assign-permission ]
+      parameters:
+        - $ref: '#/components/parameters/UserAgent'
+        - $ref: '#/components/parameters/RoleId'
+      requestBody:
+        description: List of permissions to assign to a role
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignPermission'
+      responses:
+        '200':
+          description: Permissions added to role
+  /api/v1/access-control/roles/{roleId}/permissions/{permissionId}:
+    delete:
+      summary: Unassign a permission from a role
+      description: Unassign a permission from a role
+      operationId: unassignPermissionFromRole
+      tags:
+        - Roles
+      security:
+        - BearerAuth: [ ]
+      aegis-auth:
+        anyOf:
+          roles: [ super_admin ]
+          permissions: [ roles:read, permissions:read, roles:unassign-permission ]
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/PermissionId'
+      responses:
+        '204':
+          description: Permission removed from role
   /ready:
     get:
-      description: Ready check
       summary: Ready check
+      description: Ready check
       tags:
         - Probe
       responses:
@@ -133,8 +777,8 @@ paths:
           description: OK
   /live:
     get:
-      description: Live check
       summary: Live check
+      description: Live check
       tags:
         - Probe
       responses:
@@ -142,7 +786,7 @@ paths:
           description: OK
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
@@ -166,6 +810,47 @@ components:
       required: true
       schema:
         type: string
+    UuId:
+      name: id
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GETId:
+      name: id
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: query
+      schema:
+        type: string
+        format: uuid
+    GETName:
+      name: name
+      description: name
+      in: query
+      schema:
+        type: string
+    RoleId:
+      name: roleId
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PermissionId:
+      name: permissionId
+      description: id
+      example: 7f36046c-3f79-4e6f-a35e-2ce146adc59c
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
     UserSignup:
       type: object
@@ -174,16 +859,32 @@ components:
         - firstName
         - lastName
         - password
+        - twoFAEnabled
       properties:
         email:
           type: string
-          pattern:
+          format: email
           example: first.last@example.com
         firstName:
           type: string
         lastName:
           type: string
         password:
+          type: string
+          minLength: 8
+          description: "At least 8 characters, one uppercase, one lowercase, one number, one special character"
+        twoFAEnabled:
+          type: boolean
+          default: false
+    SignUpWith2FAResponse:
+      type: object
+      required:
+        - qr_image
+        - secret
+      properties:
+        qr_image:
+          type: string
+        secret:
           type: string
     UserLogin:
       type: object
@@ -197,7 +898,17 @@ components:
           example: first.last@example.com
         password:
           type: string
-    TokenResponse:
+    ChangePassword:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+        newPassword:
+          type: string
+    LoginSuccessWithJWT:
       type: object
       required:
         - accessToken
@@ -207,6 +918,19 @@ components:
           type: string
         refreshToken:
           type: string
+    LoginRequires2FA:
+      type: object
+      required:
+        - type
+        - temp_token
+      properties:
+        type:
+          type: string
+          enum:
+            - 2fa
+        temp_token:
+          type: string
+          description: Temporary token to use for 2FA verification
     Refresh:
       type: object
       required:
@@ -241,4 +965,279 @@ components:
         userAgent:
           type: string
         createdBy:
+          type: string
+    TwoFAResponse:
+      type: object
+      required:
+        - qr_image
+        - secret
+      properties:
+        qr_image:
+          type: string
+        secret:
+          type: string
+    Login2FARequest:
+      type: object
+      required:
+        - twoFACode
+      properties:
+        twoFACode:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'
+    Remove2FARequest:
+      type: object
+      required:
+        - twoFACode
+      properties:
+        twoFACode:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'
+    CreateRole:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    UpdateRole:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    CreatePermission:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    UpdatePermission:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    RoleResponse:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - createdAt
+        - createdBy
+        - updatedAt
+        - updatedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+    PermissionResponse:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - createdAt
+        - createdBy
+        - updatedAt
+        - updatedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+    AssignPermission:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    RolesAndPermissionResponse:
+      type: object
+      required:
+        - roles
+      properties:
+        roles:
+          type: object
+          required:
+            - id
+            - name
+            - description
+            - createdAt
+            - createdBy
+            - updatedAt
+            - updatedBy
+            - permissions
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              pattern: '[a-zA-Z_-]+'
+            description:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            createdBy:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+            updatedBy:
+              type: string
+            permissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/PermissionResponse'
+    UserWithRoles:
+      type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - roles
+        - permissions
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          example: first.last@example.com
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    AssignRoleToUser:
+      type: object
+      required:
+        - roles
+      properties:
+        roles:
+          type: array
+          items:
+            type: string
+            format: uuid
+    UserDetails:
+      type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - locked
+        - twoFAEnabled
+        - createdAt
+        - updatedAt
+        - roles
+        - permissions
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          example: first.last@example.com
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    UserDetailsRole:
+      type: object
+      required:
+        - id
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
+          type: string
+    UserDetailsPermission:
+      type: object
+      required:
+        - id
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '[a-zA-Z_-]+'
+        description:
           type: string

@@ -1,31 +1,54 @@
 package middleware
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
+	"slices"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	httperror "github.com/spdeepak/go-jwt-server/error"
+	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/spdeepak/go-jwt-server/internal/error"
+	"github.com/spdeepak/go-jwt-server/internal/tokens"
+	"github.com/spdeepak/go-jwt-server/util"
 )
 
-// JWTAuthMiddleware returns a middleware that checks for a valid JWT token,
-// but skips any paths listed in skipPaths.
-func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
+var (
+	authSuccess = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "go_jwt_server_auth_success_total",
+			Help: "Total number of successful authentication attempts",
+		},
+	)
+	authFailures = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "go_jwt_server_auth_failures_total",
+			Help: "Total number of failed authentication attempts, labeled by reason",
+		},
+		[]string{"reason"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(authFailures, authSuccess)
+}
+
+// JWTAuthMiddleware returns a middleware that checks for a valid JWT token, but skips any paths listed in skipPaths.
+func JWTAuthMiddleware(secret []byte, skipPaths []string, issuer string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		for _, skip := range append([]string{"/ready", "/live", "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/refresh"}, skipPaths...) {
-			if path == skip {
-				c.Next()
-				return
-			}
+		if slices.Contains(append([]string{"/ready", "/live", "/api/v1/auth/signup", "/api/v1/auth/login"}, skipPaths...), path) {
+			c.Next()
+			return
 		}
 
 		authHeader := c.GetHeader("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
+			authFailures.WithLabelValues("MissingToken").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized,
 				httperror.HttpError{
 					Description: "Missing or invalid Authorization header",
@@ -36,56 +59,130 @@ func JWTAuthMiddleware(secret []byte, skipPaths []string) gin.HandlerFunc {
 
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return secret, nil
-		})
+		token, err := jwt.ParseWithClaims(
+			tokenStr,
+			&tokens.TokenClaims{},
+			func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, jwt.ErrTokenUnverifiable
+				}
+				return secret, nil
+			},
+			jwt.WithIssuer(issuer),
+		)
 
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized,
-				httperror.HttpError{
-					Description: "Invalid Token",
-					Metadata:    fmt.Sprintf("%v", err.Error()),
+		if err != nil {
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				authFailures.WithLabelValues("ExpiredToken").Inc()
+				c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+					Description: jwt.ErrTokenExpired.Error(),
 					StatusCode:  http.StatusUnauthorized,
 				})
-			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if ok && token.Valid {
-			if expTime, ok := claims["exp"].(float64); ok {
-				expirationTime := time.Unix(int64(expTime), 0)
-				if expirationTime.Before(time.Now()) {
-					c.AbortWithStatusJSON(http.StatusUnauthorized,
-						httperror.HttpError{
-							Description: jwt.ErrTokenExpired.Error(),
-							Metadata:    fmt.Sprintf("%v", err.Error()),
-							StatusCode:  http.StatusUnauthorized,
-						})
-					return
-				}
-			} else {
-				c.AbortWithStatusJSON(http.StatusUnauthorized,
-					httperror.HttpError{
-						Description: jwt.ErrTokenInvalidClaims.Error(),
-						Metadata:    fmt.Sprintf("%v", err.Error()),
-						StatusCode:  http.StatusUnauthorized,
-					})
 				return
 			}
-		} else if !ok || !token.Valid {
+			authFailures.WithLabelValues("Unauthorized").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
-				Description: jwt.ErrTokenInvalidClaims.Error(),
-				Metadata:    fmt.Sprintf("%v", err.Error()),
+				Description: err.Error(),
 				StatusCode:  http.StatusUnauthorized,
 			})
 			return
 		}
 
+		if !token.Valid {
+			authFailures.WithLabelValues("Unauthorized").Inc()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: "Unauthorized",
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+		claims, ok := token.Claims.(*tokens.TokenClaims)
+		if !ok {
+			authFailures.WithLabelValues("ClaimsMissing").Inc()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: jwt.ErrTokenInvalidClaims.Error(),
+				Metadata:    jwt.ErrTokenRequiredClaimMissing.Error(),
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+		if endpointAuthPolicy, endpointAuthPolicyExists := c.Get(aegisAuth); endpointAuthPolicyExists {
+			if !endpointAuthPolicy.(*authPolicy).evalAnyOf(claims.Roles, claims.Permissions, false) {
+				authFailures.WithLabelValues("RolesAndPermissionsMissing").Inc()
+				c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+					Description: jwt.ErrTokenRequiredClaimMissing.Error(),
+					Metadata:    "Roles and Permissions Missing",
+					StatusCode:  http.StatusUnauthorized,
+				})
+				return
+			}
+		}
+		if claims.Subject == "" {
+			authFailures.WithLabelValues("RequiredClaimsMissing").Inc()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: jwt.ErrTokenInvalidClaims.Error(),
+				Metadata:    jwt.ErrTokenRequiredClaimMissing.Error(),
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+		userId, err := uuid.Parse(claims.Subject)
+		if err != nil {
+			authFailures.WithLabelValues("RequiredClaimsMissing").Inc()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: jwt.ErrTokenInvalidClaims.Error(),
+				Metadata:    jwt.ErrTokenRequiredClaimMissing.Error(),
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+		switch claims.Type {
+		case "2FA":
+			c.Set("User-ID", userId)
+		case "Bearer", "Refresh":
+			c.Set("User-ID", userId)
+			c.Set("User-Email", claims.Email)
+		default:
+			authFailures.WithLabelValues("RequiredClaimsMissing").Inc()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, httperror.HttpError{
+				Description: jwt.ErrTokenInvalidClaims.Error(),
+				Metadata:    jwt.ErrTokenRequiredClaimMissing.Error(),
+				StatusCode:  http.StatusUnauthorized,
+			})
+			return
+		}
+
+		c.Set("user-ip", c.ClientIP())
 		c.Set("user", token.Claims)
-		c.Set("X-JWT-EMAIL", claims["email"].(string))
+		authSuccess.Inc()
 		c.Next()
 	}
+}
+
+type (
+	authPolicy struct {
+		AnyOf of   `json:"anyOf,omitempty"`
+		AllOf of   `json:"allOf,omitempty"`
+		Self  bool `json:"self,omitempty"`
+	}
+	of struct {
+		Roles       []string `json:"roles,omitempty"`
+		Permissions []string `json:"permissions,omitempty"`
+	}
+)
+
+func (a *authPolicy) evalAnyOf(userRoles []string, userPerms []string, isSelf bool) bool {
+	if a.AnyOf.Roles == nil && a.AnyOf.Permissions == nil {
+		return true
+	}
+	if a.Self && !isSelf {
+		return false
+	}
+	if a.AnyOf.Roles != nil && len(a.AnyOf.Roles) > 0 && !util.HasAny(a.AnyOf.Roles, userRoles) {
+		return false
+	}
+	if a.AnyOf.Permissions != nil && len(a.AnyOf.Permissions) > 0 && !util.HasAny(a.AnyOf.Permissions, userPerms) {
+		return false
+	}
+	return true
 }
