@@ -413,8 +413,13 @@ func (s *Server) RemoveRolesForUser(ctx *gin.Context, userId api.UuId, roleId ap
 }
 
 func (s *Server) GetListOfUsers(ctx *gin.Context, params api.GetListOfUsersParams) {
-	//TODO implement me
-	panic("implement me")
+	listOfUsers, err := s.adminService.GetListOfUsers(ctx, params)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, listOfUsers)
+	return
 }
 
 func (s *Server) LockUser(ctx *gin.Context, id api.UuId, params api.LockUserParams) {

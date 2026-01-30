@@ -1206,11 +1206,11 @@ components:
         roles:
           type: array
           items:
-            $ref: '#/components/schemas/UserDetailsRole'
+            type: string
         permissions:
           type: array
           items:
-            $ref: '#/components/schemas/UserDetailsRole'
+            type: string
     UserDetailsRole:
       type: object
       required:

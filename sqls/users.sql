@@ -168,14 +168,14 @@ FROM user_permissions
 where user_id = sqlc.arg('user_id')
   and permission_id = sqlc.arg('permission_id');
 
--- name: SearchAndGetUserDetails :one
+-- name: SearchAndGetUserDetails :many
 WITH user_base AS (SELECT *
                    FROM users
-                   WHERE (sqlc.narg('email') IS NULL OR users.email = sqlc.narg('email'))
-                      OR (sqlc.narg('first_name') IS NULL OR
-                          users.first_name ILIKE '%' || sqlc.narg('first_name') || '%')
-                      OR (sqlc.narg('last_name') IS NOT NULL AND sqlc.narg('last_name') <> '' AND
-                          users.last_name ILIKE '%' || sqlc.narg('last_name') || '%')),
+                   WHERE (sqlc.narg('email')::text IS NULL OR users.email = sqlc.narg('email')::text)
+                      OR (sqlc.narg('first_name')::text IS NULL OR
+                          users.first_name ILIKE '%' || sqlc.narg('first_name')::text || '%')
+                      OR (sqlc.narg('last_name')::text IS NOT NULL OR
+                          users.last_name ILIKE '%' || sqlc.narg('last_name')::text || '%')),
      user_roles_joined AS (SELECT r.id          AS id,
                                   r.name        AS name,
                                   r.description AS description,
@@ -197,14 +197,15 @@ SELECT u.id                                                                     
        u.first_name,
        u.last_name,
        u.locked,
+       u.disabled,
        u.two_fa_enabled,
        u.created_at                                                                         AS user_created_at,
-       COALESCE(jsonb_agg(DISTINCT to_jsonb(r)) FILTER (WHERE r.user_id IS NOT NULL), '[]') AS roles,
-       COALESCE(jsonb_agg(DISTINCT to_jsonb(p)) FILTER (WHERE p.user_id IS NOT NULL), '[]') AS permissions
+       COALESCE(ARRAY_AGG(DISTINCT to_jsonb(r)) FILTER (WHERE r.user_id IS NOT NULL), '{}')::text[] AS roles,
+       COALESCE(ARRAY_AGG(DISTINCT to_jsonb(p)) FILTER (WHERE p.user_id IS NOT NULL), '{}')::text[] AS permissions
 FROM user_base u
          LEFT JOIN user_roles_joined AS r ON r.user_id = u.id
          LEFT JOIN user_permissions_joined AS p ON p.user_id = u.id
-GROUP BY u.id, u.email, u.first_name, u.last_name, u.locked, u.two_fa_enabled, u.created_at
+GROUP BY u.id, u.email, u.first_name, u.last_name, u.locked, u.disabled, u.two_fa_enabled, u.created_at
 LIMIT sqlc.arg('size') OFFSET sqlc.arg('page');
 
 -- name: LockUserById :one

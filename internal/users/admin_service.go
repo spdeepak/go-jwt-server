@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/spdeepak/go-jwt-server/api"
 	httperror "github.com/spdeepak/go-jwt-server/internal/error"
@@ -31,7 +33,59 @@ func NewAdminService(storage repository.Querier) AdminService {
 }
 
 func (a *adminService) GetListOfUsers(ctx context.Context, params api.GetListOfUsersParams) ([]api.UserDetails, error) {
-	return nil, nil
+	repoParams := repository.SearchAndGetUserDetailsParams{}
+	if params.FirstName != nil {
+		repoParams.FirstName = pgtype.Text{
+			String: *params.FirstName,
+			Valid:  true,
+		}
+	} else {
+		repoParams.FirstName = pgtype.Text{
+			Valid: false,
+		}
+	}
+	if params.LastName != nil {
+		repoParams.LastName = pgtype.Text{
+			String: *params.LastName,
+			Valid:  true,
+		}
+	} else {
+		repoParams.LastName = pgtype.Text{
+			Valid: false,
+		}
+	}
+	if params.Email != nil {
+		repoParams.Email = pgtype.Text{
+			String: string(*params.Email),
+			Valid:  true,
+		}
+	} else {
+		repoParams.Email = pgtype.Text{
+			Valid: false,
+		}
+	}
+	if params.Page != nil {
+		repoParams.Page = int32(*params.Page)
+	}
+	if params.Size != nil {
+		repoParams.Size = int32(*params.Size)
+	}
+	details, err := a.storage.SearchAndGetUserDetails(ctx, repoParams)
+	if err != nil {
+		return nil, err
+	}
+	userDetails := make([]api.UserDetails, len(details))
+	for index, detail := range details {
+		userDetails[index] = api.UserDetails{
+			Email:       openapi_types.Email(detail.Email),
+			FirstName:   detail.FirstName,
+			Id:          detail.UserID.Bytes,
+			LastName:    detail.LastName,
+			Permissions: detail.Permissions,
+			Roles:       detail.Roles,
+		}
+	}
+	return userDetails, nil
 }
 
 func (a *adminService) LockUserById(ctx context.Context, id uuid.UUID, params api.LockUserParams) error {
