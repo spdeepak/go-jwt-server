@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -1214,6 +1215,30 @@ func TestServer_EnableUser_NOK(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
+	assert.NotEmpty(t, recorder.Body.String())
+}
+
+func TestServer_GetListOfUsers_OK(t *testing.T) {
+	truncateTables()
+	//Login
+	loginRes := loginSuperAdmin(t)
+	signup2FADisabled(t)
+	//List users endpoint
+	params := url.Values{}
+	params.Add("page", "1")
+	params.Add("size", "20")
+	params.Add("email", "first.last@example.com")
+	params.Add("firstName", "fi")
+	params.Add("lastName", "la")
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s?%s", "/api/v1/users", params.Encode()), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "api-test")
+	req.Header.Set("Authorization", "Bearer "+loginRes.AccessToken)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.NotEmpty(t, recorder.Body.String())
 }
 
