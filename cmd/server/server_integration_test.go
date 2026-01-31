@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "test-issuer")
 	userQuery = usersRepo.New(dbConnection)
-	userService := users.NewService(userQuery, twoFaService, tokenService)
+	userService := users.NewService(userQuery, twoFaService, tokenService, nil, "")
 	roleQuery = roleRepo.New(dbConnection)
 	rolesService := roles.NewService(roleQuery)
 	permissionQuery = permissionsRepo.New(dbConnection)

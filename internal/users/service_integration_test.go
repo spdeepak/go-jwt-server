@@ -105,7 +105,7 @@ func signup_No2fa_OK(t *testing.T) {
 	dbConnection := db.Connect(dbConfig)
 	defer dbConnection.Close()
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userStorage, nil, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -125,7 +125,7 @@ func signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 	dbConnection := db.Connect(dbConfig)
 	defer dbConnection.Close()
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userStorage, nil, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -160,7 +160,7 @@ func signup_2FA_OK(t *testing.T) {
 	dbConnection := db.Connect(dbConfig)
 	defer dbConnection.Close()
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, nil)
+	userService := NewService(userStorage, twoFaService, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -184,7 +184,7 @@ func signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 	dbConnection := db.Connect(dbConfig)
 	defer dbConnection.Close()
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, nil)
+	userService := NewService(userStorage, twoFaService, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -229,7 +229,7 @@ func login_OK(t *testing.T) {
 	tokenQuery := tokenRepo.New(dbConnection)
 	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "")
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, nil, tokenService)
+	userService := NewService(userStorage, nil, tokenService, nil, "")
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -253,7 +253,7 @@ func login_NOK_WrongPassword(t *testing.T) {
 	dbConnection := db.Connect(dbConfig)
 	defer dbConnection.Close()
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userStorage, nil, nil, nil, "")
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -278,7 +278,7 @@ func login_NOK(t *testing.T) {
 	dbConnection := db.Connect(dbConfig)
 	defer dbConnection.Close()
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, nil, nil)
+	userService := NewService(userStorage, nil, nil, nil, "")
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -324,7 +324,7 @@ func login2FA_OK(t *testing.T) {
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, tokenService)
+	userService := NewService(userStorage, twoFaService, tokenService, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -370,7 +370,7 @@ func login2FA_NOK_Old2FACode(t *testing.T) {
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, tokenService)
+	userService := NewService(userStorage, twoFaService, tokenService, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -412,7 +412,7 @@ func login2FA_NOK_UserNotExist(t *testing.T) {
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, tokenService)
+	userService := NewService(userStorage, twoFaService, tokenService, nil, "")
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, uuid.New(), "123456")
 	assert.Error(t, err)
@@ -472,7 +472,7 @@ func TestService_GetUserRolesAndPermissions(t *testing.T) {
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, tokenService)
+	userService := NewService(userStorage, twoFaService, tokenService, nil, "")
 
 	user := api.UserSignup{
 		Email:     "first.last@example.com",
@@ -547,7 +547,7 @@ func TestService_AssignRolesToUser(t *testing.T) {
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, tokenService)
+	userService := NewService(userStorage, twoFaService, tokenService, nil, "")
 
 	user := api.UserSignup{
 		Email:     "first.last@example.com",
@@ -606,7 +606,7 @@ func TestService_UnassignRolesToUser(t *testing.T) {
 	twoFAQuery := twoFARepo.New(dbConnection)
 	twoFaService := twoFA.NewService("go-jwt-server", twoFAQuery)
 	userStorage := usersRepo.New(dbConnection)
-	userService := NewService(userStorage, twoFaService, tokenService)
+	userService := NewService(userStorage, twoFaService, tokenService, nil, "")
 
 	user := api.UserSignup{
 		Email:     "first.last@example.com",

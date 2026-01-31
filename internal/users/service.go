@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/spdeepak/go-jwt-server/api"
+	"github.com/spdeepak/go-jwt-server/internal/db"
 	"github.com/spdeepak/go-jwt-server/internal/error"
 	"github.com/spdeepak/go-jwt-server/internal/tokens"
 	token "github.com/spdeepak/go-jwt-server/internal/tokens/repository"
@@ -38,7 +39,7 @@ type (
 	}
 )
 
-func NewService(query repository.Querier, twoFAService twoFA.Service, tokenService tokens.Service) Service {
+func NewService(query repository.Querier, twoFAService twoFA.Service, tokenService tokens.Service, redisClient *db.RedisClient, secret string) Service {
 	return &service{
 		query:        query,
 		twoFAService: twoFAService,

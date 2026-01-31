@@ -45,9 +45,9 @@ func main() {
 	// Initialize Redis client
 	redisClient, err := db.NewRedisClient(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to connect to Redis")
+		slog.Error("Failed to connect to Redis", slog.Any("error", err))
+		os.Exit(1)
 	}
-	defer redisClient.Close()
 
 	//JWT SecretKey
 	jwtSecretRepository := jwt_secretRepo.New(dbConnection)
@@ -117,6 +117,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		dbConnection.Close()
+		_ = redisClient.Close()
 		if err = srv.Shutdown(ctx); err != nil {
 			slog.Error(fmt.Sprintf("Server forced to shutdown. Error: %s", err))
 			os.Exit(1)

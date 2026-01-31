@@ -36,7 +36,7 @@ func TestService_Signup_No2FA_OK(t *testing.T) {
 	userQuery.On("Signup", ctx, mock.MatchedBy(func(params userRepo.SignupParams) bool {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(nil)
-	userService := NewService(userQuery, nil, nil)
+	userService := NewService(userQuery, nil, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -58,7 +58,7 @@ func TestService_Signup_No2FA_NOK_UserAlreadyExists(t *testing.T) {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
 
-	userService := NewService(userQuery, nil, nil)
+	userService := NewService(userQuery, nil, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -82,7 +82,7 @@ func TestService_Signup_No2FA_NOK_DBError(t *testing.T) {
 	userQuery.On("Signup", ctx, mock.MatchedBy(func(params userRepo.SignupParams) bool {
 		return string(user.Email) == params.Email && user.FirstName == params.FirstName && user.LastName == params.LastName && validPassword(user.Password, params.Password)
 	})).Return(errors.New("error"))
-	userService := NewService(userQuery, nil, nil)
+	userService := NewService(userQuery, nil, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -113,7 +113,7 @@ func TestService_Signup_2FA_OK(t *testing.T) {
 			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
 	})).Return(nil)
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userService := NewService(userQuery, twoFaService, nil)
+	userService := NewService(userQuery, twoFaService, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.NoError(t, err)
@@ -143,7 +143,7 @@ func TestService_Signup_2FA_NOK_UserAlreadyExists(t *testing.T) {
 			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
 	})).Return(errors.New("ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)"))
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userService := NewService(userQuery, twoFaService, nil)
+	userService := NewService(userQuery, twoFaService, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -174,7 +174,7 @@ func TestService_Signup_2FA_NOK_DBError(t *testing.T) {
 			params.Url == "otpauth://totp/go-jwt-server:first.last@example.com?algorithm=SHA1&digits=6&issuer=go-jwt-server&period=30&secret="+params.Secret
 	})).Return(errors.New("ERROR"))
 	twoFaService := twoFA.NewService("go-jwt-server", nil)
-	userService := NewService(userQuery, twoFaService, nil)
+	userService := NewService(userQuery, twoFaService, nil, nil, "")
 
 	res, err := userService.Signup(ctx, user)
 	assert.Error(t, err)
@@ -214,7 +214,7 @@ func TestService_Login_OK(t *testing.T) {
 			token.UserAgent == "test" && token.DeviceName == "" && token.CreatedBy == "api"
 	})).Return(nil)
 	tokenService := tokens.NewService(tokenQuery, []byte("JWT_$€Cr€t"), "")
-	userService := NewService(userQuery, nil, tokenService)
+	userService := NewService(userQuery, nil, tokenService, nil, "")
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -244,7 +244,7 @@ func TestService_Login_NOK_WrongPassword(t *testing.T) {
 			Password:  "$2a$10$3gF.MeoEsl3lwQiWj24gYe/9abUGois8FAwKMQlhr9grLof6Y1Ryu"},
 			nil)
 
-	userService := NewService(userQuery, nil, nil)
+	userService := NewService(userQuery, nil, nil, nil, "")
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -269,7 +269,7 @@ func TestService_Login_NOK_DB(t *testing.T) {
 	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetEntireUserByEmail", ctx, email).Return(userRepo.GetEntireUserByEmailRow{}, errors.New("sql: no rows in result set"))
 
-	userService := NewService(userQuery, nil, nil)
+	userService := NewService(userQuery, nil, nil, nil, "")
 
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
@@ -294,7 +294,7 @@ func TestService_Login_NOK(t *testing.T) {
 	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetEntireUserByEmail", ctx, email).Return(userRepo.GetEntireUserByEmailRow{}, errors.New("error"))
 
-	userService := NewService(userQuery, nil, nil)
+	userService := NewService(userQuery, nil, nil, nil, "")
 	loginParams := api.LoginParams{
 		XLoginSource: api.LoginParamsXLoginSourceApi,
 		UserAgent:    "test",
@@ -333,7 +333,7 @@ func TestService_Login2FA_OK(t *testing.T) {
 	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetUserById", ctx, userId).Return(userRepo.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last"}, nil)
 
-	userService := NewService(userQuery, twoFAService, tokenService)
+	userService := NewService(userQuery, twoFAService, tokenService, nil, "")
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.Bytes, passcode)
 	assert.NoError(t, err)
@@ -364,7 +364,7 @@ func TestService_Login2FA_NOK_UserLocked(t *testing.T) {
 	userQuery := userRepo.NewMockQuerier(t)
 	userQuery.On("GetUserById", ctx, userId).Return(userRepo.User{ID: userId, Email: "first.last@example.com", FirstName: "First", LastName: "Last", Locked: true}, nil)
 
-	userService := NewService(userQuery, twoFAService, nil)
+	userService := NewService(userQuery, twoFAService, nil, nil, "")
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId.Bytes, passcode)
 	assert.Error(t, err)
@@ -400,7 +400,7 @@ func TestService_Login2FA_NOK_UserNotExist(t *testing.T) {
 		return id.Valid
 	})).Return(userRepo.User{}, errors.New("no rows in result set"))
 
-	userService := NewService(userQuery, twoFAService, nil)
+	userService := NewService(userQuery, twoFAService, nil, nil, "")
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
@@ -436,7 +436,7 @@ func TestService_Login2FA_NOK_UserGetError(t *testing.T) {
 		return id.Valid
 	})).Return(userRepo.User{}, errors.New("error"))
 
-	userService := NewService(userQuery, twoFAService, nil)
+	userService := NewService(userQuery, twoFAService, nil, nil, "")
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)
@@ -467,7 +467,7 @@ func TestService_Login2FA_NOK_Old2FACode(t *testing.T) {
 	passcode, err := totp.GenerateCode("2Q3WE3WTYG7PYGI6B3UVA6GHSMIMHHDZ", time.Now().Add(-60*time.Second))
 	assert.NoError(t, err)
 
-	userService := NewService(nil, twoFAService, nil)
+	userService := NewService(nil, twoFAService, nil, nil, "")
 
 	login2FA, err := userService.Login2FA(ctx, api.Login2FAParams{}, userId, passcode)
 	assert.Error(t, err)

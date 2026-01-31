@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -46,7 +47,7 @@ func (rc *RedisClient) IncrementLoginFailures(ctx context.Context, ip string) (i
 func (rc *RedisClient) GetLoginFailures(ctx context.Context, ip string) (int64, error) {
 	key := fmt.Sprintf("login_failures:%s", ip)
 	count, err := rc.client.Get(ctx, key).Int64()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return 0, nil
 	}
 	return count, err
