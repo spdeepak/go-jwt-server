@@ -15,13 +15,21 @@ func TestAuthPolicy(t *testing.T) {
 	}
 	assert.True(t, tesPolicy.evalAnyOf([]string{"admin"}, []string{"roles:read"}, false))
 	assert.True(t, tesPolicy.evalAnyOf([]string{"admin"}, []string{"roles:read"}, true))
-	assert.False(t, tesPolicy.evalAnyOf([]string{"admin"}, []string{"roles:not-read"}, false))
-	assert.False(t, tesPolicy.evalAnyOf([]string{"not-admin"}, []string{"roles:read"}, false))
+	assert.True(t, tesPolicy.evalAnyOf([]string{"admin"}, []string{"roles:not-read"}, false))
+	assert.True(t, tesPolicy.evalAnyOf([]string{"not-admin"}, []string{"roles:read"}, false))
 	tesPolicy.Self = true
 	assert.True(t, func() bool {
 		return tesPolicy.evalAnyOf([]string{"admin"}, []string{"roles:read"}, true)
 	}())
-	assert.False(t, func() bool {
+	assert.True(t, func() bool {
 		return tesPolicy.evalAnyOf([]string{"admin"}, []string{"roles:read"}, false)
 	}())
+	assert.True(t, func() bool {
+		return tesPolicy.evalAnyOf([]string{"not-admin"}, []string{"roles:not-read"}, true)
+	}())
+	assert.False(t, func() bool {
+		return tesPolicy.evalAnyOf([]string{"not-admin"}, []string{"roles:not-read"}, false)
+	}())
+	emptyAuthPolicy := authPolicy{}
+	assert.True(t, emptyAuthPolicy.evalAnyOf([]string{"not-admin"}, []string{"roles:read"}, false))
 }

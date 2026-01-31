@@ -1,14 +1,10 @@
-# Go JWT Server
+# Aegis
 
 ![CI](https://github.com/spdeepak/aegis/actions/workflows/go.yml/badge.svg)
 [![codecov](https://codecov.io/gh/spdeepak/aegis/branch/main/graph/badge.svg)](https://codecov.io/gh/spdeepak/aegis)
 [![Go Report Card](https://goreportcard.com/badge/github.com/spdeepak/aegis)](https://goreportcard.com/report/github.com/spdeepak/aegis)
 
-This is a lightweight, work-in-progress JWT authentication server built with Golang. It focuses on providing
-foundational security features such as flexible key management (via a master or secret key), refresh token rotation, and
-token fingerprinting based on client metadata like IP address and user agent. Designed with security in mind, this
-server aims to be a solid base for scalable authentication in modern applications. More features and improvements are
-planned as development progresses.
+A scalable JWT authentication and authorization server in Go that powers secure microservices. It handles user management, role- and permission-based access, and token validation, with full audit logging and cloud-native deployment in mind. Focused on security, observability, and developer-friendly APIs.
 
 ## Features
 

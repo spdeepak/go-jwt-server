@@ -172,17 +172,28 @@ type (
 )
 
 func (a *authPolicy) evalAnyOf(userRoles []string, userPerms []string, isSelf bool) bool {
-	if a.AnyOf.Roles == nil && a.AnyOf.Permissions == nil {
+	// If nothing is specified, allow
+	if (a.AnyOf.Roles == nil || len(a.AnyOf.Roles) == 0) &&
+		(a.AnyOf.Permissions == nil || len(a.AnyOf.Permissions) == 0) &&
+		!a.Self {
 		return true
 	}
-	if a.Self && !isSelf {
-		return false
+
+	// Check if self matches
+	if a.Self && isSelf {
+		return true
 	}
-	if a.AnyOf.Roles != nil && len(a.AnyOf.Roles) > 0 && !util.HasAny(a.AnyOf.Roles, userRoles) {
-		return false
+
+	// Check if any role matches
+	if a.AnyOf.Roles != nil && util.HasAny(a.AnyOf.Roles, userRoles) {
+		return true
 	}
-	if a.AnyOf.Permissions != nil && len(a.AnyOf.Permissions) > 0 && !util.HasAny(a.AnyOf.Permissions, userPerms) {
-		return false
+
+	// Check if any permission matches
+	if a.AnyOf.Permissions != nil && util.HasAny(a.AnyOf.Permissions, userPerms) {
+		return true
 	}
-	return true
+
+	// None matched
+	return false
 }
